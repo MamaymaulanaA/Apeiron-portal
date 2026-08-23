@@ -1656,17 +1656,29 @@ h1, h2, h3, h4 {
 .icon-danger[data-v-dafa2b6e]  { background: var(--past-pink-ic) !important; }
 .icon-primary[data-v-dafa2b6e] { background: var(--past-purple-ic) !important; }
 
-/* Badge tren */
+/* Badge tren — di bawah ikon supaya tidak bertumpuk */
 .stat-trend[data-v-dafa2b6e] {
   position: absolute;
-  top: 12px;
   right: 14px;
+  bottom: 12px;
+  top: auto;
   margin-left: 0;
-  background: rgba(255, 255, 255, .75);
+  background: rgba(255, 255, 255, .8);
   border-radius: 20px;
   font-size: 10px;
   font-weight: 600;
   padding: 3px 8px;
+}
+
+/* ruang untuk ikon + badge di kolom kanan */
+.stat-card[data-v-dafa2b6e]:has(.stat-trend) {
+  padding-right: 74px !important;
+}
+
+.stat-card[data-v-dafa2b6e]:has(.stat-trend) .stat-icon-wrapper {
+  position: absolute;
+  right: 14px;
+  top: 14px;
 }
 
 .stat-trend.trend-up[data-v-dafa2b6e] { color: #1f9d63; }
