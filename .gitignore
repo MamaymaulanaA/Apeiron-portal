@@ -1,0 +1,19 @@
+# Konfigurasi & rahasia — jangan pernah di-commit
+.env
+.env.local
+.env.*.local
+
+# Data runtime: dokumen user, bukti transfer, plugin, cache, log.
+# Auto-deploy menimpa direktori target, jadi folder ini WAJIB di luar Git
+# supaya file yang diupload user tidak tertimpa/hilang saat deploy.
+storage/*
+!storage/*/
+storage/*/*
+!storage/**/.gitkeep
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
