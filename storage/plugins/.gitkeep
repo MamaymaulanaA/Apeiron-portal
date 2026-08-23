@@ -1,0 +1,3 @@
+# Storage - Plugins
+Direktori untuk menyimpan file plugin (.zip)
+Struktur: plugins/{version}/apeiron-kit-{version}.zip

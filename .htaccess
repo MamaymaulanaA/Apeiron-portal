@@ -1,0 +1,31 @@
+# Apeiron Portal - Root .htaccess
+# Struktur server: index.html, assets/, api/, config/ dll sejajar di root
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # 1. API requests -> api/index.php
+    RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+
+    # 2. File yang ada (assets, gambar, dll) -> langsung disajikan
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # 3. Direktori yang ada -> langsung disajikan
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 4. Semua sisanya -> index.html (Vue SPA fallback)
+    #    Menangani route Vue seperti /dashboard, /admin/users, /profile dll.
+    RewriteRule ^(.*)$ index.html [L]
+</IfModule>
+
+# No-cache untuk index.html agar selalu dapat versi terbaru
+<IfModule mod_headers.c>
+    <Files "index.html">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </Files>
+</IfModule>
