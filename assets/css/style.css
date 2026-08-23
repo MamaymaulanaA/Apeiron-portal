@@ -1,0 +1,788 @@
+/**
+ * Portal Apeiron — PHP Admin Views Stylesheet
+ * Matches the light pastel design language
+ *
+ * Referenced by: src/Views/layouts/main.php
+ */
+
+/* ========================================
+   1. BASE RESET & TYPOGRAPHY
+   ======================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1e293b;
+  background: #f5f6fa;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #6366f1;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #4f46e5;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+
+/* ========================================
+   2. LAYOUT
+   ======================================== */
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #eef0f5;
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, .03);
+  transition: transform .3s ease;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+
+/* ========================================
+   3. SIDEBAR
+   ======================================== */
+
+.sidebar-header {
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.sidebar-logo {
+  font-size: 1.5rem;
+}
+
+.sidebar-header h1 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: .75rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.nav-section {
+  margin-bottom: .5rem;
+}
+
+.nav-section-title {
+  font-size: .625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #94a3b8;
+  padding: .5rem .75rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  padding: .5rem .75rem;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: .8125rem;
+  font-weight: 500;
+  transition: all .2s ease;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  color: #1e293b;
+  background: rgba(99, 102, 241, .05);
+}
+
+.nav-link.active {
+  color: #6366f1;
+  background: rgba(99, 102, 241, .08);
+  font-weight: 600;
+}
+
+.nav-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-badge {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  font-size: .625rem;
+  font-weight: 700;
+  padding: .125rem .4375rem;
+  border-radius: 99px;
+  min-width: 18px;
+  text-align: center;
+  margin-left: auto;
+}
+
+
+/* ========================================
+   4. TOPBAR
+   ======================================== */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid #eef0f5;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+
+.topbar-search {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4375rem .75rem;
+  background: #f5f6fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-width: 200px;
+}
+
+.search-icon {
+  font-size: .875rem;
+  color: #94a3b8;
+}
+
+.topbar-search input {
+  background: transparent;
+  border: none;
+  color: #1e293b;
+  font-size: .8125rem;
+  width: 100%;
+  outline: none;
+}
+
+.topbar-search input::placeholder {
+  color: #94a3b8;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.topbar-icon-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all .2s ease;
+}
+
+.topbar-icon-btn:hover {
+  background: rgba(99, 102, 241, .06);
+  color: #6366f1;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-radius: 99px;
+  color: #ffffff;
+  font-size: .5625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-dropdown {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .8125rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: .8125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.user-email {
+  font-size: .6875rem;
+  color: #94a3b8;
+}
+
+
+/* ========================================
+   5. CONTENT HEADER
+   ======================================== */
+
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.content-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.content-header p {
+  font-size: .8125rem;
+  color: #94a3b8;
+  margin-top: .125rem;
+}
+
+
+/* ========================================
+   6. CONTENT BODY
+   ======================================== */
+
+.content-body {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+
+/* ========================================
+   7. ALERTS
+   ======================================== */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  padding: .75rem 1rem;
+  border-radius: 8px;
+  font-size: .8125rem;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, .06);
+  border: 1px solid rgba(16, 185, 129, .15);
+  color: #059669;
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, .06);
+  border: 1px solid rgba(239, 68, 68, .15);
+  color: #dc2626;
+}
+
+
+/* ========================================
+   8. DASHBOARD STAT CARDS
+   ======================================== */
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #eef0f5;
+  border-radius: 12px;
+  padding: 1rem 1.125rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+  transition: all .2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, .08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: .125rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: .6875rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-weight: 500;
+}
+
+/* Stat variants */
+.stat-warning .stat-icon {
+  background: rgba(245, 158, 11, .1);
+}
+
+.stat-success .stat-icon {
+  background: rgba(16, 185, 129, .1);
+}
+
+.stat-danger .stat-icon {
+  background: rgba(239, 68, 68, .1);
+}
+
+.stat-info .stat-icon {
+  background: rgba(59, 130, 246, .1);
+}
+
+
+/* ========================================
+   9. CARDS & CONTENT GRID
+   ======================================== */
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .content-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #eef0f5;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .875rem 1.25rem;
+  border-bottom: 1px solid #f0f1f5;
+  background: #fafbfc;
+}
+
+.card-header h3 {
+  font-size: .9375rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.card-body {
+  padding: 1rem 1.25rem;
+}
+
+
+/* ========================================
+   10. TABLES
+   ======================================== */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  background: #fafbfc;
+  color: #64748b;
+  font-size: .6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: .625rem 1rem;
+  border-bottom: 1px solid #eef0f5;
+  text-align: left;
+}
+
+.table td {
+  padding: .625rem 1rem;
+  border-bottom: 1px solid #f5f6fa;
+  color: #374151;
+  font-size: .8125rem;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: rgba(99, 102, 241, .02);
+}
+
+.table-sm th,
+.table-sm td {
+  padding: .5rem .75rem;
+}
+
+
+/* ========================================
+   11. BUTTONS
+   ======================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .375rem;
+  padding: .5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: .8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s ease;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.btn-sm {
+  padding: .3125rem .625rem;
+  font-size: .75rem;
+  border-radius: 6px;
+}
+
+.btn-primary {
+  background: #6366f1;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #4f46e5;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, .3);
+}
+
+.btn-secondary {
+  background: #f5f6fa;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #eef0f5;
+  color: #1e293b;
+}
+
+.btn-warning {
+  background: rgba(245, 158, 11, .1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, .2);
+}
+
+.btn-warning:hover {
+  background: rgba(245, 158, 11, .15);
+}
+
+.btn-icon {
+  padding: .375rem;
+  width: 36px;
+  height: 36px;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #64748b;
+}
+
+.btn-outline:hover {
+  background: #f5f6fa;
+  color: #1e293b;
+}
+
+
+/* ========================================
+   12. ACTIVITY LIST
+   ======================================== */
+
+.activity-list {
+  list-style: none;
+  padding: 0;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .625rem 0;
+  border-bottom: 1px solid #f5f6fa;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.activity-content {
+  flex: 1;
+  font-size: .8125rem;
+  color: #374151;
+}
+
+.activity-content strong {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.activity-content small {
+  display: block;
+  margin-top: .125rem;
+}
+
+
+/* ========================================
+   13. QUICK ACTIONS
+   ======================================== */
+
+.quick-actions {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.quick-actions .btn {
+  flex: 1;
+  min-width: 140px;
+  padding: .625rem 1rem;
+  font-size: .8125rem;
+  border-radius: 8px;
+  justify-content: center;
+}
+
+
+/* ========================================
+   14. UTILITIES
+   ======================================== */
+
+.text-muted {
+  color: #94a3b8;
+}
+
+.text-center {
+  text-align: center;
+}
+
+
+/* ========================================
+   15. SIDEBAR TOGGLE (MOBILE)
+   ======================================== */
+
+.sidebar-toggle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .content-body {
+    padding: 1rem;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions {
+    flex-direction: column;
+  }
+
+  .quick-actions .btn {
+    min-width: 100%;
+  }
+
+  .topbar {
+    padding: 0 1rem;
+    height: 56px;
+  }
+
+  .topbar-search {
+    display: none;
+  }
+
+  .user-info {
+    display: none;
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+}
+
+
+/* ========================================
+   16. SCROLLBAR
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f6fa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
