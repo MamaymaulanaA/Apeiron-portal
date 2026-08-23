@@ -669,7 +669,7 @@ h1, h2, h3, h4 {
 }
 
 .stat-value[data-v-e04b8861] {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.15;
@@ -1526,7 +1526,7 @@ h1, h2, h3, h4 {
 
 .stat-value[data-v-dafa2b6e] {
   color: var(--text) !important;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -.02em;
@@ -1602,7 +1602,7 @@ h1, h2, h3, h4 {
 
 .stat-number[data-v-dafa2b6e] {
   color: var(--text) !important;
-  font-size: 26px !important;
+  font-size: 28px !important;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -.02em;
