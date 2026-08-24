@@ -1,10 +1,10 @@
 <script setup>
 /**
- * Kartu statistik.
+ * Kartu ringkasan — mengikuti pola stat card pada referensi: chip ikon
+ * berwarna, angka besar, lalu label.
  *
- * Kartu selalu berlatar netral. Warna hanya muncul lewat `tone` bila angkanya
- * memang menyatakan status (mis. transaksi ditolak), bukan untuk membedakan
- * satu kartu dari kartu lain.
+ * Latar mengikuti `tone`. Aturan design system tetap berlaku: radius 8px,
+ * border 1px, tanpa bayangan.
  */
 import { computed } from 'vue'
 import { formatNumber } from '@/lib/format'
@@ -13,8 +13,7 @@ const props = defineProps({
   label: { type: String, required: true },
   value: { type: [Number, String], default: 0 },
   icon: { type: [Object, Function], default: null },
-  /** Beri nada hanya bila angka ini menyatakan keadaan. */
-  tone: { type: String, default: 'tone-neutral' },
+  tone: { type: String, default: 'tone-sky' },
   hint: { type: String, default: '' },
   to: { type: String, default: '' },
 })
@@ -32,73 +31,57 @@ const display = computed(() =>
     class="stat"
     :class="[tone, { clickable: !!to }]"
   >
-    <div class="stat-top">
-      <span class="stat-label">{{ label }}</span>
-      <span v-if="icon" class="stat-icon">
-        <component :is="icon" :size="16" :stroke-width="2" />
-      </span>
-    </div>
+    <span v-if="icon" class="stat-icon">
+      <component :is="icon" :size="18" :stroke-width="2" />
+    </span>
 
-    <span class="stat-value" :class="{ 'is-text': !isNumeric }">{{ display }}</span>
-    <span v-if="hint" class="stat-hint">{{ hint }}</span>
+    <span class="stat-text">
+      <span class="stat-value" :class="{ 'is-text': !isNumeric }">{{ display }}</span>
+      <span class="stat-label">{{ label }}</span>
+      <span v-if="hint" class="stat-hint">{{ hint }}</span>
+    </span>
   </component>
 </template>
 
 <style scoped>
 .stat {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
+  align-items: center;
+  gap: var(--sp-3);
   padding: var(--sp-4);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: var(--tone-bg);
+  border: 1px solid var(--tone-border);
   border-radius: var(--r);
   transition: border-color var(--dur) var(--ease);
 }
 
 .stat.clickable:hover {
-  border-color: var(--n-400);
+  border-color: var(--tone-fg);
 }
 
-.stat-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-}
-
-/* Label dibiarkan membungkus (maks. 2 baris) alih-alih dipotong — pada kartu
-   sempit, memotong label membuat artinya hilang. */
-.stat-label {
-  font-size: var(--fs-label);
-  color: var(--text-muted);
-  min-width: 0;
-  line-height: var(--lh-snug);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Ikon netral secara bawaan; mengambil warna nada hanya bila diberi. */
 .stat-icon {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
-  border-radius: var(--r-sm);
-  background: var(--tone-bg, var(--n-100));
-  color: var(--tone-fg, var(--n-500));
+  border-radius: var(--r);
+  background: var(--bg-surface);
+  color: var(--tone-fg);
+}
+
+.stat-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
 }
 
 .stat-value {
   font-size: var(--fs-display);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-bold);
   color: var(--text-heading);
   letter-spacing: var(--tracking-tight);
-  line-height: 1.15;
 }
 
 /* Nilai berupa teks memakai skala lebih kecil agar tidak membungkus. */
@@ -107,8 +90,17 @@ const display = computed(() =>
   line-height: var(--lh-snug);
 }
 
+.stat-label {
+  margin-top: 2px;
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-body);
+  line-height: var(--lh-snug);
+}
+
 .stat-hint {
+  margin-top: 2px;
   font-size: var(--fs-caption);
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 </style>

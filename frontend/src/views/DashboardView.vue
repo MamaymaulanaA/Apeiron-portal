@@ -1,17 +1,17 @@
 <script setup>
 /**
- * Dashboard user.
+ * Dashboard user — mengikuti struktur referensi: banner sambutan, kartu
+ * ringkasan, daftar anggota, katalog template, dan kolom kanan.
  *
- * SEMUA data di halaman ini berasal dari endpoint yang sudah ada:
+ * SUMBER DATA (semuanya endpoint yang sudah ada, tidak ada data karangan):
  *   GET /user/dashboard  → transaksi, lisensi, template, flag izin, plugin
- *   GET /notifications   → daftar aktivitas + jumlah belum dibaca
+ *   GET /notifications   → Aktivitas + jumlah belum dibaca
+ *   GET /admin/users     → Anggota; hanya dipanggil bila yang membuka admin,
+ *                          karena endpoint itu dilindungi requireAdmin()
  *
- * Tidak ada angka, daftar, atau kartu yang diisi data contoh. Bagian yang
- * backend-nya belum menyediakan data memakai empty state apa adanya.
- *
- * Catatan: seksi "Anggota" tidak ada di sini. Satu-satunya sumber daftar user
- * adalah GET /admin/users yang dilindungi requireAdmin(), jadi user biasa tidak
- * punya sumber data nyata untuk itu. Seksi tersebut hidup di dashboard admin.
+ * Forum dan Group ada di kolom kanan mengikuti referensi, tetapi backend belum
+ * punya tabel maupun endpoint untuk keduanya. Selama itu belum ada, keduanya
+ * menampilkan empty state — bukan data contoh.
  */
 import { ref, computed, onMounted } from 'vue'
 import {
@@ -24,7 +24,6 @@ import {
   Copy,
   Check,
   Clock,
-  CircleCheck,
   CircleAlert,
   Receipt,
   ArrowRight,
@@ -32,15 +31,20 @@ import {
   LayoutGrid,
   List,
   ExternalLink,
-  Bell,
+  Activity,
+  MessagesSquare,
+  UsersRound,
+  Users,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
+import AvatarRing from '@/components/ui/AvatarRing.vue'
+import RailCard from '@/components/ui/RailCard.vue'
 import { api, errorMessage } from '@/lib/api'
-import { formatDate, formatRelative } from '@/lib/format'
-import { authState } from '@/stores/auth'
+import { formatDate, formatRelative, initials } from '@/lib/format'
+import { authState, isAdmin } from '@/stores/auth'
 import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
 
@@ -50,6 +54,10 @@ const data = ref(null)
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const copied = ref('')
+
+const members = ref([])
+const membersLoading = ref(false)
+const memberTab = ref('Aktif')
 
 // Filter template — bekerja di sisi klien atas data yang sudah dimuat.
 const search = ref('')
@@ -64,28 +72,21 @@ const plugin = computed(() => data.value?.latest_plugin || null)
 const canUpload = computed(() => !!data.value?.can_upload)
 const canDownload = computed(() => !!data.value?.can_download)
 
-/**
- * Tahap perjalanan lisensi, diturunkan dari status transaksi yang dikirim
- * backend. Dipakai untuk progres dan ringkasan status.
- */
-const journey = computed(() => {
-  if (license.value) {
-    return { step: 3, percent: 100, tone: 'tone-ok', text: 'Lisensi aktif' }
-  }
-  if (!transaction.value) {
-    return { step: 0, percent: 0, tone: 'tone-neutral', text: 'Belum ada pengajuan' }
-  }
+/** Progres lisensi, diturunkan dari status transaksi yang dikirim backend. */
+const progress = computed(() => {
+  if (license.value) return 100
+  if (!transaction.value) return 0
   switch (transaction.value.status) {
     case 'approved':
-      return { step: 3, percent: 100, tone: 'tone-ok', text: 'Disetujui' }
+      return 100
     case 'pending_license':
-      return { step: 2, percent: 75, tone: 'tone-info', text: 'Lisensi sedang diterbitkan' }
+      return 75
     case 'waiting_verification':
-      return { step: 1, percent: 45, tone: 'tone-warn', text: 'Menunggu verifikasi' }
+      return 45
     case 'rejected':
-      return { step: 1, percent: 25, tone: 'tone-err', text: 'Perlu unggah ulang' }
+      return 25
     default:
-      return { step: 0, percent: 0, tone: 'tone-neutral', text: transaction.value.status }
+      return 0
   }
 })
 
@@ -101,7 +102,7 @@ const guidance = computed(() => {
     case 'pending_license':
       return 'Pembayaran sudah disetujui. Lisensi akan terbit begitu server tersedia.'
     default:
-      return 'Bukti transaksi sedang diperiksa admin.'
+      return 'Bukti transaksi Anda sedang diperiksa admin.'
   }
 })
 
@@ -120,7 +121,13 @@ const filteredTemplates = computed(() => {
   return list
 })
 
-const recentActivity = computed(() => notifState.items.slice(0, 6))
+const visibleMembers = computed(() =>
+  memberTab.value === 'Aktif'
+    ? members.value.filter((m) => Number(m.is_active))
+    : members.value
+)
+
+const recentActivity = computed(() => notifState.items.slice(0, 5))
 
 async function load() {
   loading.value = true
@@ -131,6 +138,24 @@ async function load() {
     toast.error(errorMessage(e, 'Gagal memuat dashboard'))
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * Anggota hanya diambil bila yang membuka adalah admin — GET /admin/users
+ * dilindungi requireAdmin(), jadi memanggilnya sebagai user biasa hanya akan
+ * menghasilkan 403. Bila gagal, daftar dibiarkan kosong (tanpa data contoh).
+ */
+async function loadMembers() {
+  if (!isAdmin.value) return
+  membersLoading.value = true
+  try {
+    const { data: res } = await api.get('/admin/users')
+    members.value = res.users || []
+  } catch {
+    members.value = []
+  } finally {
+    membersLoading.value = false
   }
 }
 
@@ -180,500 +205,557 @@ async function copyText(value, key) {
 
 onMounted(() => {
   load()
+  loadMembers()
   fetchNotifications()
 })
 </script>
 
 <template>
-  <div class="page">
-    <header class="page-head">
-      <div>
-        <h1>Dashboard</h1>
-        <p class="text-caption">Halo, {{ user?.name }} — ringkasan lisensi Anda.</p>
-      </div>
+  <div class="dash">
+    <!-- ================= Kolom utama ================= -->
+    <div class="dash-main">
+      <!-- ---------- Banner sambutan ---------- -->
+      <section class="banner">
+        <AvatarRing :name="user?.name" :percent="progress" :size="92" />
 
-      <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
-        <Download :size="16" />
-        Unduh Plugin
-      </a>
-      <button v-else-if="canUpload" class="btn btn-primary" type="button" @click="pickFile">
-        <Upload :size="16" />
-        Unggah Bukti Transaksi
-      </button>
-    </header>
+        <div class="banner-text">
+          <p class="banner-progress">
+            <strong>{{ progress }}%</strong> proses lisensi
+          </p>
+          <h1 class="banner-title">
+            Selamat datang, <span>{{ user?.name }}</span>
+          </h1>
+          <p class="banner-sub">{{ guidance }}</p>
 
-    <!-- ---------- Ringkasan status ---------- -->
-    <section class="journey card" :class="journey.tone">
-      <div class="journey-top">
-        <span class="badge" :class="journey.tone">
-          <span
-            class="status-dot"
-            :class="{ 'is-live': journey.step > 0 && journey.step < 3 }"
-            style="background: currentColor"
-          />
-          {{ journey.text }}
-        </span>
-        <span class="journey-pct">{{ journey.percent }}%</span>
-      </div>
-
-      <p class="journey-text">{{ guidance }}</p>
-
-      <div
-        class="journey-bar"
-        role="progressbar"
-        :aria-valuenow="journey.percent"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      >
-        <span class="journey-fill" :style="{ width: journey.percent + '%' }" />
-      </div>
-
-      <ol class="journey-steps">
-        <li :class="{ done: journey.step >= 1 }">Unggah bukti</li>
-        <li :class="{ done: journey.step >= 2 }">Verifikasi admin</li>
-        <li :class="{ done: journey.step >= 3 }">Lisensi terbit</li>
-      </ol>
-    </section>
-
-    <!-- ---------- Statistik (semuanya data nyata) ---------- -->
-    <section class="grid stats">
-      <StatCard
-        label="Status lisensi"
-        :value="license ? 'Aktif' : 'Belum terbit'"
-        :icon="KeyRound"
-        :tone="license ? 'tone-ok' : 'tone-neutral'"
-        :hint="license ? formatDate(license.assigned_at, false) : 'Menunggu persetujuan'"
-        to="/plugins"
-      />
-      <StatCard
-        label="Template tersedia"
-        :value="templates.length"
-        :icon="LayoutTemplate"
-        hint="Siap dipakai"
-        to="/templates"
-      />
-      <StatCard
-        label="Versi plugin"
-        :value="plugin ? `v${plugin.version}` : '—'"
-        :icon="Package"
-        :hint="plugin ? 'Rilis terbaru' : 'Belum ada rilis'"
-        to="/plugins"
-      />
-      <StatCard
-        label="Belum dibaca"
-        :value="notifState.unread"
-        :icon="Bell"
-        :tone="notifState.unread > 0 ? 'tone-info' : 'tone-neutral'"
-        :hint="`dari ${notifState.items.length} notifikasi`"
-      />
-    </section>
-
-    <div class="split">
-      <div class="stack">
-        <!-- ---------- Bukti transaksi ---------- -->
-        <section class="card">
-          <header class="card-header">
-            <h2>Bukti transaksi</h2>
-            <StatusBadge
-              v-if="transaction"
-              :status="transaction.status"
-              :label="transaction.status_label"
-            />
-          </header>
-
-          <SkeletonRows v-if="loading" :rows="2" />
-
-          <div v-else class="card-body">
-            <template v-if="transaction">
-              <dl class="detail">
-                <div>
-                  <dt>Nama dokumen</dt>
-                  <dd>{{ transaction.document_name || '—' }}</dd>
-                </div>
-                <div>
-                  <dt>Diajukan</dt>
-                  <dd>{{ formatDate(transaction.created_at) }}</dd>
-                </div>
-                <div v-if="transaction.approved_at">
-                  <dt>Disetujui</dt>
-                  <dd>{{ formatDate(transaction.approved_at) }}</dd>
-                </div>
-                <div v-if="transaction.rejected_at">
-                  <dt>Ditolak</dt>
-                  <dd>{{ formatDate(transaction.rejected_at) }}</dd>
-                </div>
-              </dl>
-
-              <p v-if="transaction.admin_notes" class="note">
-                <CircleAlert :size="15" />
-                <span><strong>Catatan admin:</strong> {{ transaction.admin_notes }}</span>
-              </p>
-            </template>
-
-            <!-- Area unggah muncul saat backend mengizinkan, atau saat belum
-                 ada transaksi sama sekali. -->
-            <div v-if="canUpload || !transaction" class="upload" :class="{ first: !transaction }">
-              <input
-                ref="fileInput"
-                class="sr-only"
-                type="file"
-                accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
-                @change="onFileChange"
-              >
-
-              <div v-if="selectedFile" class="picked">
-                <FileText :size="16" />
-                <span class="picked-name">{{ selectedFile.name }}</span>
-                <button
-                  class="btn btn-sm btn-ghost"
-                  type="button"
-                  :disabled="uploading"
-                  @click="selectedFile = null"
-                >
-                  Ganti
-                </button>
-                <button
-                  class="btn btn-sm btn-primary"
-                  type="button"
-                  :disabled="uploading"
-                  @click="submitUpload"
-                >
-                  {{ uploading ? 'Mengirim…' : 'Kirim' }}
-                </button>
-              </div>
-
-              <button v-else class="dropzone" type="button" @click="pickFile">
-                <Upload :size="18" />
-                <span>
-                  <strong>
-                    {{ transaction ? 'Unggah ulang bukti transaksi' : 'Unggah bukti transaksi' }}
-                  </strong>
-                  <small>JPG, PNG, atau PDF — maksimal 5MB</small>
-                </span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <!-- ---------- Template ---------- -->
-        <section class="card">
-          <header class="card-header">
-            <h2>Template undangan</h2>
-            <RouterLink to="/templates" class="link-more">
-              Lihat semua <ArrowRight :size="14" />
-            </RouterLink>
-          </header>
-
-          <div class="toolbar control-row">
-            <div class="input-group toolbar-search">
-              <Search class="input-icon" :size="16" />
-              <input
-                v-model="search"
-                class="input"
-                type="search"
-                placeholder="Cari template…"
-                aria-label="Cari template"
-              >
-            </div>
-
-            <select v-model="kind" class="select toolbar-select" aria-label="Tipe template">
-              <option value="all">Semua tipe</option>
-              <option value="standard">Standard</option>
-              <option value="premium">Premium</option>
-            </select>
-
-            <div class="segmented">
-              <button
-                class="segmented-item"
-                :class="{ active: view === 'grid' }"
-                type="button"
-                aria-label="Tampilan grid"
-                @click="view = 'grid'"
-              >
-                <LayoutGrid :size="15" />
-              </button>
-              <button
-                class="segmented-item"
-                :class="{ active: view === 'list' }"
-                type="button"
-                aria-label="Tampilan daftar"
-                @click="view = 'list'"
-              >
-                <List :size="15" />
-              </button>
-            </div>
-          </div>
-
-          <SkeletonRows v-if="loading" :rows="2" :height="96" />
-
-          <div
-            v-else-if="filteredTemplates.length"
-            class="tpl-wrap"
-            :class="view === 'grid' ? 'tpl-grid' : 'tpl-list'"
-          >
-            <article v-for="t in filteredTemplates" :key="t.id" class="tpl">
-              <div class="tpl-thumb">
-                <img
-                  v-if="t.thumbnail_path"
-                  :src="`/storage/templates/thumbnails/${t.thumbnail_path}`"
-                  :alt="t.name"
-                  loading="lazy"
-                >
-                <LayoutTemplate v-else :size="20" />
-              </div>
-
-              <div class="tpl-body">
-                <div class="tpl-title">
-                  <h3>{{ t.name }}</h3>
-                  <span class="badge">
-                    {{ Number(t.is_standard) ? 'Standard' : 'Premium' }}
-                  </span>
-                </div>
-                <p v-if="t.description" class="tpl-desc">{{ t.description }}</p>
-                <a
-                  v-if="t.checkout_url"
-                  class="tpl-cta"
-                  :href="t.checkout_url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Pesan <ExternalLink :size="12" />
-                </a>
-              </div>
-            </article>
-          </div>
-
-          <EmptyState
-            v-else
-            :icon="LayoutTemplate"
-            title="Template tidak ditemukan"
-            :description="
-              search || kind !== 'all'
-                ? 'Coba ubah kata kunci atau filter tipe.'
-                : 'Belum ada template yang tersedia.'
-            "
-          />
-        </section>
-      </div>
-
-      <!-- ---------- Kolom kanan ---------- -->
-      <aside class="stack">
-        <section class="card">
-          <header class="card-header">
-            <h2>Lisensi Anda</h2>
-          </header>
-
-          <div v-if="license" class="card-body">
-            <div class="field">
-              <span class="text-overline">License key</span>
-              <div class="key-row">
-                <code class="key">{{ license.license_key }}</code>
-                <button
-                  class="btn btn-sm btn-secondary btn-icon"
-                  type="button"
-                  aria-label="Salin license key"
-                  @click="copyText(license.license_key, 'lic')"
-                >
-                  <component :is="copied === 'lic' ? Check : Copy" :size="14" />
-                </button>
-              </div>
-            </div>
-
-            <div v-if="license.api_key" class="field key-field">
-              <span class="text-overline">API key</span>
-              <div class="key-row">
-                <code class="key">{{ license.api_key }}</code>
-                <button
-                  class="btn btn-sm btn-secondary btn-icon"
-                  type="button"
-                  aria-label="Salin API key"
-                  @click="copyText(license.api_key, 'api')"
-                >
-                  <component :is="copied === 'api' ? Check : Copy" :size="14" />
-                </button>
-              </div>
-            </div>
-
-            <a class="btn btn-secondary btn-block key-field" href="/api/user/download-invoice">
-              <Receipt :size="15" />
-              Unduh invoice
+          <div class="banner-actions">
+            <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
+              <Download :size="16" />
+              Unduh Plugin
             </a>
-          </div>
-
-          <EmptyState
-            v-else
-            :icon="KeyRound"
-            title="Lisensi belum terbit"
-            description="Lisensi muncul otomatis setelah bukti transaksi disetujui."
-            compact
-          />
-        </section>
-
-        <section class="card">
-          <header class="card-header">
-            <h2>Plugin terbaru</h2>
-          </header>
-
-          <div v-if="plugin" class="card-body">
-            <p class="plugin-version">v{{ plugin.version }}</p>
-            <p v-if="plugin.changelog" class="text-caption plugin-log">
-              {{ plugin.changelog }}
-            </p>
-
-            <a
-              v-if="canDownload"
-              class="btn btn-primary btn-block plugin-cta"
-              href="/api/user/download-plugin"
+            <button
+              v-else-if="canUpload || !transaction"
+              class="btn btn-primary"
+              type="button"
+              @click="pickFile"
             >
-              <Download :size="15" />
-              Unduh plugin
-            </a>
-            <p v-else class="locked">
-              <CircleAlert :size="14" />
-              Lisensi aktif diperlukan untuk mengunduh.
-            </p>
+              <Upload :size="16" />
+              Unggah Bukti Transaksi
+            </button>
+            <RouterLink v-else to="/plugins" class="btn btn-secondary">
+              Lihat Lisensi
+              <ArrowRight :size="15" />
+            </RouterLink>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- Kartu ringkasan (semuanya data nyata) ---------- -->
+      <section class="grid stats">
+        <StatCard
+          label="Template"
+          :value="templates.length"
+          :icon="LayoutTemplate"
+          tone="tone-peach"
+          hint="Siap dipakai"
+          to="/templates"
+        />
+        <StatCard
+          label="Status lisensi"
+          :value="license ? 'Aktif' : 'Belum terbit'"
+          :icon="KeyRound"
+          tone="tone-sky"
+          :hint="license ? formatDate(license.assigned_at, false) : 'Menunggu persetujuan'"
+          to="/plugins"
+        />
+        <StatCard
+          label="Versi plugin"
+          :value="plugin ? `v${plugin.version}` : '—'"
+          :icon="Package"
+          tone="tone-mint"
+          :hint="plugin ? 'Rilis terbaru' : 'Belum ada rilis'"
+          to="/plugins"
+        />
+        <StatCard
+          label="Notifikasi"
+          :value="notifState.items.length"
+          :icon="Activity"
+          tone="tone-lilac"
+          :hint="`${notifState.unread} belum dibaca`"
+        />
+      </section>
+
+      <!-- ---------- Anggota (hanya admin: satu-satunya sumber nyata) ---------- -->
+      <section v-if="isAdmin" class="card">
+        <header class="card-header">
+          <h2>
+            <span class="icon-chip icon-chip-sm tone-sky"><Users :size="15" /></span>
+            Anggota
+          </h2>
+
+          <div class="tabs" role="tablist">
+            <button
+              v-for="t in ['Aktif', 'Semua']"
+              :key="t"
+              class="tab"
+              :class="{ active: memberTab === t }"
+              type="button"
+              role="tab"
+              :aria-selected="memberTab === t"
+              @click="memberTab = t"
+            >
+              {{ t }}
+            </button>
+          </div>
+        </header>
+
+        <SkeletonRows v-if="membersLoading" :rows="1" :height="88" />
+
+        <div v-else-if="visibleMembers.length" class="member-strip scroll-area">
+          <article v-for="m in visibleMembers" :key="m.id" class="member">
+            <span class="member-avatar">
+              {{ initials(m.name) }}
+              <span class="member-dot" :class="{ on: Number(m.is_active) }" />
+            </span>
+            <span class="member-name">{{ m.name }}</span>
+            <span class="member-role">{{ m.role === 'admin' ? 'Admin' : 'Member' }}</span>
+          </article>
+        </div>
+
+        <EmptyState
+          v-else
+          :icon="Users"
+          title="Belum ada anggota"
+          description="Daftar pengguna akan tampil di sini."
+          compact
+        />
+      </section>
+
+      <!-- ---------- Template ---------- -->
+      <section class="card">
+        <header class="card-header">
+          <h2>
+            <span class="icon-chip icon-chip-sm tone-peach">
+              <LayoutTemplate :size="15" />
+            </span>
+            Template Undangan
+          </h2>
+          <RouterLink to="/templates" class="link-more">
+            Lihat semua <ArrowRight :size="14" />
+          </RouterLink>
+        </header>
+
+        <div class="toolbar control-row">
+          <div class="input-group toolbar-search">
+            <Search class="input-icon" :size="16" />
+            <input
+              v-model="search"
+              class="input"
+              type="search"
+              placeholder="Cari template…"
+              aria-label="Cari template"
+            >
           </div>
 
-          <EmptyState
-            v-else
-            :icon="Package"
-            title="Belum ada rilis"
-            description="Versi plugin akan tampil di sini."
-            compact
-          />
-        </section>
+          <select v-model="kind" class="select toolbar-select" aria-label="Tipe template">
+            <option value="all">Semua tipe</option>
+            <option value="standard">Standard</option>
+            <option value="premium">Premium</option>
+          </select>
 
-        <section class="card">
-          <header class="card-header">
-            <h2>Aktivitas</h2>
-          </header>
+          <div class="segmented">
+            <button
+              class="segmented-item"
+              :class="{ active: view === 'grid' }"
+              type="button"
+              aria-label="Tampilan grid"
+              @click="view = 'grid'"
+            >
+              <LayoutGrid :size="15" />
+            </button>
+            <button
+              class="segmented-item"
+              :class="{ active: view === 'list' }"
+              type="button"
+              aria-label="Tampilan daftar"
+              @click="view = 'list'"
+            >
+              <List :size="15" />
+            </button>
+          </div>
+        </div>
 
-          <ul v-if="recentActivity.length" class="feed">
-            <li v-for="n in recentActivity" :key="n.id" class="feed-item">
-              <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
-              <span class="feed-text">
-                <span class="feed-title">{{ n.title }}</span>
-                <span class="feed-msg">{{ n.message }}</span>
-                <span class="feed-time">
-                  <Clock :size="11" />
-                  {{ formatRelative(n.created_at) }}
+        <SkeletonRows v-if="loading" :rows="2" :height="96" />
+
+        <div
+          v-else-if="filteredTemplates.length"
+          class="tpl-wrap"
+          :class="view === 'grid' ? 'tpl-grid' : 'tpl-list'"
+        >
+          <article v-for="t in filteredTemplates" :key="t.id" class="tpl">
+            <div class="tpl-thumb">
+              <img
+                v-if="t.thumbnail_path"
+                :src="`/storage/templates/thumbnails/${t.thumbnail_path}`"
+                :alt="t.name"
+                loading="lazy"
+              >
+              <LayoutTemplate v-else :size="20" />
+            </div>
+
+            <div class="tpl-body">
+              <div class="tpl-title">
+                <h3>{{ t.name }}</h3>
+                <span
+                  class="badge"
+                  :class="Number(t.is_standard) ? 'tone-sky' : 'tone-lilac'"
+                >
+                  {{ Number(t.is_standard) ? 'Standard' : 'Premium' }}
                 </span>
-              </span>
-            </li>
-          </ul>
+              </div>
+              <p v-if="t.description" class="tpl-desc">{{ t.description }}</p>
+              <a
+                v-if="t.checkout_url"
+                class="tpl-cta"
+                :href="t.checkout_url"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Pesan <ExternalLink :size="12" />
+              </a>
+            </div>
+          </article>
+        </div>
 
-          <EmptyState
-            v-else
-            :icon="CircleCheck"
-            title="Belum ada aktivitas"
-            description="Pemberitahuan akan muncul di sini."
-            compact
+        <EmptyState
+          v-else
+          :icon="LayoutTemplate"
+          title="Template tidak ditemukan"
+          :description="
+            search || kind !== 'all'
+              ? 'Coba ubah kata kunci atau filter tipe.'
+              : 'Belum ada template yang tersedia.'
+          "
+        />
+      </section>
+
+      <!-- ---------- Bukti transaksi ---------- -->
+      <section class="card">
+        <header class="card-header">
+          <h2>
+            <span class="icon-chip icon-chip-sm tone-sky"><FileText :size="15" /></span>
+            Bukti Transaksi
+          </h2>
+          <StatusBadge
+            v-if="transaction"
+            :status="transaction.status"
+            :label="transaction.status_label"
           />
-        </section>
-      </aside>
+        </header>
+
+        <SkeletonRows v-if="loading" :rows="2" />
+
+        <div v-else class="card-body">
+          <template v-if="transaction">
+            <dl class="detail">
+              <div>
+                <dt>Nama dokumen</dt>
+                <dd>{{ transaction.document_name || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Diajukan</dt>
+                <dd>{{ formatDate(transaction.created_at) }}</dd>
+              </div>
+              <div v-if="transaction.approved_at">
+                <dt>Disetujui</dt>
+                <dd>{{ formatDate(transaction.approved_at) }}</dd>
+              </div>
+              <div v-if="transaction.rejected_at">
+                <dt>Ditolak</dt>
+                <dd>{{ formatDate(transaction.rejected_at) }}</dd>
+              </div>
+            </dl>
+
+            <p v-if="transaction.admin_notes" class="note">
+              <CircleAlert :size="15" />
+              <span><strong>Catatan admin:</strong> {{ transaction.admin_notes }}</span>
+            </p>
+          </template>
+
+          <div v-if="canUpload || !transaction" class="upload" :class="{ first: !transaction }">
+            <input
+              ref="fileInput"
+              class="sr-only"
+              type="file"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+              @change="onFileChange"
+            >
+
+            <div v-if="selectedFile" class="picked">
+              <FileText :size="16" />
+              <span class="picked-name">{{ selectedFile.name }}</span>
+              <button
+                class="btn btn-sm btn-ghost"
+                type="button"
+                :disabled="uploading"
+                @click="selectedFile = null"
+              >
+                Ganti
+              </button>
+              <button
+                class="btn btn-sm btn-primary"
+                type="button"
+                :disabled="uploading"
+                @click="submitUpload"
+              >
+                {{ uploading ? 'Mengirim…' : 'Kirim' }}
+              </button>
+            </div>
+
+            <button v-else class="dropzone" type="button" @click="pickFile">
+              <Upload :size="18" />
+              <span>
+                <strong>
+                  {{ transaction ? 'Unggah ulang bukti transaksi' : 'Unggah bukti transaksi' }}
+                </strong>
+                <small>JPG, PNG, atau PDF — maksimal 5MB</small>
+              </span>
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <!-- ================= Kolom kanan ================= -->
+    <aside class="dash-rail">
+      <!-- Forum — belum ada tabel/endpoint di backend -->
+      <RailCard title="Forum" :icon="MessagesSquare" tone="tone-sky">
+        <EmptyState
+          :icon="MessagesSquare"
+          title="Belum ada forum"
+          description="Fitur forum belum tersedia di server."
+          compact
+        />
+      </RailCard>
+
+      <!-- Aktivitas — data nyata dari GET /notifications -->
+      <RailCard title="Aktivitas" :icon="Activity" tone="tone-lilac">
+        <ul v-if="recentActivity.length" class="feed">
+          <li v-for="n in recentActivity" :key="n.id" class="feed-item">
+            <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
+            <span class="feed-text">
+              <span class="feed-title">{{ n.title }}</span>
+              <span class="feed-msg">{{ n.message }}</span>
+              <span class="feed-time">
+                <Clock :size="11" />
+                {{ formatRelative(n.created_at) }}
+              </span>
+            </span>
+          </li>
+        </ul>
+
+        <EmptyState
+          v-else
+          :icon="Activity"
+          title="Belum ada aktivitas"
+          description="Pemberitahuan akan muncul di sini."
+          compact
+        />
+      </RailCard>
+
+      <!-- Group — belum ada tabel/endpoint di backend -->
+      <RailCard title="Group" :icon="UsersRound" tone="tone-mint">
+        <EmptyState
+          :icon="UsersRound"
+          title="Belum ada group"
+          description="Fitur group belum tersedia di server."
+          compact
+        />
+      </RailCard>
+
+      <!-- Lisensi — data nyata -->
+      <RailCard title="Lisensi Anda" :icon="KeyRound" tone="tone-mint">
+        <template v-if="license">
+          <div class="field">
+            <span class="text-overline">License key</span>
+            <div class="key-row">
+              <code class="key">{{ license.license_key }}</code>
+              <button
+                class="btn btn-sm btn-secondary btn-icon"
+                type="button"
+                aria-label="Salin license key"
+                @click="copyText(license.license_key, 'lic')"
+              >
+                <component :is="copied === 'lic' ? Check : Copy" :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <div v-if="license.api_key" class="field key-field">
+            <span class="text-overline">API key</span>
+            <div class="key-row">
+              <code class="key">{{ license.api_key }}</code>
+              <button
+                class="btn btn-sm btn-secondary btn-icon"
+                type="button"
+                aria-label="Salin API key"
+                @click="copyText(license.api_key, 'api')"
+              >
+                <component :is="copied === 'api' ? Check : Copy" :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <a class="btn btn-secondary btn-block key-field" href="/api/user/download-invoice">
+            <Receipt :size="15" />
+            Unduh invoice
+          </a>
+        </template>
+
+        <EmptyState
+          v-else
+          :icon="KeyRound"
+          title="Lisensi belum terbit"
+          description="Muncul otomatis setelah bukti transaksi disetujui."
+          compact
+        />
+      </RailCard>
+
+      <!-- Plugin — data nyata -->
+      <RailCard title="Plugin Terbaru" :icon="Package" tone="tone-peach">
+        <template v-if="plugin">
+          <p class="plugin-version">v{{ plugin.version }}</p>
+          <p v-if="plugin.changelog" class="text-caption plugin-log">
+            {{ plugin.changelog }}
+          </p>
+
+          <a
+            v-if="canDownload"
+            class="btn btn-primary btn-block plugin-cta"
+            href="/api/user/download-plugin"
+          >
+            <Download :size="15" />
+            Unduh plugin
+          </a>
+          <p v-else class="locked">
+            <CircleAlert :size="14" />
+            Lisensi aktif diperlukan untuk mengunduh.
+          </p>
+        </template>
+
+        <EmptyState
+          v-else
+          :icon="Package"
+          title="Belum ada rilis"
+          description="Versi plugin akan tampil di sini."
+          compact
+        />
+      </RailCard>
+    </aside>
   </div>
 </template>
 
 <style scoped>
-/* ============ Ringkasan status ============ */
-.journey {
-  padding: var(--sp-5);
-}
-
-.journey-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-3);
-}
-
-.journey-pct {
-  font-size: var(--fs-label);
-  font-weight: var(--fw-semibold);
-  color: var(--text-heading);
-}
-
-/* Denyut hanya saat proses memang sedang berjalan */
-.status-dot.is-live {
-  animation: pulse-soft 2s var(--ease) infinite;
-}
-
-.journey-text {
-  font-size: var(--fs-body);
-  color: var(--text-body);
-  margin-bottom: var(--sp-4);
-  max-width: 68ch;
-}
-
-.journey-bar {
-  height: 6px;
-  background: var(--n-100);
-  border-radius: var(--r-pill);
-  overflow: hidden;
-}
-
-.journey-fill {
-  display: block;
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: var(--tone-fg, var(--brand));
-  transition: width var(--dur) var(--ease);
-}
-
-.journey-steps {
-  display: flex;
-  gap: var(--sp-5);
-  margin-top: var(--sp-3);
-  flex-wrap: wrap;
-}
-.journey-steps li {
-  position: relative;
-  padding-left: var(--sp-4);
-  font-size: var(--fs-caption);
-  color: var(--text-faint);
-}
-.journey-steps li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 7px;
-  height: 7px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--n-300);
-}
-.journey-steps li.done {
-  color: var(--text-body);
-}
-.journey-steps li.done::before {
-  background: var(--tone-fg, var(--brand));
-  border-color: var(--tone-fg, var(--brand));
-}
-
-/* ============ Statistik ============ */
-.stats {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-
-/* ============ Split ============ */
-.split {
+/* ============ Kerangka dua kolom ============ */
+.dash {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-4);
   align-items: start;
 }
 
-@media (min-width: 1200px) {
-  .split {
+.dash-main,
+.dash-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .dash {
     grid-template-columns: minmax(0, 1fr) var(--rail-w);
   }
 }
 
-.split > * {
+/* ============ Banner ============ */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  border-radius: var(--r);
+  background: linear-gradient(110deg, #eff5ff 0%, #f7fbff 55%, #eef4ff 100%);
+  border: 1px solid var(--brand-border);
+}
+
+.banner-text {
   min-width: 0;
+}
+
+.banner-progress {
+  font-size: var(--fs-label);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-1);
+}
+.banner-progress strong {
+  color: var(--brand);
+  font-weight: var(--fw-bold);
+}
+
+.banner-title {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--sp-1);
+}
+.banner-title span {
+  color: var(--brand);
+}
+
+.banner-sub {
+  color: var(--text-body);
+  max-width: 60ch;
+  line-height: var(--lh-snug);
+}
+
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+/* ============ Ringkasan ============ */
+.stats {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+/* ============ Tab ============ */
+.tabs {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.tab {
+  position: relative;
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  transition: color var(--dur) var(--ease);
+}
+.tab:hover {
+  color: var(--text-heading);
+}
+.tab.active {
+  color: var(--brand);
+}
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  background: var(--brand);
 }
 
 .link-more {
@@ -688,104 +770,74 @@ onMounted(() => {
   color: var(--brand-hover);
 }
 
-/* ============ Detail transaksi ============ */
-.detail {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--sp-4);
-}
-.detail dt {
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-  margin-bottom: 2px;
-}
-.detail dd {
-  font-size: var(--fs-body);
-  color: var(--text-heading);
-  word-break: break-word;
-}
-
-.note {
+/* ============ Anggota ============ */
+.member-strip {
   display: flex;
-  align-items: flex-start;
-  gap: var(--sp-2);
-  margin-top: var(--sp-4);
-  padding: var(--sp-3);
-  background: var(--warn-soft);
-  border: 1px solid var(--warn-border);
-  border-radius: var(--r);
-  font-size: var(--fs-label);
-  color: var(--text-body);
-}
-.note svg {
-  color: var(--warn);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.note strong {
-  color: var(--text-heading);
-  font-weight: var(--fw-medium);
-}
-
-/* ============ Unggah ============ */
-.upload {
-  margin-top: var(--sp-4);
-}
-.upload.first {
-  margin-top: 0;
-}
-
-.dropzone {
-  display: flex;
-  align-items: center;
   gap: var(--sp-3);
-  width: 100%;
-  padding: var(--sp-4);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r);
-  background: var(--bg-subtle);
-  color: var(--text-muted);
-  text-align: left;
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  padding: var(--sp-4) var(--sp-5);
+  overflow-x: auto;
 }
-.dropzone:hover {
-  border-color: var(--brand);
-  background: var(--bg-surface);
-}
-.dropzone span {
+
+.member {
   display: flex;
   flex-direction: column;
-}
-.dropzone strong {
-  font-size: var(--fs-body);
-  font-weight: var(--fw-medium);
-  color: var(--text-heading);
-}
-.dropzone small {
-  font-size: var(--fs-caption);
-}
-
-.picked {
-  display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  padding: var(--sp-3);
+  gap: var(--sp-2);
+  flex-shrink: 0;
+  width: 104px;
+  padding: var(--sp-3) var(--sp-2);
   border: 1px solid var(--border);
   border-radius: var(--r);
-  color: var(--text-muted);
+  text-align: center;
+  transition: border-color var(--dur) var(--ease);
 }
-.picked-name {
-  flex: 1;
-  min-width: 0;
+.member:hover {
+  border-color: var(--n-400);
+}
+
+.member-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  color: var(--brand);
   font-size: var(--fs-label);
+  font-weight: var(--fw-bold);
+}
+
+.member-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--bg-surface);
+  background: var(--n-400);
+}
+.member-dot.on {
+  background: var(--ok);
+}
+
+.member-name {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
   color: var(--text-heading);
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ============ Toolbar template ============ */
+.member-role {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+/* ============ Toolbar ============ */
 .toolbar {
   padding: var(--sp-3) var(--sp-5);
   border-bottom: 1px solid var(--border);
@@ -891,7 +943,6 @@ onMounted(() => {
   color: var(--brand-hover);
 }
 
-/* Mode daftar */
 .tpl-list .tpl {
   flex-direction: row;
 }
@@ -903,6 +954,103 @@ onMounted(() => {
 .tpl-list .tpl-desc {
   -webkit-line-clamp: 1;
   line-clamp: 1;
+}
+
+/* ============ Detail transaksi ============ */
+.detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-4);
+}
+.detail dt {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.detail dd {
+  font-size: var(--fs-body);
+  color: var(--text-heading);
+  word-break: break-word;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r);
+  font-size: var(--fs-label);
+  color: var(--text-body);
+}
+.note svg {
+  color: var(--warn);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.note strong {
+  color: var(--text-heading);
+  font-weight: var(--fw-medium);
+}
+
+/* ============ Unggah ============ */
+.upload {
+  margin-top: var(--sp-4);
+}
+.upload.first {
+  margin-top: 0;
+}
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  text-align: left;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.dropzone:hover {
+  border-color: var(--brand);
+  background: var(--bg-surface);
+}
+.dropzone span {
+  display: flex;
+  flex-direction: column;
+}
+.dropzone strong {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+.dropzone small {
+  font-size: var(--fs-caption);
+}
+
+.picked {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text-muted);
+}
+.picked-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-label);
+  color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============ Lisensi & plugin ============ */
@@ -934,7 +1082,7 @@ onMounted(() => {
 
 .plugin-version {
   font-size: var(--fs-h1);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-bold);
   color: var(--text-heading);
 }
 .plugin-log {
@@ -1019,10 +1167,21 @@ onMounted(() => {
 }
 
 /* ============ Responsif ============ */
+@media (max-width: 900px) {
+  .banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .banner-title {
+    font-size: var(--fs-h1);
+  }
+}
+
 @media (max-width: 640px) {
   .toolbar,
   .tpl-wrap,
-  .card-body {
+  .card-body,
+  .member-strip {
     padding: var(--sp-4);
   }
   .detail {
@@ -1039,7 +1198,8 @@ onMounted(() => {
   .segmented-item {
     flex: 1;
   }
-  .page-head .btn {
+  .banner-actions,
+  .banner-actions .btn {
     width: 100%;
   }
   .tpl-list .tpl {

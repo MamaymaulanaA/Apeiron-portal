@@ -217,3 +217,29 @@
   --tone-bg: var(--info-soft);
   --tone-border: var(--info-border);
 }
+
+/**
+ * Nada aksen — dipakai kartu ringkasan dan chip ikon seksi.
+ * Berbeda dari nada status di atas: ini penanda kategori, bukan keadaan.
+ * Tetap tunduk pada aturan yang sama — radius 8px, border 1px, tanpa bayangan.
+ */
+.tone-peach {
+  --tone-fg: #c4530f;
+  --tone-bg: #fff4ed;
+  --tone-border: #ffd9c2;
+}
+.tone-sky {
+  --tone-fg: #1c64d1;
+  --tone-bg: #eff5ff;
+  --tone-border: #cadffb;
+}
+.tone-mint {
+  --tone-fg: #0a7150;
+  --tone-bg: #ecfdf5;
+  --tone-border: #b3e6cf;
+}
+.tone-lilac {
+  --tone-fg: #6941c6;
+  --tone-bg: #f6f2ff;
+  --tone-border: #ddd0fb;
+}
