@@ -10,6 +10,12 @@ defineProps({
   to: { type: String, default: '' },
   tabs: { type: Array, default: () => [] },
   activeTab: { type: String, default: '' },
+  /**
+   * Hilangkan padding badan kartu. Dipakai bila isi slot sudah mengatur
+   * paddingnya sendiri — daftar berbaris dan empty state, misalnya —
+   * supaya tidak menumpuk dua lapis jarak.
+   */
+  flush: { type: Boolean, default: false },
 })
 defineEmits(['tab'])
 </script>
@@ -42,7 +48,7 @@ defineEmits(['tab'])
       </button>
     </div>
 
-    <div class="rail-body">
+    <div class="rail-body" :class="{ flush }">
       <slot />
     </div>
   </section>
@@ -94,5 +100,21 @@ defineEmits(['tab'])
   bottom: -1px;
   height: 2px;
   background: var(--brand);
+}
+
+/* Padding badan kartu. Tanpa ini isi slot menempel ke tepi kartu — persis
+   yang terjadi pada kartu Lisensi dan Plugin. */
+.rail-body {
+  padding: var(--sp-5);
+}
+
+.rail-body.flush {
+  padding: 0;
+}
+
+/* Jarak antar-blok di dalam badan kartu diseragamkan dari satu tempat,
+   sehingga tiap kartu punya ritme vertikal yang sama. */
+.rail-body > :deep(* + *) {
+  margin-top: var(--sp-4);
 }
 </style>

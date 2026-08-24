@@ -496,7 +496,7 @@ onMounted(() => {
     <!-- ================= Kolom kanan ================= -->
     <aside class="dash-rail">
       <!-- Forum — belum ada tabel/endpoint di backend -->
-      <RailCard title="Forum" :icon="MessagesSquare" tone="tone-sky">
+      <RailCard title="Forum" :icon="MessagesSquare" tone="tone-sky" flush>
         <EmptyState
           :icon="MessagesSquare"
           title="Belum ada forum"
@@ -506,7 +506,7 @@ onMounted(() => {
       </RailCard>
 
       <!-- Aktivitas — data nyata dari GET /notifications -->
-      <RailCard title="Aktivitas" :icon="Activity" tone="tone-lilac">
+      <RailCard title="Aktivitas" :icon="Activity" tone="tone-lilac" flush>
         <ul v-if="recentActivity.length" class="feed">
           <li v-for="n in recentActivity" :key="n.id" class="feed-item">
             <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
@@ -532,7 +532,7 @@ onMounted(() => {
 
 
       <!-- Anggota — data nyata dari GET /admin/users (hanya admin) -->
-      <RailCard v-if="isAdmin" title="Anggota" :icon="Users" tone="tone-sky" to="/admin/users">
+      <RailCard v-if="isAdmin" title="Anggota" :icon="Users" tone="tone-sky" to="/admin/users" flush>
         <SkeletonRows v-if="membersLoading" :rows="3" :height="36" />
 
         <ul v-else-if="visibleMembers.length" class="member-list">
@@ -556,7 +556,7 @@ onMounted(() => {
       </RailCard>
 
       <!-- Group — belum ada tabel/endpoint di backend -->
-      <RailCard title="Group" :icon="UsersRound" tone="tone-mint">
+      <RailCard title="Group" :icon="UsersRound" tone="tone-mint" flush>
         <EmptyState
           :icon="UsersRound"
           title="Belum ada group"
@@ -583,7 +583,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="license.api_key" class="field key-field">
+          <div v-if="license.api_key" class="field">
             <span class="text-overline">API key</span>
             <div class="key-row">
               <code class="key">{{ license.api_key }}</code>
@@ -598,7 +598,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <a class="btn btn-secondary btn-block key-field" href="/api/user/download-invoice">
+          <a class="btn btn-secondary btn-block" href="/api/user/download-invoice">
             <Receipt :size="15" />
             Unduh invoice
           </a>
@@ -623,7 +623,7 @@ onMounted(() => {
 
           <a
             v-if="canDownload"
-            class="btn btn-primary btn-block plugin-cta"
+            class="btn btn-primary btn-block"
             href="/api/user/download-plugin"
           >
             <Download :size="15" />
@@ -1054,10 +1054,6 @@ onMounted(() => {
 }
 
 /* ============ Lisensi & plugin ============ */
-.key-field {
-  margin-top: var(--sp-4);
-}
-
 .key-row {
   display: flex;
   align-items: center;
@@ -1091,18 +1087,12 @@ onMounted(() => {
   color: var(--text-heading);
 }
 .plugin-log {
-  margin-top: var(--sp-2);
   line-height: var(--lh-snug);
 }
-.plugin-cta {
-  margin-top: var(--sp-4);
-}
-
 .locked {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  margin-top: var(--sp-4);
   padding: var(--sp-3);
   background: var(--bg-subtle);
   border-radius: var(--r);
