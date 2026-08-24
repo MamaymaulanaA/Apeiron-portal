@@ -15,9 +15,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import {
-  Upload,
   Download,
-  FileText,
   KeyRound,
   Package,
   LayoutTemplate,
@@ -37,12 +35,12 @@ import {
   Users,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
-import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import BannerArt from '@/components/ui/BannerArt.vue'
 import BannerBackdrop from '@/components/ui/BannerBackdrop.vue'
+import AccessGate from '@/components/dashboard/AccessGate.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative, initials } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -50,10 +48,7 @@ import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
 
 const loading = ref(true)
-const uploading = ref(false)
 const data = ref(null)
-const fileInput = ref(null)
-const selectedFile = ref(null)
 const copied = ref('')
 
 const members = ref([])
@@ -71,6 +66,14 @@ const license = computed(() => data.value?.license || null)
 const templates = computed(() => data.value?.templates || [])
 const plugin = computed(() => data.value?.latest_plugin || null)
 const canUpload = computed(() => !!data.value?.can_upload)
+
+/**
+ * Dashboard hanya terbuka setelah bukti transaksi disetujui. Keputusannya
+ * diambil dari status yang dikirim backend, bukan dari keadaan lokal.
+ */
+const hasAccess = computed(
+  () => !!license.value || transaction.value?.status === 'approved'
+)
 const canDownload = computed(() => !!data.value?.can_download)
 
 /** Progres lisensi, diturunkan dari status transaksi yang dikirim backend. */
@@ -166,39 +169,8 @@ async function loadMembers() {
   }
 }
 
-function pickFile() {
-  fileInput.value?.click()
-}
 
-function onFileChange(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  // Batas dicerminkan dari backend (5MB, JPG/PNG/GIF/WEBP/PDF).
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('Ukuran file maksimal 5MB')
-    e.target.value = ''
-    return
-  }
-  selectedFile.value = file
-}
 
-async function submitUpload() {
-  if (!selectedFile.value || uploading.value) return
-  uploading.value = true
-  try {
-    const fd = new FormData()
-    fd.append('document', selectedFile.value)
-    await api.post('/user/upload-document', fd)
-    toast.success('Dokumen berhasil dikirim')
-    selectedFile.value = null
-    if (fileInput.value) fileInput.value.value = ''
-    await load()
-  } catch (e) {
-    toast.error(errorMessage(e, 'Gagal mengupload dokumen'))
-  } finally {
-    uploading.value = false
-  }
-}
 
 async function copyText(value, key) {
   try {
@@ -218,7 +190,23 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="dash">
+  <!-- Satu akar tunggal. Transisi route di AppLayout memakai <Transition>,
+       yang menuntut tepat satu elemen anak — komentar atau elemen kedua di
+       tingkat akar membuat kelas transisi tersangkut dan halaman tetap
+       opacity: 0. -->
+  <div class="dash-root">
+    <div v-if="loading" class="dash-boot">
+      <SkeletonRows :rows="3" :height="72" />
+    </div>
+
+    <AccessGate
+      v-else-if="!hasAccess"
+      :transaction="transaction"
+      :can-upload="canUpload"
+      @uploaded="load"
+    />
+
+    <div v-else class="dash">
     <!-- ================= Kolom utama ================= -->
     <div class="dash-main">
       <!-- ---------- Banner sambutan ---------- -->
@@ -233,27 +221,19 @@ onMounted(() => {
           </h1>
           <p class="banner-sub">{{ guidance }}</p>
 
-                  <div class="banner-actions">
+          <!-- Dashboard hanya terbuka setelah transaksi disetujui, jadi aksi
+               unggah tidak pernah relevan di sini — itu ditangani AccessGate. -->
+          <div class="banner-actions">
             <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
               <Download :size="16" />
               Unduh Plugin
             </a>
-            <button
-              v-else-if="canUpload || !transaction"
-              class="btn btn-primary"
-              type="button"
-              @click="pickFile"
-            >
-              <Upload :size="16" />
-              Unggah Bukti Transaksi
-            </button>
             <RouterLink v-else to="/plugins" class="btn btn-secondary">
               Lihat Lisensi
               <ArrowRight :size="15" />
             </RouterLink>
           </div>
         </div>
-
 
         <BannerArt class="banner-art" />
       </section>
@@ -405,91 +385,6 @@ onMounted(() => {
         />
       </section>
 
-      <!-- ---------- Bukti transaksi ---------- -->
-      <section class="card">
-        <header class="card-header">
-          <h2>
-            <span class="icon-chip icon-chip-sm tone-sky"><FileText :size="15" /></span>
-            Bukti Transaksi
-          </h2>
-          <StatusBadge
-            v-if="transaction"
-            :status="transaction.status"
-            :label="transaction.status_label"
-          />
-        </header>
-
-        <SkeletonRows v-if="loading" :rows="2" />
-
-        <div v-else class="card-body">
-          <template v-if="transaction">
-            <dl class="detail">
-              <div>
-                <dt>Nama dokumen</dt>
-                <dd>{{ transaction.document_name || '—' }}</dd>
-              </div>
-              <div>
-                <dt>Diajukan</dt>
-                <dd>{{ formatDate(transaction.created_at) }}</dd>
-              </div>
-              <div v-if="transaction.approved_at">
-                <dt>Disetujui</dt>
-                <dd>{{ formatDate(transaction.approved_at) }}</dd>
-              </div>
-              <div v-if="transaction.rejected_at">
-                <dt>Ditolak</dt>
-                <dd>{{ formatDate(transaction.rejected_at) }}</dd>
-              </div>
-            </dl>
-
-            <p v-if="transaction.admin_notes" class="note">
-              <CircleAlert :size="15" />
-              <span><strong>Catatan admin:</strong> {{ transaction.admin_notes }}</span>
-            </p>
-          </template>
-
-          <div v-if="canUpload || !transaction" class="upload" :class="{ first: !transaction }">
-            <input
-              ref="fileInput"
-              class="sr-only"
-              type="file"
-              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
-              @change="onFileChange"
-            >
-
-            <div v-if="selectedFile" class="picked">
-              <FileText :size="16" />
-              <span class="picked-name">{{ selectedFile.name }}</span>
-              <button
-                class="btn btn-sm btn-ghost"
-                type="button"
-                :disabled="uploading"
-                @click="selectedFile = null"
-              >
-                Ganti
-              </button>
-              <button
-                class="btn btn-sm btn-primary"
-                type="button"
-                :disabled="uploading"
-                @click="submitUpload"
-              >
-                {{ uploading ? 'Mengirim…' : 'Kirim' }}
-              </button>
-            </div>
-
-            <button v-else class="dropzone" type="button" @click="pickFile">
-              <Upload :size="18" />
-              <span>
-                <strong>
-                  {{ transaction ? 'Unggah ulang bukti transaksi' : 'Unggah bukti transaksi' }}
-                </strong>
-                <small>JPG, PNG, atau PDF — maksimal 5MB</small>
-              </span>
-            </button>
-          </div>
-        </div>
-      </section>
     </div>
 
     <!-- ================= Kolom kanan ================= -->
@@ -642,12 +537,21 @@ onMounted(() => {
           compact
         />
       </RailCard>
-    </aside>
+      </aside>
+    </div>
   </div>
 </template>
 
 <style scoped>
 /* ============ Kerangka dua kolom ============ */
+.dash-root {
+  display: contents;
+}
+
+.dash-boot {
+  padding: var(--sp-4) 0;
+}
+
 .dash {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
