@@ -60,7 +60,7 @@ async function onSubmit() {
 <template>
   <AuthShell
     pitch-title="Mulai kelola lisensi Anda hari ini."
-    pitch-text="Buat akun untuk mengunggah bukti transaksi dan mendapatkan lisensi Apeiron Kit."
+    pitch-text="Buat akun untuk mengunggah bukti transaksi dan mendapatkan lisensi Apeiron Kit."
   >
     <header class="auth-head">
       <h1>Buat akun baru</h1>

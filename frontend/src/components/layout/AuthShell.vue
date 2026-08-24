@@ -11,7 +11,7 @@ import {
 } from 'lucide-vue-next'
 
 defineProps({
-  pitchTitle: { type: String, default: 'Kelola lisensi Apeiron Kit di satu tempat.' },
+  pitchTitle: { type: String, default: 'Kelola lisensi Apeiron Kit di satu tempat.' },
   pitchText: {
     type: String,
     default:
@@ -29,6 +29,7 @@ const highlights = [
 <template>
   <div class="auth">
     <aside class="auth-aside">
+      <div class="auth-intro">
       <div class="auth-brand">
         <span class="brand-mark"><InfinityIcon :size="22" :stroke-width="2.5" /></span>
         <span class="brand-text">
@@ -47,6 +48,7 @@ const highlights = [
             {{ h.text }}
           </li>
         </ul>
+      </div>
       </div>
 
       <p class="auth-foot">© {{ new Date().getFullYear() }} Apeiron Portal</p>
@@ -71,8 +73,7 @@ const highlights = [
 .auth-aside {
   display: none;
   flex-direction: column;
-  justify-content: space-between;
-  gap: var(--sp-10);
+  justify-content: center;
   padding: var(--sp-10);
   background: linear-gradient(160deg, #16234b 0%, #1c2c5e 55%, #24397a 100%);
   color: #fff;
@@ -103,10 +104,20 @@ const highlights = [
   background: radial-gradient(circle, var(--n-500), transparent 65%);
 }
 
-.auth-brand,
-.auth-pitch,
-.auth-foot {
+/* Brand dan pitch dijadikan satu blok agar terpusat sebagai satu kesatuan,
+   bukan brand menempel di atas dan pitch mengambang di tengah. */
+.auth-intro {
   position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.auth-foot {
+  position: absolute;
+  left: var(--sp-10);
+  bottom: var(--sp-10);
   z-index: 1;
 }
 
@@ -145,7 +156,10 @@ const highlights = [
   line-height: 1.3;
   color: #fff;
   margin-bottom: var(--sp-4);
-  max-width: 18ch;
+  max-width: 24ch;
+  /* Menyeimbangkan panjang tiap baris agar tidak menyisakan satu kata
+     sendirian di baris terakhir. */
+  text-wrap: balance;
 }
 .auth-pitch > p {
   color: #b9c4de;
@@ -178,6 +192,7 @@ const highlights = [
 }
 
 .auth-foot {
+  margin: 0;
   font-size: var(--fs-caption);
   color: #7f8db0;
 }

@@ -19,11 +19,10 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth')
   </div>
 
   <template v-else>
-    <RouterView v-if="isAuthLayout" v-slot="{ Component }">
-      <Transition name="route" mode="out-in">
-        <component :is="Component" />
-      </Transition>
-    </RouterView>
+    <!-- Halaman auth tanpa transisi: mode="out-in" menahan halaman baru
+         sampai fade-out selesai, sehingga perpindahan Masuk <-> Daftar
+         terasa tertunda padahal isinya nyaris sama. -->
+    <RouterView v-if="isAuthLayout" />
 
     <AppLayout v-else />
   </template>

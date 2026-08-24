@@ -2,16 +2,20 @@
 /**
  * Ilustrasi banner sambutan.
  *
- * Memakai berkas gambar dari src/assets sehingga Vite ikut memberi hash dan
+ * Memakai berkas WebP dari src/assets sehingga Vite ikut memberi hash dan
  * memasukkannya ke manifest build — skrip deploy otomatis membersihkan versi
  * lamanya saat gambar diganti.
+ *
+ * Ilustrasi hanya tampil selebar ~320px CSS, jadi berkasnya disimpan pada
+ * 768px: cukup tajam untuk layar 2x tanpa mengangkut piksel yang tak terpakai
+ * (271 KB PNG 1536px menjadi 56 KB).
  *
  * Gambar raster tidak bisa dianimasikan per bagian, jadi gerakannya berupa
  * ayunan naik-turun yang sangat pelan pada keseluruhan ilustrasi, ditambah
  * bayangan lembut yang ikut bernapas. Semuanya berhenti pada
  * prefers-reduced-motion.
  */
-import characterUrl from '@/assets/banner-character.png'
+import characterUrl from '@/assets/banner-character.webp'
 </script>
 
 <template>
@@ -22,8 +26,8 @@ import characterUrl from '@/assets/banner-character.png'
       class="art-img"
       alt=""
       aria-hidden="true"
-      width="1536"
-      height="1024"
+      width="768"
+      height="512"
       decoding="async"
       fetchpriority="high"
     >

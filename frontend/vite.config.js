@@ -19,6 +19,14 @@ export default defineConfig({
         manualChunks: {
           vue: ['vue', 'vue-router'],
           axios: ['axios'],
+          // Login dan Register selalu berpasangan: user berpindah bolak-balik
+          // di antara keduanya. Menyatukannya menghapus satu unduhan chunk
+          // tepat saat tautan diklik, yang di jaringan nyata terasa sebagai jeda.
+          auth: [
+            './src/views/LoginView.vue',
+            './src/views/RegisterView.vue',
+            './src/components/layout/AuthShell.vue',
+          ],
         },
       },
     },
