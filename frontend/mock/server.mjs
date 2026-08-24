@@ -107,7 +107,7 @@ const routes = {
     ]).map((t) => ({
       id: t.id,
       status: t.status,
-      status_label: t.status_label || 'Menunggu Verifikasi',
+      status_label: ({waiting_verification:'Menunggu Verifikasi',approved:'Disetujui',rejected:'Ditolak',pending_license:'Pending Lisensi (Server Offline)'})[t.status] || t.status,
       document_name: t.document_name || t.document_original_name,
       admin_notes: t.admin_notes,
       created_at: t.created_at,

@@ -6,6 +6,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppSidebar from './AppSidebar.vue'
 import AppTopBar from './AppTopBar.vue'
+import AppFooter from './AppFooter.vue'
 import { logout as doLogout } from '@/stores/auth'
 import {
   startPolling,
@@ -60,13 +61,17 @@ onBeforeUnmount(() => {
         @logout="handleLogout"
       />
 
-      <main class="shell-content">
-        <RouterView v-slot="{ Component }">
-          <Transition name="route" mode="out-in">
-            <component :is="Component" />
-          </Transition>
-        </RouterView>
-      </main>
+      <div class="shell-scroll">
+        <main class="shell-content">
+          <RouterView v-slot="{ Component }">
+            <Transition name="route" mode="out-in">
+              <component :is="Component" />
+            </Transition>
+          </RouterView>
+        </main>
+
+        <AppFooter class="shell-footer" />
+      </div>
     </div>
   </div>
 </template>
@@ -85,16 +90,30 @@ onBeforeUnmount(() => {
   min-width: 0; /* cegah anak yang lebar mendorong layout */
 }
 
-.shell-content {
+/* Kolom yang memuat konten dan footer. Footer didorong ke dasar layar
+   lewat flex sehingga halaman pendek pun footernya tetap menempel di bawah,
+   bukan menggantung tepat di bawah konten. */
+.shell-scroll {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
   padding: var(--sp-6);
 }
 
+.shell-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-footer {
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
-  .shell-content {
+  .shell-scroll {
     padding: var(--sp-4);
   }
 }
