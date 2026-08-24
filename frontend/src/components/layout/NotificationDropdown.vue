@@ -150,8 +150,8 @@ onBeforeUnmount(() => {
   position: relative;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: var(--h-control);
+  height: var(--h-control);
   border-radius: var(--r);
   color: var(--text-body);
   background: var(--bg-subtle);
@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--border);
 }
 .notif-head h3 {
-  font-size: var(--fs-body-lg);
+  font-size: var(--fs-h3);
 }
 
 .notif-mark {
@@ -242,7 +242,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: var(--sp-3);
   width: 100%;
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-3) var(--sp-5);
   text-align: left;
   border-bottom: 1px solid var(--border);
   transition: background var(--dur-fast) var(--ease);
@@ -253,11 +253,10 @@ onBeforeUnmount(() => {
 .notif-item:hover {
   background: var(--bg-hover);
 }
-.notif-item.unread {
-  background: var(--brand-soft);
-}
-.notif-item.unread:hover {
-  background: var(--brand-border);
+/* Penanda "belum dibaca" cukup lewat titik di sisi kanan, sama seperti
+   daftar Aktivitas. Memberi latar penuh membuat panel terlihat belang. */
+.notif-item.unread .notif-title {
+  color: var(--text-heading);
 }
 
 .notif-body {
@@ -292,10 +291,10 @@ onBeforeUnmount(() => {
 }
 
 .notif-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   margin-top: 6px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   background: var(--brand);
   flex-shrink: 0;
 }

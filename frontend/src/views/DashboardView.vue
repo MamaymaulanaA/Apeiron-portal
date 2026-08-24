@@ -40,7 +40,6 @@ import StatCard from '@/components/ui/StatCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
-import AvatarRing from '@/components/ui/AvatarRing.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import BannerArt from '@/components/ui/BannerArt.vue'
 import { api, errorMessage } from '@/lib/api'
@@ -223,14 +222,11 @@ onMounted(() => {
     <div class="dash-main">
       <!-- ---------- Banner sambutan ---------- -->
       <section class="banner">
-        <AvatarRing :name="user?.name" :percent="progress" :size="92" />
-
         <div class="banner-text">
-          <p class="banner-progress">
-            <strong>{{ progress }}%</strong> proses lisensi
-          </p>
+          <span class="banner-pill">{{ progress }}% proses lisensi</span>
           <h1 class="banner-title">
-            Selamat datang, <span>{{ user?.name }}</span>
+            Selamat datang,<br>
+            <span>{{ user?.name }}</span>
           </h1>
           <p class="banner-sub">{{ guidance }}</p>
 
@@ -676,13 +672,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--sp-5);
-  padding: var(--sp-5) var(--sp-6);
+  padding: var(--sp-6) var(--sp-7);
   border-radius: var(--r);
-  background:
-    radial-gradient(120% 140% at 100% 0%, #eef3ff 0%, transparent 55%),
-    linear-gradient(120deg, #fbfcff 0%, #f7f9fe 100%);
-  border: 1px solid var(--border);
-  box-shadow: var(--sh-card);
+  background: linear-gradient(105deg, #eaf1ff 0%, #f4f8ff 46%, #e8f0ff 100%);
+  border: 1px solid var(--brand-border);
   overflow: hidden;
 }
 
@@ -695,20 +688,24 @@ onMounted(() => {
   text-wrap: balance;
 }
 
-.banner-progress {
-  font-size: var(--fs-label);
-  color: var(--text-muted);
-  margin-bottom: var(--sp-1);
-}
-.banner-progress strong {
+.banner-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
   color: var(--brand);
-  font-weight: var(--fw-bold);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
 }
 
 .banner-title {
   font-size: var(--fs-display);
   font-weight: var(--fw-bold);
-  margin-bottom: var(--sp-1);
+  line-height: 1.25;
+  margin-top: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 .banner-title span {
   color: var(--brand);
@@ -731,13 +728,14 @@ onMounted(() => {
    disembunyikan agar tidak menekan teks. */
 .banner-art {
   display: none;
-  width: 190px;
-  height: 124px;
+  width: 300px;
+  height: 190px;
   flex-shrink: 0;
-  margin-left: var(--sp-2);
+  margin: calc(var(--sp-6) * -1) calc(var(--sp-7) * -1) calc(var(--sp-6) * -1) 0;
+  align-self: stretch;
 }
 
-@media (min-width: 1120px) {
+@media (min-width: 1060px) {
   .banner-art {
     display: block;
   }
