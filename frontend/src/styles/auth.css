@@ -12,10 +12,30 @@
   margin-bottom: var(--sp-2);
 }
 
+/**
+ * Field dan tombol utama pada form auth memakai SATU tinggi.
+ *
+ * --h-control di-override ke nilai --h-control-lg hanya di dalam form ini,
+ * sehingga .input (yang membaca --h-control) dan .btn-lg (yang membaca
+ * --h-control-lg) menghasilkan tinggi yang sama persis. Menyetel angka
+ * terpisah di dua tempat akan mudah kembali melenceng.
+ *
+ * Layout, jarak, dan tipografi di sekitarnya sengaja tidak disentuh.
+ */
 .auth-form {
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+
+  --h-control: var(--h-control-lg);
+}
+
+/* Tablet: sedikit lebih tinggi. Karena field dan tombol sama-sama turun dari
+   --h-control-lg, satu baris ini menaikkan keduanya sekaligus. */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .auth-form {
+    --h-control-lg: 48px;
+  }
 }
 
 .auth-error {
@@ -41,9 +61,15 @@
 .input.has-toggle {
   padding-right: var(--sp-10);
 }
+/* Dipusatkan eksplisit terhadap tinggi field, bukan mengandalkan posisi
+   statis di dalam flex — supaya tetap di tengah pada tinggi berapa pun. */
 .input-toggle {
   position: absolute;
+  top: 50%;
   right: var(--sp-3);
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
   padding: var(--sp-1);
   border-radius: var(--r-sm);
   color: var(--text-faint);

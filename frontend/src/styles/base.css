@@ -407,9 +407,13 @@ h3 {
 .input-group .input {
   padding-left: var(--sp-8);
 }
+/* Dipusatkan eksplisit terhadap tinggi field, bukan mengandalkan posisi
+   statis di dalam flex — supaya tetap di tengah pada tinggi berapa pun. */
 .input-group .input-icon {
   position: absolute;
+  top: 50%;
   left: var(--sp-3);
+  transform: translateY(-50%);
   color: var(--text-faint);
   pointer-events: none;
 }
