@@ -1,0 +1,79 @@
+/**
+ * Gaya form auth.
+ * Global (bukan scoped) karena dipakai di dalam slot AuthShell oleh
+ * LoginView dan RegisterView.
+ */
+
+.auth-head {
+  margin-bottom: var(--sp-7);
+}
+.auth-head h1 {
+  font-size: var(--fs-h1);
+  margin-bottom: var(--sp-2);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.auth-error {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-danger-soft);
+  border: 1px solid var(--c-danger-border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--c-danger);
+}
+
+.auth-note {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-primary-soft);
+  border: 1px solid var(--c-primary-border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-caption);
+  color: var(--text-body);
+}
+
+/* Tombol lihat/sembunyikan password */
+.input.has-toggle {
+  padding-right: var(--sp-10);
+}
+.input-toggle {
+  position: absolute;
+  right: var(--sp-3);
+  padding: var(--sp-1);
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  transition: color var(--dur) var(--ease);
+}
+.input-toggle:hover {
+  color: var(--text-body);
+}
+
+.auth-alt {
+  margin-top: var(--sp-6);
+  text-align: center;
+  font-size: var(--fs-body);
+  color: var(--text-muted);
+}
+.auth-alt a {
+  font-weight: var(--fw-semibold);
+  color: var(--c-primary);
+}
+.auth-alt a:hover {
+  color: var(--c-primary-hover);
+}
+
+/* Dua kolom untuk field pendek di layar lega */
+.auth-row {
+  display: grid;
+  gap: var(--sp-5);
+}
+@media (min-width: 480px) {
+  .auth-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

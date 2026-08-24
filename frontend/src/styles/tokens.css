@@ -1,0 +1,203 @@
+/**
+ * Apeiron Portal — Design Tokens
+ *
+ * Palet dan skala diturunkan dari referensi desain (dashboard navy + kartu
+ * pastel + aksen biru/oranye). Semua komponen hanya boleh memakai token di
+ * sini — jangan pernah menulis nilai hex langsung di file komponen.
+ *
+ * App ini light-only (mengikuti perilaku lama: bundle sebelumnya mengunci
+ * data-theme=light dan tidak punya toggle tema sama sekali).
+ */
+
+:root {
+  /* ---------------------------------------------------------------
+     Warna — brand
+     --------------------------------------------------------------- */
+  --c-primary: #2b6cf6;
+  --c-primary-hover: #1d5ae0;
+  --c-primary-active: #1749b8;
+  --c-primary-soft: #eaf1fe;
+  --c-primary-border: #d3e2fd;
+  --c-primary-rgb: 43, 108, 246;
+
+  --c-accent: #ff7a45;
+  --c-accent-hover: #f2632b;
+  --c-accent-soft: #fff1ea;
+  --c-accent-border: #ffddcc;
+
+  /* ---------------------------------------------------------------
+     Warna — status
+     Dipakai badge transaksi: waiting / approved / rejected / pending_license
+     --------------------------------------------------------------- */
+  --c-success: #21b573;
+  --c-success-hover: #189a61;
+  --c-success-soft: #e7f8f0;
+  --c-success-border: #c6ecdb;
+
+  --c-danger: #f04b55;
+  --c-danger-hover: #d93b45;
+  --c-danger-soft: #fdecee;
+  --c-danger-border: #fbd5d8;
+
+  --c-warning: #f2b527;
+  --c-warning-hover: #d99f16;
+  --c-warning-soft: #fef6e4;
+  --c-warning-border: #fae7bb;
+
+  --c-info: #8b5cf6;
+  --c-info-hover: #7748ea;
+  --c-info-soft: #f3edfe;
+  --c-info-border: #e4d7fc;
+
+  /* ---------------------------------------------------------------
+     Warna — permukaan
+     --------------------------------------------------------------- */
+  --bg-page: #f4f7fe;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f7f9fd;
+  --bg-hover: #f1f5fd;
+  --bg-overlay: rgba(16, 26, 56, 0.48);
+
+  --border: #e6ecf7;
+  --border-strong: #d6e0f0;
+
+  /* Sidebar — navy pekat mengikuti referensi */
+  --sidebar-bg: #16234b;
+  --sidebar-bg-soft: #1e2f5e;
+  --sidebar-text: #a9b6d6;
+  --sidebar-text-active: #ffffff;
+  --sidebar-section: #6b7ba4;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* ---------------------------------------------------------------
+     Warna — teks (hierarki 4 tingkat)
+     --------------------------------------------------------------- */
+  --text-heading: #16234b;
+  --text-body: #4a5578;
+  --text-muted: #8a93b2;
+  --text-faint: #a8b0c9;
+  --text-inverse: #ffffff;
+
+  /* ---------------------------------------------------------------
+     Tipografi
+     --------------------------------------------------------------- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  --fs-display: 1.75rem;   /* 28px — angka besar di stat card */
+  --fs-h1: 1.5rem;         /* 24px — judul halaman */
+  --fs-h2: 1.25rem;        /* 20px — judul section */
+  --fs-h3: 1.0625rem;      /* 17px — judul kartu */
+  --fs-body-lg: 0.9375rem; /* 15px */
+  --fs-body: 0.875rem;     /* 14px — teks utama */
+  --fs-label: 0.8125rem;   /* 13px — label form/tabel */
+  --fs-caption: 0.75rem;   /* 12px — keterangan */
+  --fs-micro: 0.6875rem;   /* 11px — badge/overline */
+
+  --lh-tight: 1.25;
+  --lh-snug: 1.4;
+  --lh-normal: 1.6;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+
+  /* ---------------------------------------------------------------
+     Spacing — skala 4px
+     --------------------------------------------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-7: 1.75rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+
+  /* ---------------------------------------------------------------
+     Radius
+     --------------------------------------------------------------- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 24px;
+  --r-pill: 999px;
+
+  /* ---------------------------------------------------------------
+     Shadow — lembut & difus, khas referensi
+     --------------------------------------------------------------- */
+  --sh-xs: 0 1px 2px rgba(22, 35, 75, 0.05);
+  --sh-sm: 0 2px 8px rgba(22, 35, 75, 0.05);
+  --sh-md: 0 4px 16px rgba(22, 35, 75, 0.07);
+  --sh-lg: 0 12px 32px rgba(22, 35, 75, 0.1);
+  --sh-primary: 0 6px 18px rgba(var(--c-primary-rgb), 0.28);
+
+  --ring: 0 0 0 3px rgba(var(--c-primary-rgb), 0.18);
+
+  /* ---------------------------------------------------------------
+     Layout
+     --------------------------------------------------------------- */
+  --sidebar-w: 260px;
+  --sidebar-w-collapsed: 76px;
+  --topbar-h: 72px;
+  --rail-w: 320px;
+  --content-max: 1600px;
+
+  /* ---------------------------------------------------------------
+     Motion
+     --------------------------------------------------------------- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+
+  --z-dropdown: 100;
+  --z-sidebar: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/* Kartu statistik pastel — tiap varian membawa trio bg/border/ikon.
+   Dipakai lewat class .tone-{nama} pada StatCard. */
+.tone-blue {
+  --tone-bg: #eaf1fe;
+  --tone-border: #d3e2fd;
+  --tone-fg: #2b6cf6;
+}
+.tone-orange {
+  --tone-bg: #fff1ea;
+  --tone-border: #ffddcc;
+  --tone-fg: #ff7a45;
+}
+.tone-green {
+  --tone-bg: #e7f8f0;
+  --tone-border: #c6ecdb;
+  --tone-fg: #21b573;
+}
+.tone-purple {
+  --tone-bg: #f3edfe;
+  --tone-border: #e4d7fc;
+  --tone-fg: #8b5cf6;
+}
+.tone-red {
+  --tone-bg: #fdecee;
+  --tone-border: #fbd5d8;
+  --tone-fg: #f04b55;
+}
+.tone-amber {
+  --tone-bg: #fef6e4;
+  --tone-border: #fae7bb;
+  --tone-fg: #f2b527;
+}

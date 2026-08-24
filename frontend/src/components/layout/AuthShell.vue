@@ -1,0 +1,207 @@
+<script setup>
+/**
+ * Kerangka halaman login & register: panel brand di kiri, form di kanan.
+ * Panel kiri disembunyikan di bawah 900px agar form mendapat ruang penuh.
+ */
+import {
+  ShieldCheck,
+  Zap,
+  Headphones,
+  Infinity as InfinityIcon,
+} from 'lucide-vue-next'
+
+defineProps({
+  pitchTitle: { type: String, default: 'Kelola lisensi Apeiron Kit di satu tempat.' },
+  pitchText: {
+    type: String,
+    default:
+      'Unggah bukti transaksi, pantau status verifikasi, dan unduh plugin versi terbaru begitu lisensi Anda aktif.',
+  },
+})
+
+const highlights = [
+  { icon: ShieldCheck, text: 'Lisensi terverifikasi & aman' },
+  { icon: Zap, text: 'Aktivasi cepat setelah disetujui' },
+  { icon: Headphones, text: 'Dukungan langsung dari tim' },
+]
+</script>
+
+<template>
+  <div class="auth">
+    <aside class="auth-aside">
+      <div class="auth-brand">
+        <span class="brand-mark"><InfinityIcon :size="22" :stroke-width="2.5" /></span>
+        <span class="brand-text">
+          <strong>Apeiron</strong>
+          <small>Portal</small>
+        </span>
+      </div>
+
+      <div class="auth-pitch">
+        <h2>{{ pitchTitle }}</h2>
+        <p>{{ pitchText }}</p>
+
+        <ul class="auth-points">
+          <li v-for="h in highlights" :key="h.text">
+            <span class="point-icon"><component :is="h.icon" :size="16" /></span>
+            {{ h.text }}
+          </li>
+        </ul>
+      </div>
+
+      <p class="auth-foot">© {{ new Date().getFullYear() }} Apeiron Portal</p>
+    </aside>
+
+    <main class="auth-main scroll-area">
+      <div class="auth-card">
+        <slot />
+      </div>
+    </main>
+  </div>
+</template>
+
+<style scoped>
+.auth {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 100dvh;
+  background: var(--bg-page);
+}
+
+.auth-aside {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-10);
+  padding: var(--sp-10);
+  background: linear-gradient(160deg, #16234b 0%, #1c2c5e 55%, #24397a 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Lingkaran dekoratif lembut */
+.auth-aside::before,
+.auth-aside::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.16;
+}
+.auth-aside::before {
+  width: 420px;
+  height: 420px;
+  right: -140px;
+  top: -120px;
+  background: radial-gradient(circle, var(--c-primary), transparent 65%);
+}
+.auth-aside::after {
+  width: 320px;
+  height: 320px;
+  left: -110px;
+  bottom: -90px;
+  background: radial-gradient(circle, var(--c-accent), transparent 65%);
+}
+
+.auth-brand,
+.auth-pitch,
+.auth-foot {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--c-primary), #5b8dff);
+  box-shadow: var(--sh-primary);
+}
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.brand-text strong {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+}
+.brand-text small {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--sidebar-section);
+}
+
+.auth-pitch h2 {
+  font-size: 1.875rem;
+  line-height: 1.3;
+  color: #fff;
+  margin-bottom: var(--sp-4);
+  max-width: 18ch;
+}
+.auth-pitch > p {
+  color: #b9c4de;
+  max-width: 46ch;
+  line-height: var(--lh-normal);
+}
+
+.auth-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-8);
+}
+.auth-points li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-body);
+  color: #d5dcec;
+}
+.point-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.1);
+  color: #8fb4ff;
+}
+
+.auth-foot {
+  font-size: var(--fs-caption);
+  color: #7f8db0;
+}
+
+.auth-main {
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  max-height: 100dvh;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--sp-4) 0;
+}
+
+@media (min-width: 900px) {
+  .auth {
+    grid-template-columns: 1.05fr 1fr;
+  }
+  .auth-aside {
+    display: flex;
+  }
+}
+</style>

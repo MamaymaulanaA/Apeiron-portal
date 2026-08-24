@@ -11,6 +11,12 @@ storage/*
 storage/*/*
 !storage/**/.gitkeep
 
+# Frontend: dependency dan hasil build antara.
+# Hasil build yang dipakai server disalin ke root (index.html + assets/) lewat
+# "npm run deploy" dan ikut di-commit, karena server tidak menjalankan build.
+frontend/node_modules/
+frontend/dist/
+
 # OS / editor
 Thumbs.db
 Desktop.ini
