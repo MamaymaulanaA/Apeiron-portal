@@ -6,23 +6,18 @@
 import BannerArt from '@/components/ui/BannerArt.vue'
 import {
   ShieldCheck,
-  Zap,
+  LayoutTemplate,
   Headphones,
   Infinity as InfinityIcon,
 } from 'lucide-vue-next'
 
 defineProps({
-  pitchTitle: { type: String, default: 'Kelola lisensi Apeiron Kit di satu tempat.' },
-  pitchText: {
-    type: String,
-    default:
-      'Unggah bukti transaksi, pantau status verifikasi, dan unduh plugin versi terbaru begitu lisensi Anda aktif.',
-  },
+  pitchTitle: { type: String, default: 'Lisensi dan template Apeiron Kit di satu tempat.' },
 })
 
 const highlights = [
   { icon: ShieldCheck, text: 'Lisensi terverifikasi & aman' },
-  { icon: Zap, text: 'Aktivasi cepat setelah disetujui' },
+  { icon: LayoutTemplate, text: 'Koleksi template undangan siap pakai' },
   { icon: Headphones, text: 'Dukungan langsung dari tim' },
 ]
 </script>
@@ -41,8 +36,6 @@ const highlights = [
 
       <div class="auth-pitch">
         <h2>{{ pitchTitle }}</h2>
-        <p>{{ pitchText }}</p>
-
         <BannerArt class="auth-art" />
 
         <ul class="auth-points">
