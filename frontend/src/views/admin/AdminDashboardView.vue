@@ -245,22 +245,28 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-8);
-  padding: var(--sp-8);
+  padding: var(--sp-7);
   border-radius: var(--r-xl);
-  background: linear-gradient(135deg, #16234b 0%, #1e3068 55%, #2a4590 100%);
-  color: #fff;
+  background: var(--grad-banner);
+  border: 1px solid var(--c-primary-border);
   position: relative;
   overflow: hidden;
 }
 .hero::after {
   content: '';
   position: absolute;
-  width: 380px;
-  height: 380px;
-  right: -110px;
-  top: -140px;
+  width: 320px;
+  height: 320px;
+  right: -60px;
+  top: -80px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(91, 141, 255, 0.5), transparent 68%);
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(86, 204, 242, 0.35),
+    rgba(47, 128, 237, 0.12) 55%,
+    transparent 70%
+  );
+  pointer-events: none;
 }
 
 .hero-text {
@@ -273,23 +279,22 @@ onMounted(load)
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  color: #8fa3d0;
+  color: var(--text-muted);
   margin-bottom: var(--sp-2);
 }
 .hero-title {
   font-size: var(--fs-display);
-  color: #fff;
   margin-bottom: var(--sp-2);
 }
 .hero-title span {
-  color: #7fa8ff;
+  color: var(--c-primary);
 }
 .hero-sub {
-  color: #c2cde6;
+  color: var(--text-body);
   max-width: 52ch;
 }
 .hero-sub strong {
-  color: #fff;
+  color: var(--c-primary);
   font-weight: var(--fw-bold);
 }
 
@@ -298,15 +303,6 @@ onMounted(load)
   flex-wrap: wrap;
   gap: var(--sp-3);
   margin-top: var(--sp-6);
-}
-.hero-actions .btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  box-shadow: none;
-}
-.hero-actions .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.18);
 }
 
 .hero-side {
@@ -320,11 +316,12 @@ onMounted(load)
   width: 76px;
   height: 76px;
   border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.24);
+  background: var(--bg-surface);
+  border: 3px solid var(--c-primary-border);
   font-size: var(--fs-h2);
   font-weight: var(--fw-bold);
-  color: #fff;
+  color: var(--c-primary);
+  box-shadow: var(--sh-sm);
 }
 
 /* ---------- Grid ---------- */

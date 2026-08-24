@@ -61,13 +61,17 @@
   --border: #e6ecf7;
   --border-strong: #d6e0f0;
 
-  /* Sidebar — navy pekat mengikuti referensi */
-  --sidebar-bg: #16234b;
-  --sidebar-bg-soft: #1e2f5e;
-  --sidebar-text: #a9b6d6;
+  /* Sidebar — panel putih dengan pill aktif bergradasi biru (referensi) */
+  --sidebar-bg: #ffffff;
+  --sidebar-bg-soft: #f1f5fd;
+  --sidebar-text: #5b6785;
   --sidebar-text-active: #ffffff;
-  --sidebar-section: #6b7ba4;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-section: #a0a9c0;
+  --sidebar-border: #e9eef8;
+
+  /* Gradasi aksen — dipakai pill sidebar, tombol brand, dan cincin progres */
+  --grad-brand: linear-gradient(135deg, #2f80ed 0%, #56ccf2 100%);
+  --grad-banner: linear-gradient(115deg, #eaf2fe 0%, #f5f9ff 45%, #e4eeff 100%);
 
   /* ---------------------------------------------------------------
      Warna — teks (hierarki 4 tingkat)

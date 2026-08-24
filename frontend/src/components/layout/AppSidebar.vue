@@ -117,6 +117,7 @@ function isActive(path) {
   top: 0;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
+  border-right: 1px solid var(--sidebar-border);
   z-index: var(--z-sidebar);
 }
 
@@ -138,7 +139,7 @@ function isActive(path) {
   height: 38px;
   flex-shrink: 0;
   border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--c-primary), #5b8dff);
+  background: var(--grad-brand);
   color: #fff;
   box-shadow: var(--sh-primary);
 }
@@ -152,7 +153,7 @@ function isActive(path) {
 .brand-text strong {
   font-size: var(--fs-body-lg);
   font-weight: var(--fw-bold);
-  color: #fff;
+  color: var(--text-heading);
   letter-spacing: var(--tracking-tight);
 }
 .brand-text small {
@@ -173,7 +174,7 @@ function isActive(path) {
 }
 .sidebar-close:hover {
   background: var(--sidebar-bg-soft);
-  color: #fff;
+  color: var(--text-heading);
 }
 
 /* ---- Navigasi ---- */
@@ -204,7 +205,7 @@ function isActive(path) {
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
-  padding: var(--sp-3) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
   border-radius: var(--r-md);
   font-size: var(--fs-body);
   font-weight: var(--fw-medium);
@@ -214,11 +215,11 @@ function isActive(path) {
 
 .nav-item:hover {
   background: var(--sidebar-bg-soft);
-  color: #fff;
+  color: var(--text-heading);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, var(--c-primary), #5b8dff);
+  background: var(--grad-brand);
   color: var(--sidebar-text-active);
   font-weight: var(--fw-semibold);
   box-shadow: var(--sh-primary);
@@ -236,8 +237,8 @@ function isActive(path) {
 }
 
 .nav-item-danger:hover {
-  background: rgba(240, 75, 85, 0.14);
-  color: #ff9aa1;
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
 }
 
 /* ---- Responsif: drawer di bawah 1024px ---- */
