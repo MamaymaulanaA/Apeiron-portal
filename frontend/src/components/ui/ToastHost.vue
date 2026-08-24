@@ -48,14 +48,16 @@ const TONES = {
   pointer-events: none;
 }
 
+/* Garis netral, sama seperti kartu lain. Pita tebal berwarna di sisi kiri
+   membuat toast terlihat seperti tempelan alih-alih bagian dari sistem;
+   maknanya sudah cukup dibawa oleh ikon. */
 .toast {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
   background: var(--bg-surface);
-  border: 1px solid var(--tone-border);
-  border-left: 3px solid var(--tone-fg);
+  border: 1px solid var(--border);
   border-radius: var(--r);
   box-shadow: var(--sh-pop);
   pointer-events: auto;
@@ -64,7 +66,6 @@ const TONES = {
 .toast-icon {
   color: var(--tone-fg);
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .toast-msg {
