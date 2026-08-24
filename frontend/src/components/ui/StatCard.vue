@@ -36,7 +36,7 @@ const display = computed(() =>
     </span>
 
     <span class="stat-text">
-      <span class="stat-value" :class="{ 'is-text': !isNumeric }">{{ display }}</span>
+      <span class="stat-value">{{ display }}</span>
       <span class="stat-label">{{ label }}</span>
       <span v-if="hint" class="stat-hint">{{ hint }}</span>
     </span>
@@ -77,17 +77,16 @@ const display = computed(() =>
   line-height: 1.25;
 }
 
+/* Satu ukuran untuk semua nilai, apa pun isinya.
+   Sebelumnya angka memakai 26px dan teks 18px, sehingga keempat kartu pada
+   baris yang sama terlihat tidak seragam. */
 .stat-value {
-  font-size: var(--fs-display);
+  font-size: var(--fs-h1);
   font-weight: var(--fw-bold);
   color: var(--text-heading);
   letter-spacing: var(--tracking-tight);
-}
-
-/* Nilai berupa teks memakai skala lebih kecil agar tidak membungkus. */
-.stat-value.is-text {
-  font-size: var(--fs-h2);
-  line-height: var(--lh-snug);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .stat-label {

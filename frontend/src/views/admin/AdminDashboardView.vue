@@ -350,7 +350,7 @@ onMounted(() => {
 
 /* ---------- Grid ---------- */
 .stats {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
 }
 
 /* minmax(0, 1fr) — bukan 1fr — supaya kolom boleh menyusut lebih kecil dari

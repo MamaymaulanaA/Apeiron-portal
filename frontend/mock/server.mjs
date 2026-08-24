@@ -21,19 +21,20 @@ const USER = {
 }
 
 const TEMPLATES = [
-  { id: 1, name: 'Elegant Rose', description: 'Nuansa lembut dengan aksen bunga mawar dan tipografi serif.', thumbnail_path: null, checkout_url: 'https://example.com/rose', is_standard: 1, is_recommended: 1 },
-  { id: 2, name: 'Midnight Luxe', description: 'Tema gelap mewah dengan detail emas.', thumbnail_path: null, checkout_url: 'https://example.com/luxe', is_standard: 0, is_recommended: 0 },
-  { id: 3, name: 'Minimalis Putih', description: 'Bersih, ringan, fokus pada isi undangan.', thumbnail_path: null, checkout_url: '', is_standard: 1, is_recommended: 0 },
-  { id: 4, name: 'Tropical Garden', description: 'Dedaunan tropis yang segar dan berwarna.', thumbnail_path: null, checkout_url: 'https://example.com/tropical', is_standard: 0, is_recommended: 1 },
+  { id: 1, name: '217+ Template Undangan Digital Premium', description: 'Ingin bikin undangan digital yang unik dan elegan tanpa ribet? Paket ini isinya lengkap.', thumbnail_path: null, checkout_url: 'https://example.com/a', is_standard: 0, is_recommended: 1 },
+  { id: 2, name: 'Apeiron V2 Series Undangan Digital', description: 'Seri kedua dari template Apeiron dengan tata letak baru.', thumbnail_path: null, checkout_url: 'https://example.com/b', is_standard: 0, is_recommended: 0 },
+  { id: 3, name: 'Sales Page Apeiron.ID', description: 'Sales page Apeiron.ID dirancang khusus buat kamu yang ingin jualan lebih rapi.', thumbnail_path: null, checkout_url: 'https://example.com/c', is_standard: 0, is_recommended: 0 },
+  { id: 4, name: 'Apeiron V1 Templora', description: 'Isi Paket: 6 Template Undangan Digital Format terbaru siap pakai.', thumbnail_path: null, checkout_url: 'https://example.com/d', is_standard: 0, is_recommended: 0 },
+  { id: 5, name: 'Apeiron V3 Sakura Series', description: 'Apeiron V3 adalah seri ketiga dari template Apeiron, dibuat dengan nuansa lembut.', thumbnail_path: null, checkout_url: 'https://example.com/e', is_standard: 0, is_recommended: 0 },
 ]
 
 const PLUGINS = [
-  { id: 3, version: '2.4.1', filename: 'apeiron-kit-2.4.1.zip', changelog: 'Perbaikan kompatibilitas Elementor 3.25 dan penambahan widget Countdown.', is_active: 1, created_at: '2026-08-18 04:12:00' },
+  { id: 3, version: '1.0.3', filename: 'apeiron-kit-2.4.1.zip', changelog: 'Perbaikan kompatibilitas Elementor 3.25 dan penambahan widget Countdown.', is_active: 1, created_at: '2026-08-18 04:12:00' },
   { id: 2, version: '2.3.0', filename: 'apeiron-kit-2.3.0.zip', changelog: 'Widget Soundscape Player dan perbaikan performa.', is_active: 0, created_at: '2026-07-02 09:40:00' },
 ]
 
 const TX = [
-  { id: 41, user_id: 7, user_name: 'Sinta Dewi', user_email: 'sinta@example.com', status: 'waiting_verification', document_path: 'doc_7_1.png', document_original_name: 'bukti-transfer.png', admin_notes: null, created_at: '2026-08-23 02:15:00', approved_at: null, rejected_at: null },
+  { id: 41, user_id: 7, user_name: 'Sinta Dewi', user_email: 'sinta@example.com', status: 'approved', document_path: 'doc_7_1.png', document_original_name: 'bukti-transfer.png', admin_notes: null, created_at: '2026-08-23 02:15:00', approved_at: '2026-05-19 01:21:00', rejected_at: null },
   { id: 40, user_id: 9, user_name: 'Bagus Herlambang', user_email: 'bagus@example.com', status: 'approved', document_path: 'doc_9_1.jpg', document_original_name: 'transfer-bca.jpg', admin_notes: null, created_at: '2026-08-21 11:02:00', approved_at: '2026-08-21 12:30:00', rejected_at: null },
   { id: 39, user_id: 12, user_name: 'Ayu Lestari', user_email: 'ayu@example.com', status: 'rejected', document_path: 'doc_12_1.pdf', document_original_name: 'struk.pdf', admin_notes: 'Nominal tidak sesuai, mohon unggah bukti yang benar.', created_at: '2026-08-20 08:45:00', approved_at: null, rejected_at: '2026-08-20 10:10:00' },
   { id: 38, user_id: 15, user_name: 'Dimas Anggara', user_email: 'dimas@example.com', status: 'pending_license', document_path: 'doc_15_1.png', document_original_name: 'bukti.png', admin_notes: null, created_at: '2026-08-19 15:20:00', approved_at: '2026-08-19 16:00:00', rejected_at: null },
@@ -55,8 +56,8 @@ const NOTIFS = [
 
 const LICENSE = {
   id: 2,
-  license_key: 'APRN-8F3D-91KC-2200-XQ7T',
-  api_key: 'ak_live_9c1f4b7e2d6a8350bb17',
+  license_key: 'APEIRON-81BC283035-C7B737988D-776038F43B12-9A0C4E',
+  api_key: '63c25c7c003fdf26a5324e73e95ba4c32c20a1094fd8b1e7',
   product_id: 'apeiron-kit',
   assigned_at: '2026-08-21 12:30:00',
 }
@@ -76,7 +77,7 @@ const routes = {
       ? {
           id: myTx.id,
           status: myTx.status,
-          status_label: 'Menunggu Verifikasi',
+          status_label: 'Disetujui',
           document_name: myTx.document_original_name,
           admin_notes: myTx.admin_notes,
           created_at: myTx.created_at,
@@ -84,10 +85,10 @@ const routes = {
           rejected_at: myTx.rejected_at,
         }
       : null,
-    license: null,
+    license: LICENSE,
     templates: TEMPLATES,
     can_upload: false,
-    can_download: false,
+    can_download: true,
     latest_plugin: { version: PLUGINS[0].version, filename: PLUGINS[0].filename, changelog: PLUGINS[0].changelog },
   }),
   'GET /user/profile': () => ({

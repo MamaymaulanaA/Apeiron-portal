@@ -12,11 +12,13 @@ defineProps({
   title: { type: String, default: 'Belum ada data' },
   description: { type: String, default: '' },
   compact: { type: Boolean, default: false },
+  /** Satu baris ringkas — untuk seksi yang backend-nya memang belum ada. */
+  inline: { type: Boolean, default: false },
 })
 </script>
 
 <template>
-  <div class="empty" :class="{ compact }">
+  <div class="empty" :class="{ compact, inline }">
     <span class="empty-mark">
       <!-- Latar dekoratif ringan, digambar langsung agar tidak menarik aset -->
       <svg
@@ -28,11 +30,13 @@ defineProps({
       >
         <circle cx="32" cy="32" r="31" stroke="currentColor" stroke-dasharray="3 4" />
       </svg>
-      <component :is="icon" :size="compact ? 18 : 20" :stroke-width="1.75" />
+      <component :is="icon" :size="inline ? 15 : compact ? 18 : 20" :stroke-width="1.75" />
     </span>
 
-    <p class="empty-title">{{ title }}</p>
-    <p v-if="description" class="empty-desc">{{ description }}</p>
+    <span class="empty-copy">
+      <span class="empty-title">{{ title }}</span>
+      <span v-if="description" class="empty-desc">{{ description }}</span>
+    </span>
 
     <div v-if="$slots.action" class="empty-action">
       <slot name="action" />
@@ -52,6 +56,32 @@ defineProps({
 
 .empty.compact {
   padding: var(--sp-6) var(--sp-5);
+}
+
+/* Ringkas: ikon dan teks sebaris, tanpa lingkaran dekoratif. Dipakai agar
+   kartu yang belum punya data tidak memakan ruang kolom kanan. */
+.empty.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  text-align: left;
+}
+.empty.inline .empty-mark {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0;
+  border-radius: var(--r);
+  background: var(--n-100);
+}
+.empty.inline .empty-bg {
+  display: none;
+}
+.empty.inline .empty-title {
+  font-size: var(--fs-label);
+}
+.empty.inline .empty-desc {
+  font-size: var(--fs-caption);
 }
 
 .empty-mark {
@@ -75,6 +105,13 @@ defineProps({
   width: 100%;
   height: 100%;
   color: var(--n-200);
+}
+
+.empty-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .empty-title {

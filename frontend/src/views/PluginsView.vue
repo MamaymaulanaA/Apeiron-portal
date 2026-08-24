@@ -252,27 +252,41 @@ onMounted(load)
 
 .lic-keys {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: var(--sp-4);
+}
+
+/* Grid item bawaannya min-width: auto, sehingga minimumnya mengikuti
+   min-content isinya — license key panjang membuat track melebar melewati
+   wadahnya. min-width: 0 mengizinkan item menyusut. */
+.lic-keys > .field {
+  min-width: 0;
 }
 
 .key-row {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  min-width: 0;
 }
+/* Dipotong dengan elipsis, bukan discroll. Selain lebih rapi, ini mencegah
+   license key panjang mendorong lebar halaman di layar kecil. Nilai penuh
+   tetap ikut saat disalin lewat tombol di sebelahnya. */
 .key {
   flex: 1;
   min-width: 0;
-  padding: var(--sp-2) var(--sp-3);
+  height: var(--h-control);
+  padding: 0 var(--sp-3);
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  border-radius: var(--r);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
+  line-height: var(--h-control);
   color: var(--text-heading);
-  overflow-x: auto;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 780px) {

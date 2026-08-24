@@ -379,7 +379,7 @@ onMounted(load)
 }
 
 .cards {
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 }
 
 .skeleton-card {

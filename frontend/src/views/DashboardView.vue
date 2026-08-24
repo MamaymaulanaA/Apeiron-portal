@@ -91,6 +91,12 @@ const progress = computed(() => {
 })
 
 const guidance = computed(() => {
+  // Lisensi diperiksa lebih dulu, sama seperti `progress` di atas. Tanpa ini
+  // cincin bisa menunjukkan 100% sementara teksnya masih berkata "sedang
+  // diperiksa" — dua keterangan yang saling bertentangan.
+  if (license.value) {
+    return 'Lisensi Anda aktif. Plugin versi terbaru siap diunduh.'
+  }
   if (!transaction.value) {
     return 'Unggah bukti pembayaran untuk memulai proses verifikasi lisensi.'
   }
@@ -226,26 +232,27 @@ onMounted(() => {
             Selamat datang, <span>{{ user?.name }}</span>
           </h1>
           <p class="banner-sub">{{ guidance }}</p>
+        </div>
 
-          <div class="banner-actions">
-            <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
-              <Download :size="16" />
-              Unduh Plugin
-            </a>
-            <button
-              v-else-if="canUpload || !transaction"
-              class="btn btn-primary"
-              type="button"
-              @click="pickFile"
-            >
-              <Upload :size="16" />
-              Unggah Bukti Transaksi
-            </button>
-            <RouterLink v-else to="/plugins" class="btn btn-secondary">
-              Lihat Lisensi
-              <ArrowRight :size="15" />
-            </RouterLink>
-          </div>
+        <!-- Aksi diletakkan di sisi kanan agar banner terisi merata -->
+        <div class="banner-actions">
+          <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
+            <Download :size="16" />
+            Unduh Plugin
+          </a>
+          <button
+            v-else-if="canUpload || !transaction"
+            class="btn btn-primary"
+            type="button"
+            @click="pickFile"
+          >
+            <Upload :size="16" />
+            Unggah Bukti Transaksi
+          </button>
+          <RouterLink v-else to="/plugins" class="btn btn-secondary">
+            Lihat Lisensi
+            <ArrowRight :size="15" />
+          </RouterLink>
         </div>
       </section>
 
@@ -403,25 +410,28 @@ onMounted(() => {
             </div>
 
             <div class="tpl-body">
-              <div class="tpl-title">
-                <h3>{{ t.name }}</h3>
+              <!-- Judul memakai lebar penuh; badge turun ke baris aksi supaya
+                   nama template panjang tidak terpotong. -->
+              <h3 class="tpl-name">{{ t.name }}</h3>
+              <p v-if="t.description" class="tpl-desc">{{ t.description }}</p>
+
+              <div class="tpl-foot">
                 <span
                   class="badge"
                   :class="Number(t.is_standard) ? 'tone-sky' : 'tone-lilac'"
                 >
                   {{ Number(t.is_standard) ? 'Standard' : 'Premium' }}
                 </span>
+                <a
+                  v-if="t.checkout_url"
+                  class="tpl-cta"
+                  :href="t.checkout_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Pesan <ExternalLink :size="12" />
+                </a>
               </div>
-              <p v-if="t.description" class="tpl-desc">{{ t.description }}</p>
-              <a
-                v-if="t.checkout_url"
-                class="tpl-cta"
-                :href="t.checkout_url"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Pesan <ExternalLink :size="12" />
-              </a>
             </div>
           </article>
         </div>
@@ -533,7 +543,7 @@ onMounted(() => {
           :icon="MessagesSquare"
           title="Belum ada forum"
           description="Fitur forum belum tersedia di server."
-          compact
+          inline
         />
       </RailCard>
 
@@ -568,7 +578,7 @@ onMounted(() => {
           :icon="UsersRound"
           title="Belum ada group"
           description="Fitur group belum tersedia di server."
-          compact
+          inline
         />
       </RailCard>
 
@@ -690,6 +700,7 @@ onMounted(() => {
 
 .banner-text {
   min-width: 0;
+  flex: 1;
 }
 
 .banner-progress {
@@ -721,12 +732,12 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
-  margin-top: var(--sp-4);
+  flex-shrink: 0;
 }
 
 /* ============ Ringkasan ============ */
 .stats {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
 }
 
 /* ============ Tab ============ */
@@ -860,7 +871,7 @@ onMounted(() => {
 
 .tpl-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr));
   gap: var(--sp-3);
 }
 
@@ -904,19 +915,26 @@ onMounted(() => {
   flex: 1;
 }
 
-.tpl-title {
+/* Nama template boleh membungkus sampai dua baris — memotongnya membuat
+   nama seperti "217+ Template Undangan Digital Premium" kehilangan arti. */
+.tpl-name {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tpl-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-}
-.tpl-title h3 {
-  font-size: var(--fs-body);
-  font-weight: var(--fw-medium);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-top: auto;
+  padding-top: var(--sp-1);
 }
 
 .tpl-desc {
@@ -934,7 +952,6 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  margin-top: auto;
   font-size: var(--fs-caption);
   font-weight: var(--fw-medium);
   color: var(--brand);
@@ -959,7 +976,7 @@ onMounted(() => {
 /* ============ Detail transaksi ============ */
 .detail {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
   gap: var(--sp-4);
 }
 .detail dt {
@@ -1063,6 +1080,8 @@ onMounted(() => {
   align-items: center;
   gap: var(--sp-2);
 }
+/* Dipotong dengan elipsis, bukan discroll. Scrollbar horizontal di dalam
+   field sempit terlihat kotor, dan nilai penuh tetap ikut saat disalin. */
 .key {
   flex: 1;
   min-width: 0;
@@ -1076,8 +1095,11 @@ onMounted(() => {
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
   color: var(--text-heading);
-  overflow-x: auto;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: var(--h-control-sm);
 }
 
 .plugin-version {
