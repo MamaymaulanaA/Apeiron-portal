@@ -145,6 +145,8 @@ h3 {
 /* ===============================================================
    3. Kartu
    =============================================================== */
+/* Pemisahan antar-lapis mengandalkan bayangan halus, bukan garis tegas.
+   Garisnya sengaja sangat tipis agar tidak terasa "kotak-kotak". */
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -162,7 +164,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  min-height: 56px;
+  min-height: 58px;
   padding: var(--sp-4) var(--sp-5);
   border-bottom: 1px solid var(--border);
 }
@@ -238,15 +240,17 @@ h3 {
   background: var(--bg-surface);
   border-color: var(--border-strong);
   color: var(--text-body);
+  box-shadow: var(--sh-card);
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg-subtle);
-  border-color: var(--n-400);
+  border-color: var(--n-300);
   color: var(--text-heading);
 }
 .btn-secondary:active:not(:disabled) {
   background: var(--bg-hover);
-  border-color: var(--n-400);
+  border-color: var(--n-300);
+  box-shadow: none;
 }
 
 .btn-ghost {
@@ -356,7 +360,7 @@ h3 {
 .input:hover:not(:disabled),
 .select:hover:not(:disabled),
 .textarea:hover:not(:disabled) {
-  border-color: var(--n-400);
+  border-color: var(--n-300);
 }
 
 /* Fokus: border menguat, tanpa glow dan tanpa outline tambahan.

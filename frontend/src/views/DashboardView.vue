@@ -42,6 +42,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import AvatarRing from '@/components/ui/AvatarRing.vue'
 import RailCard from '@/components/ui/RailCard.vue'
+import BannerArt from '@/components/ui/BannerArt.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative, initials } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -232,28 +233,30 @@ onMounted(() => {
             Selamat datang, <span>{{ user?.name }}</span>
           </h1>
           <p class="banner-sub">{{ guidance }}</p>
+
+                  <div class="banner-actions">
+            <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
+              <Download :size="16" />
+              Unduh Plugin
+            </a>
+            <button
+              v-else-if="canUpload || !transaction"
+              class="btn btn-primary"
+              type="button"
+              @click="pickFile"
+            >
+              <Upload :size="16" />
+              Unggah Bukti Transaksi
+            </button>
+            <RouterLink v-else to="/plugins" class="btn btn-secondary">
+              Lihat Lisensi
+              <ArrowRight :size="15" />
+            </RouterLink>
+          </div>
         </div>
 
-        <!-- Aksi diletakkan di sisi kanan agar banner terisi merata -->
-        <div class="banner-actions">
-          <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
-            <Download :size="16" />
-            Unduh Plugin
-          </a>
-          <button
-            v-else-if="canUpload || !transaction"
-            class="btn btn-primary"
-            type="button"
-            @click="pickFile"
-          >
-            <Upload :size="16" />
-            Unggah Bukti Transaksi
-          </button>
-          <RouterLink v-else to="/plugins" class="btn btn-secondary">
-            Lihat Lisensi
-            <ArrowRight :size="15" />
-          </RouterLink>
-        </div>
+
+        <BannerArt class="banner-art" />
       </section>
 
       <!-- ---------- Kartu ringkasan (semuanya data nyata) ---------- -->
@@ -291,51 +294,6 @@ onMounted(() => {
         />
       </section>
 
-      <!-- ---------- Anggota (hanya admin: satu-satunya sumber nyata) ---------- -->
-      <section v-if="isAdmin" class="card">
-        <header class="card-header">
-          <h2>
-            <span class="icon-chip icon-chip-sm tone-sky"><Users :size="15" /></span>
-            Anggota
-          </h2>
-
-          <div class="tabs" role="tablist">
-            <button
-              v-for="t in ['Aktif', 'Semua']"
-              :key="t"
-              class="tab"
-              :class="{ active: memberTab === t }"
-              type="button"
-              role="tab"
-              :aria-selected="memberTab === t"
-              @click="memberTab = t"
-            >
-              {{ t }}
-            </button>
-          </div>
-        </header>
-
-        <SkeletonRows v-if="membersLoading" :rows="1" :height="88" />
-
-        <div v-else-if="visibleMembers.length" class="member-strip scroll-area">
-          <article v-for="m in visibleMembers" :key="m.id" class="member">
-            <span class="member-avatar">
-              {{ initials(m.name) }}
-              <span class="member-dot" :class="{ on: Number(m.is_active) }" />
-            </span>
-            <span class="member-name">{{ m.name }}</span>
-            <span class="member-role">{{ m.role === 'admin' ? 'Admin' : 'Member' }}</span>
-          </article>
-        </div>
-
-        <EmptyState
-          v-else
-          :icon="Users"
-          title="Belum ada anggota"
-          description="Daftar pengguna akan tampil di sini."
-          compact
-        />
-      </section>
 
       <!-- ---------- Template ---------- -->
       <section class="card">
@@ -572,6 +530,31 @@ onMounted(() => {
         />
       </RailCard>
 
+
+      <!-- Anggota — data nyata dari GET /admin/users (hanya admin) -->
+      <RailCard v-if="isAdmin" title="Anggota" :icon="Users" tone="tone-sky" to="/admin/users">
+        <SkeletonRows v-if="membersLoading" :rows="3" :height="36" />
+
+        <ul v-else-if="visibleMembers.length" class="member-list">
+          <li v-for="m in visibleMembers.slice(0, 6)" :key="m.id" class="member-row">
+            <span class="avatar avatar-sm">{{ initials(m.name) }}</span>
+            <span class="member-text">
+              <span class="member-name">{{ m.name }}</span>
+              <span class="member-mail">{{ m.email }}</span>
+            </span>
+            <span class="status-dot" :class="{ 'is-on': Number(m.is_active) }" />
+          </li>
+        </ul>
+
+        <EmptyState
+          v-else
+          :icon="Users"
+          title="Belum ada anggota"
+          description="Daftar pengguna akan tampil di sini."
+          inline
+        />
+      </RailCard>
+
       <!-- Group — belum ada tabel/endpoint di backend -->
       <RailCard title="Group" :icon="UsersRound" tone="tone-mint">
         <EmptyState
@@ -689,18 +672,27 @@ onMounted(() => {
 
 /* ============ Banner ============ */
 .banner {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-5);
-  padding: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
   border-radius: var(--r);
-  background: linear-gradient(110deg, #eff5ff 0%, #f7fbff 55%, #eef4ff 100%);
-  border: 1px solid var(--brand-border);
+  background:
+    radial-gradient(120% 140% at 100% 0%, #eef3ff 0%, transparent 55%),
+    linear-gradient(120deg, #fbfcff 0%, #f7f9fe 100%);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-card);
+  overflow: hidden;
 }
 
 .banner-text {
   min-width: 0;
   flex: 1;
+}
+
+.banner-title {
+  text-wrap: balance;
 }
 
 .banner-progress {
@@ -732,7 +724,23 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+/* Ilustrasi hanya muncul saat ada ruang lebih; di layar sempit ia
+   disembunyikan agar tidak menekan teks. */
+.banner-art {
+  display: none;
+  width: 190px;
+  height: 124px;
   flex-shrink: 0;
+  margin-left: var(--sp-2);
+}
+
+@media (min-width: 1120px) {
+  .banner-art {
+    display: block;
+  }
 }
 
 /* ============ Ringkasan ============ */
@@ -781,71 +789,46 @@ onMounted(() => {
   color: var(--brand-hover);
 }
 
-/* ============ Anggota ============ */
-.member-strip {
-  display: flex;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5);
-  overflow-x: auto;
-}
-
-.member {
+/* ============ Anggota (kolom kanan) ============ */
+.member-list {
   display: flex;
   flex-direction: column;
+}
+
+.member-row {
+  display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  flex-shrink: 0;
-  width: 104px;
-  padding: var(--sp-3) var(--sp-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  text-align: center;
-  transition: border-color var(--dur) var(--ease);
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
 }
-.member:hover {
-  border-color: var(--n-400);
+.member-row:last-child {
+  border-bottom: none;
 }
 
-.member-avatar {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-pill);
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-size: var(--fs-label);
-  font-weight: var(--fw-bold);
-}
-
-.member-dot {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 11px;
-  height: 11px;
-  border-radius: var(--r-pill);
-  border: 2px solid var(--bg-surface);
-  background: var(--n-400);
-}
-.member-dot.on {
-  background: var(--ok);
+.member-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
 }
 
 .member-name {
-  font-size: var(--fs-caption);
+  font-size: var(--fs-label);
   font-weight: var(--fw-medium);
   color: var(--text-heading);
-  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.member-role {
-  font-size: var(--fs-micro);
+.member-mail {
+  font-size: var(--fs-caption);
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============ Toolbar ============ */
