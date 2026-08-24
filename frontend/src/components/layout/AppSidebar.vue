@@ -63,7 +63,7 @@ function isActive(path) {
   <aside class="sidebar" :class="{ 'is-open': open }">
     <div class="sidebar-brand">
       <span class="brand-mark">
-        <InfinityIcon :size="20" :stroke-width="2.5" />
+        <InfinityIcon :size="18" :stroke-width="2" />
       </span>
       <span class="brand-text">
         <strong>Apeiron</strong>
@@ -90,7 +90,7 @@ function isActive(path) {
             :class="{ active: isActive(item.to) }"
             @click="emit('close')"
           >
-            <component :is="item.icon" :size="19" :stroke-width="2" />
+            <component :is="item.icon" :size="17" :stroke-width="1.9" />
             <span>{{ item.label }}</span>
           </RouterLink>
         </li>
@@ -99,7 +99,7 @@ function isActive(path) {
 
     <div class="sidebar-footer">
       <button class="nav-item nav-item-danger" type="button" @click="emit('logout')">
-        <LogOut :size="19" :stroke-width="2" />
+        <LogOut :size="17" :stroke-width="1.9" />
         <span>Keluar</span>
       </button>
     </div>
@@ -135,13 +135,12 @@ function isActive(path) {
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  border-radius: var(--r-md);
-  background: var(--grad-brand);
+  border-radius: var(--r);
+  background: var(--brand);
   color: #fff;
-  box-shadow: var(--sh-primary);
 }
 
 .brand-text {
@@ -173,7 +172,7 @@ function isActive(path) {
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .sidebar-close:hover {
-  background: var(--sidebar-bg-soft);
+  background: var(--bg-hover);
   color: var(--text-heading);
 }
 
@@ -205,8 +204,9 @@ function isActive(path) {
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
-  padding: var(--sp-3) var(--sp-4);
-  border-radius: var(--r-md);
+  min-height: var(--h-control);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r);
   font-size: var(--fs-body);
   font-weight: var(--fw-medium);
   color: var(--sidebar-text);
@@ -214,15 +214,14 @@ function isActive(path) {
 }
 
 .nav-item:hover {
-  background: var(--sidebar-bg-soft);
+  background: var(--bg-hover);
   color: var(--text-heading);
 }
 
 .nav-item.active {
-  background: var(--grad-brand);
+  background: var(--brand-soft);
   color: var(--sidebar-text-active);
-  font-weight: var(--fw-semibold);
-  box-shadow: var(--sh-primary);
+  font-weight: var(--fw-medium);
 }
 
 .nav-item :deep(svg) {
@@ -237,8 +236,8 @@ function isActive(path) {
 }
 
 .nav-item-danger:hover {
-  background: var(--c-danger-soft);
-  color: var(--c-danger);
+  background: var(--err-soft);
+  color: var(--err);
 }
 
 /* ---- Responsif: drawer di bawah 1024px ---- */
@@ -251,8 +250,8 @@ function isActive(path) {
     position: fixed;
     inset: 0 auto 0 0;
     transform: translateX(-100%);
-    transition: transform var(--dur-slow) var(--ease);
-    box-shadow: var(--sh-lg);
+    transition: transform var(--dur) var(--ease);
+    box-shadow: var(--sh-pop);
   }
   .sidebar.is-open {
     transform: translateX(0);

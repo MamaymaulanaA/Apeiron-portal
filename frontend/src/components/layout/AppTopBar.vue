@@ -126,14 +126,14 @@ onBeforeUnmount(() => {
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: var(--bg-subtle);
   color: var(--text-heading);
   transition: background var(--dur) var(--ease);
 }
 .topbar-burger:hover {
-  background: var(--c-primary-soft);
-  color: var(--c-primary);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 
 .topbar-actions {
@@ -197,8 +197,8 @@ onBeforeUnmount(() => {
   padding: var(--sp-2);
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-lg);
+  border-radius: var(--r);
+  box-shadow: var(--sh-pop);
   z-index: var(--z-dropdown);
 }
 
@@ -239,7 +239,7 @@ onBeforeUnmount(() => {
   gap: var(--sp-3);
   width: 100%;
   padding: var(--sp-3);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   font-size: var(--fs-body);
   font-weight: var(--fw-medium);
   color: var(--text-body);
@@ -250,8 +250,8 @@ onBeforeUnmount(() => {
   color: var(--text-heading);
 }
 .user-action.danger:hover {
-  background: var(--c-danger-soft);
-  color: var(--c-danger);
+  background: var(--err-soft);
+  color: var(--err);
 }
 
 .pop-enter-active,

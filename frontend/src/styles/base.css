@@ -1,8 +1,12 @@
 /**
  * Apeiron Portal — Base & primitives
  *
- * Reset + tipografi + kelas utilitas yang dipakai lintas view (kartu, tombol,
- * form, tabel, badge). Nilai visual selalu diambil dari tokens.css.
+ * Aturan yang dijaga di berkas ini:
+ *  - Semua kontrol sebaris memakai var(--h-control) sehingga tingginya sama
+ *    persis dan tepi atas/bawahnya sejajar tanpa penyesuaian manual.
+ *  - Radius selalu var(--r) = 8px, kecuali avatar dan titik status.
+ *  - Field tidak memakai box-shadow sama sekali. Hover/focus/active dibedakan
+ *    hanya lewat warna border 1px — tanpa glow, tanpa outline ganda.
  */
 
 /* ===============================================================
@@ -20,7 +24,6 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
 }
 
 body {
@@ -31,7 +34,6 @@ body {
   background: var(--bg-page);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv11', 'ss01';
   font-variant-numeric: tabular-nums;
 }
 
@@ -73,10 +75,12 @@ table {
   width: 100%;
 }
 
+/* Fokus keyboard: satu garis tegas, bukan glow. Memakai outline dengan
+   offset sehingga tidak pernah bertumpuk dengan border kontrol. */
 :focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
-  border-radius: var(--r-sm);
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-radius: var(--r);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -91,14 +95,14 @@ table {
 }
 
 /* ===============================================================
-   2. Tipografi — hierarki heading → caption
+   2. Tipografi
    =============================================================== */
 h1,
 h2,
 h3,
 h4 {
   color: var(--text-heading);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
   line-height: var(--lh-tight);
   letter-spacing: var(--tracking-tight);
 }
@@ -111,7 +115,6 @@ h2 {
 }
 h3 {
   font-size: var(--fs-h3);
-  font-weight: var(--fw-semibold);
 }
 
 .text-muted {
@@ -124,7 +127,7 @@ h3 {
 }
 .text-label {
   font-size: var(--fs-label);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   color: var(--text-heading);
 }
 .text-overline {
@@ -137,7 +140,6 @@ h3 {
 .text-mono {
   font-family: var(--font-mono);
   font-size: var(--fs-label);
-  letter-spacing: 0;
 }
 
 /* ===============================================================
@@ -146,12 +148,13 @@ h3 {
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-sm);
+  border-radius: var(--r);
+  box-shadow: var(--sh-card);
 }
 
-.card-pad {
-  padding: var(--sp-6);
+/* Kartu di dalam kartu tidak menumpuk lapisan visual. */
+.card .card {
+  box-shadow: none;
 }
 
 .card-header {
@@ -159,7 +162,8 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-6);
+  min-height: 56px;
+  padding: var(--sp-4) var(--sp-5);
   border-bottom: 1px solid var(--border);
 }
 
@@ -167,123 +171,123 @@ h3 {
 .card-header h3 {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .card-body {
-  padding: var(--sp-6);
+  padding: var(--sp-5);
 }
 
-/* Chip ikon berwarna — dipakai di header kartu & stat card */
+/* Ikon kecil bertanda warna. Netral secara bawaan; nada status hanya
+   diberikan bila memang menyatakan keadaan. */
 .icon-chip {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-md);
-  background: var(--tone-bg, var(--c-primary-soft));
-  color: var(--tone-fg, var(--c-primary));
-}
-.icon-chip-sm {
   width: 32px;
   height: 32px;
+  border-radius: var(--r);
+  background: var(--tone-bg, var(--n-100));
+  color: var(--tone-fg, var(--n-600));
+}
+.icon-chip-sm {
+  width: 28px;
+  height: 28px;
   border-radius: var(--r-sm);
 }
 
 /* ===============================================================
-   4. Tombol
+   4. Tombol — tinggi sama dengan field
    =============================================================== */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  height: 40px;
-  padding: 0 var(--sp-5);
-  border-radius: var(--r-md);
+  height: var(--h-control);
+  padding: 0 var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r);
   font-size: var(--fs-body);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   white-space: nowrap;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease), transform var(--dur-fast) var(--ease),
-    border-color var(--dur) var(--ease);
-}
-
-.btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: var(--c-primary);
+  background: var(--brand);
+  border-color: var(--brand);
   color: var(--text-inverse);
-  box-shadow: var(--sh-primary);
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--c-primary-hover);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--brand-active);
+  border-color: var(--brand-active);
 }
 
 .btn-secondary {
   background: var(--bg-surface);
-  color: var(--text-heading);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--sh-xs);
+  border-color: var(--border-strong);
+  color: var(--text-body);
 }
 .btn-secondary:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: var(--n-400);
+  color: var(--text-heading);
+}
+.btn-secondary:active:not(:disabled) {
   background: var(--bg-hover);
-  border-color: var(--c-primary-border);
+  border-color: var(--n-400);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--text-body);
+  color: var(--text-muted);
 }
 .btn-ghost:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-heading);
 }
 
-.btn-success {
-  background: var(--c-success);
-  color: var(--text-inverse);
-}
-.btn-success:hover:not(:disabled) {
-  background: var(--c-success-hover);
-}
-
 .btn-danger {
-  background: var(--c-danger);
+  background: var(--err);
+  border-color: var(--err);
   color: var(--text-inverse);
 }
 .btn-danger:hover:not(:disabled) {
-  background: var(--c-danger-hover);
+  background: #912018;
+  border-color: #912018;
 }
 
 .btn-sm {
-  height: 32px;
+  height: var(--h-control-sm);
   padding: 0 var(--sp-3);
   font-size: var(--fs-label);
-  border-radius: var(--r-sm);
 }
 
 .btn-lg {
-  height: 46px;
-  padding: 0 var(--sp-6);
+  height: var(--h-control-lg);
+  padding: 0 var(--sp-5);
   font-size: var(--fs-body-lg);
 }
 
+/* Tombol khusus ikon tetap persegi mengikuti tinggi kontrol */
 .btn-icon {
-  width: 40px;
+  width: var(--h-control);
   padding: 0;
   flex-shrink: 0;
 }
 .btn-icon.btn-sm {
-  width: 32px;
+  width: var(--h-control-sm);
 }
 
 .btn-block {
@@ -291,7 +295,7 @@ h3 {
 }
 
 /* ===============================================================
-   5. Form
+   5. Field — tinggi sama dengan tombol, TANPA box-shadow
    =============================================================== */
 .field {
   display: flex;
@@ -301,7 +305,7 @@ h3 {
 
 .field-label {
   font-size: var(--fs-label);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   color: var(--text-heading);
 }
 
@@ -312,22 +316,36 @@ h3 {
 
 .field-error {
   font-size: var(--fs-caption);
-  font-weight: var(--fw-medium);
-  color: var(--c-danger);
+  color: var(--err);
 }
 
 .input,
-.select,
-.textarea {
+.select {
   width: 100%;
-  min-height: 42px;
-  padding: var(--sp-3) var(--sp-4);
+  height: var(--h-control);
+  padding: 0 var(--sp-3);
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   font-size: var(--fs-body);
   color: var(--text-heading);
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  box-shadow: none;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  color: var(--text-heading);
+  box-shadow: none;
+  resize: vertical;
+  transition: border-color var(--dur) var(--ease);
 }
 
 .input::placeholder,
@@ -335,85 +353,124 @@ h3 {
   color: var(--text-faint);
 }
 
-.input:hover,
-.select:hover,
-.textarea:hover {
-  border-color: var(--c-primary-border);
+.input:hover:not(:disabled),
+.select:hover:not(:disabled),
+.textarea:hover:not(:disabled) {
+  border-color: var(--n-400);
 }
 
-.input:focus,
-.select:focus,
-.textarea:focus {
+/* Fokus: border menguat, tanpa glow dan tanpa outline tambahan.
+   Memakai :not(:disabled) agar spesifisitasnya menyamai aturan hover di atas —
+   tanpa ini, hover tetap menang selama kursor berada di atas field sehingga
+   pengguna mouse tidak melihat indikasi fokus sama sekali. */
+.input:focus:not(:disabled),
+.select:focus:not(:disabled),
+.textarea:focus:not(:disabled) {
   outline: none;
-  border-color: var(--c-primary);
-  box-shadow: var(--ring);
+  border-color: var(--brand);
+  box-shadow: none;
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
 
 .input.has-error,
 .select.has-error,
 .textarea.has-error {
-  border-color: var(--c-danger);
-}
-
-.textarea {
-  min-height: 96px;
-  resize: vertical;
-  line-height: var(--lh-normal);
+  border-color: var(--err);
 }
 
 .select {
   appearance: none;
-  padding-right: var(--sp-10);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a93b2' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  padding-right: var(--sp-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right var(--sp-4) center;
+  background-position: right var(--sp-3) center;
+  cursor: pointer;
 }
 
-/* Input dengan ikon di kiri */
+/* Field dengan ikon di kiri */
 .input-group {
   position: relative;
   display: flex;
   align-items: center;
 }
 .input-group .input {
-  padding-left: var(--sp-10);
+  padding-left: var(--sp-8);
 }
 .input-group .input-icon {
   position: absolute;
-  left: var(--sp-4);
+  left: var(--sp-3);
   color: var(--text-faint);
   pointer-events: none;
 }
 
 /* ===============================================================
-   6. Badge
+   6. Segmented control — tinggi mengikuti kontrol lain
+   =============================================================== */
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-control);
+  padding: 3px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+
+.segmented-item {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-width: 30px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.segmented-item:hover {
+  color: var(--text-heading);
+}
+.segmented-item.active {
+  background: var(--bg-surface);
+  color: var(--text-heading);
+  box-shadow: var(--sh-card);
+}
+
+/* ===============================================================
+   7. Badge
    =============================================================== */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-3);
-  border-radius: var(--r-pill);
+  height: 22px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-sm);
   font-size: var(--fs-caption);
-  font-weight: var(--fw-semibold);
-  line-height: 1.5;
+  font-weight: var(--fw-medium);
   white-space: nowrap;
-  background: var(--tone-bg, var(--bg-subtle));
-  color: var(--tone-fg, var(--text-body));
-  border: 1px solid var(--tone-border, var(--border));
+  background: var(--tone-bg, var(--n-100));
+  color: var(--tone-fg, var(--n-600));
+  border: 1px solid var(--tone-border, var(--n-200));
 }
 
 .badge-dot::before {
   content: '';
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   background: currentColor;
   flex-shrink: 0;
 }
 
 /* ===============================================================
-   7. Tabel
+   8. Tabel
    =============================================================== */
 .table-wrap {
   width: 100%;
@@ -422,56 +479,50 @@ h3 {
 }
 
 .table {
-  min-width: 640px;
+  min-width: 620px;
   font-size: var(--fs-body);
 }
 
 .table thead th {
-  padding: var(--sp-3) var(--sp-5);
+  height: 40px;
+  padding: 0 var(--sp-4);
   background: var(--bg-subtle);
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
   color: var(--text-muted);
   text-align: left;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
 }
 
-.table thead th:first-child {
-  padding-left: var(--sp-6);
+.table thead th:first-child,
+.table tbody td:first-child {
+  padding-left: var(--sp-5);
 }
-.table thead th:last-child {
-  padding-right: var(--sp-6);
+.table thead th:last-child,
+.table tbody td:last-child {
+  padding-right: var(--sp-5);
 }
 
 .table tbody td {
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--border);
   color: var(--text-body);
   vertical-align: middle;
-}
-
-.table tbody td:first-child {
-  padding-left: var(--sp-6);
-}
-.table tbody td:last-child {
-  padding-right: var(--sp-6);
 }
 
 .table tbody tr {
   transition: background var(--dur-fast) var(--ease);
 }
 .table tbody tr:hover {
-  background: var(--bg-hover);
+  background: var(--bg-subtle);
 }
 .table tbody tr:last-child td {
   border-bottom: none;
 }
 
 .table .cell-strong {
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   color: var(--text-heading);
 }
 
@@ -483,57 +534,70 @@ h3 {
 }
 
 /* ===============================================================
-   8. Avatar
+   9. Avatar — lingkaran, satu-satunya pengecualian radius
    =============================================================== */
 .avatar {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--r-pill);
-  background: var(--c-primary-soft);
-  color: var(--c-primary);
-  font-size: var(--fs-label);
-  font-weight: var(--fw-bold);
+  background: var(--n-100);
+  color: var(--n-600);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
   overflow: hidden;
 }
 .avatar-sm {
-  width: 32px;
-  height: 32px;
-  font-size: var(--fs-caption);
+  width: 28px;
+  height: 28px;
+  font-size: var(--fs-micro);
 }
 .avatar-lg {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   font-size: var(--fs-h3);
 }
 
+/* Titik status — juga bulat secara makna */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+  background: var(--n-400);
+}
+.status-dot.is-on {
+  background: var(--ok);
+}
+
 /* ===============================================================
-   9. Layout helper
+   10. Layout helper
    =============================================================== */
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-6);
+  gap: var(--sp-5);
 }
 
 .page-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
   flex-wrap: wrap;
+  min-height: var(--h-control);
 }
 
 .page-head h1 {
-  margin-bottom: var(--sp-1);
+  margin-bottom: 2px;
 }
 
 .grid {
   display: grid;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
 }
 
 .stack {
@@ -555,8 +619,12 @@ h3 {
   gap: var(--sp-3);
 }
 
-.spacer {
-  flex: 1;
+/* Baris kontrol: apa pun isinya tetap sejajar vertikal */
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
 .divider {
@@ -565,13 +633,22 @@ h3 {
   border: none;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* ===============================================================
-   10. Scrollbar
+   11. Scrollbar
    =============================================================== */
 .scroll-area {
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--n-300) transparent;
 }
 .scroll-area::-webkit-scrollbar {
   width: 6px;
@@ -581,15 +658,12 @@ h3 {
   background: transparent;
 }
 .scroll-area::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: var(--n-300);
   border-radius: var(--r-pill);
-}
-.scroll-area::-webkit-scrollbar-thumb:hover {
-  background: var(--text-faint);
 }
 
 /* ===============================================================
-   11. Animasi
+   12. Animasi — singkat, halus, tanpa gimmick
    =============================================================== */
 @keyframes fade-in {
   from {
@@ -597,17 +671,6 @@ h3 {
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -626,21 +689,24 @@ h3 {
   }
 }
 
-.animate-rise {
-  animation: rise var(--dur-slow) var(--ease) both;
+/* Denyut halus untuk status yang sedang berjalan (mis. menunggu verifikasi) */
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
-/* Transisi route */
 .route-enter-active {
-  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  transition: opacity var(--dur) var(--ease);
 }
 .route-leave-active {
   transition: opacity var(--dur-fast) var(--ease);
 }
-.route-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
+.route-enter-from,
 .route-leave-to {
   opacity: 0;
 }

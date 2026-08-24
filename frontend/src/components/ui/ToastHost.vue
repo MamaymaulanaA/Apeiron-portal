@@ -9,10 +9,10 @@ const ICONS = {
   info: Info,
 }
 const TONES = {
-  success: 'tone-green',
-  error: 'tone-red',
-  warning: 'tone-amber',
-  info: 'tone-blue',
+  success: 'tone-ok',
+  error: 'tone-err',
+  warning: 'tone-warn',
+  info: 'tone-brand',
 }
 </script>
 
@@ -56,8 +56,8 @@ const TONES = {
   background: var(--bg-surface);
   border: 1px solid var(--tone-border);
   border-left: 3px solid var(--tone-fg);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-lg);
+  border-radius: var(--r);
+  box-shadow: var(--sh-pop);
   pointer-events: auto;
 }
 

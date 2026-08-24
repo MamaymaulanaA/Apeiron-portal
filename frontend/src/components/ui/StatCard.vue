@@ -1,7 +1,10 @@
 <script setup>
 /**
- * Kartu statistik pastel — mengikuti pola stat card pada referensi:
- * chip ikon berwarna + angka besar + label.
+ * Kartu statistik.
+ *
+ * Kartu selalu berlatar netral. Warna hanya muncul lewat `tone` bila angkanya
+ * memang menyatakan status (mis. transaksi ditolak), bukan untuk membedakan
+ * satu kartu dari kartu lain.
  */
 import { computed } from 'vue'
 import { formatNumber } from '@/lib/format'
@@ -10,21 +13,16 @@ const props = defineProps({
   label: { type: String, required: true },
   value: { type: [Number, String], default: 0 },
   icon: { type: [Object, Function], default: null },
-  tone: { type: String, default: 'tone-blue' },
+  /** Beri nada hanya bila angka ini menyatakan keadaan. */
+  tone: { type: String, default: 'tone-neutral' },
   hint: { type: String, default: '' },
   to: { type: String, default: '' },
 })
 
 const isNumeric = computed(() => typeof props.value === 'number')
-
 const display = computed(() =>
   isNumeric.value ? formatNumber(props.value) : String(props.value)
 )
-
-/** Ukuran display (28px) hanya cocok untuk angka pendek. Nilai berupa teks
- *  seperti "Menunggu Verifikasi" diturunkan agar tidak membungkus dan tetap
- *  sejajar dengan kartu lain. */
-const isLongText = computed(() => !isNumeric.value && display.value.length > 8)
 </script>
 
 <template>
@@ -34,85 +32,83 @@ const isLongText = computed(() => !isNumeric.value && display.value.length > 8)
     class="stat"
     :class="[tone, { clickable: !!to }]"
   >
-    <span class="icon-chip">
-      <component :is="icon" v-if="icon" :size="20" :stroke-width="2.2" />
-    </span>
-
-    <span class="stat-text">
-      <span class="stat-value" :class="{ 'is-text': isLongText }">
-        {{ display }}
-      </span>
+    <div class="stat-top">
       <span class="stat-label">{{ label }}</span>
-      <span v-if="hint" class="stat-hint">{{ hint }}</span>
-    </span>
+      <span v-if="icon" class="stat-icon">
+        <component :is="icon" :size="16" :stroke-width="2" />
+      </span>
+    </div>
+
+    <span class="stat-value" :class="{ 'is-text': !isNumeric }">{{ display }}</span>
+    <span v-if="hint" class="stat-hint">{{ hint }}</span>
   </component>
 </template>
 
 <style scoped>
 .stat {
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-5);
-  background: var(--tone-bg);
-  border: 1px solid var(--tone-border);
-  border-radius: var(--r-lg);
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: border-color var(--dur) var(--ease);
 }
 
 .stat.clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--sh-md);
+  border-color: var(--n-400);
 }
 
-.icon-chip {
-  background: var(--bg-surface);
-  color: var(--tone-fg);
-  box-shadow: var(--sh-xs);
-}
-
-.stat-text {
+.stat-top {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+/* Label dibiarkan membungkus (maks. 2 baris) alih-alih dipotong — pada kartu
+   sempit, memotong label membuat artinya hilang. */
+.stat-label {
+  font-size: var(--fs-label);
+  color: var(--text-muted);
   min-width: 0;
-  line-height: 1.25;
+  line-height: var(--lh-snug);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Ikon netral secara bawaan; mengambil warna nada hanya bila diberi. */
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--tone-bg, var(--n-100));
+  color: var(--tone-fg, var(--n-500));
 }
 
 .stat-value {
   font-size: var(--fs-display);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
   color: var(--text-heading);
   letter-spacing: var(--tracking-tight);
+  line-height: 1.15;
 }
 
-/* Nilai berupa teks panjang: turunkan ke skala judul kartu supaya muat
-   satu–dua baris tanpa merusak tinggi kartu. */
+/* Nilai berupa teks memakai skala lebih kecil agar tidak membungkus. */
 .stat-value.is-text {
-  font-size: var(--fs-h3);
+  font-size: var(--fs-h2);
   line-height: var(--lh-snug);
-  letter-spacing: var(--tracking-normal);
-}
-
-.stat-label {
-  margin-top: 2px;
-  font-size: var(--fs-label);
-  font-weight: var(--fw-medium);
-  color: var(--text-body);
 }
 
 .stat-hint {
-  margin-top: var(--sp-1);
   font-size: var(--fs-caption);
-  color: var(--text-muted);
-}
-
-@media (max-width: 640px) {
-  .stat {
-    padding: var(--sp-4);
-    gap: var(--sp-3);
-  }
-  .stat-value {
-    font-size: var(--fs-h1);
-  }
+  color: var(--text-faint);
 }
 </style>

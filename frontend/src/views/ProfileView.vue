@@ -121,7 +121,7 @@ onMounted(load)
           <h2 class="identity-name">{{ profile?.name }}</h2>
           <p class="text-caption">{{ profile?.email }}</p>
 
-          <span class="badge tone-blue identity-role">
+          <span class="badge tone-brand identity-role">
             <ShieldCheck :size="13" />
             {{ profile?.role === 'admin' ? 'Administrator' : 'Member' }}
           </span>
@@ -160,7 +160,7 @@ onMounted(load)
         <section class="card">
           <header class="card-header">
             <h3>
-              <span class="icon-chip icon-chip-sm tone-blue"><User :size="16" /></span>
+              <span class="icon-chip icon-chip-sm tone-brand"><User :size="16" /></span>
               Informasi Akun
             </h3>
           </header>
@@ -228,7 +228,7 @@ onMounted(load)
         <section class="card">
           <header class="card-header">
             <h3>
-              <span class="icon-chip icon-chip-sm tone-red"><Lock :size="16" /></span>
+              <span class="icon-chip icon-chip-sm tone-err"><Lock :size="16" /></span>
               Ubah Password
             </h3>
           </header>

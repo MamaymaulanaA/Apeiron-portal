@@ -96,7 +96,7 @@ onMounted(load)
             <h3 class="tpl-name">{{ t.name }}</h3>
             <span
               class="badge"
-              :class="Number(t.is_standard) ? 'tone-blue' : 'tone-purple'"
+              :class="Number(t.is_standard) ? 'tone-brand' : 'tone-neutral'"
             >
               {{ Number(t.is_standard) ? 'Standard' : 'Premium' }}
             </span>
@@ -121,7 +121,6 @@ onMounted(load)
     <div v-else class="card">
       <EmptyState
         :icon="LayoutTemplate"
-        tone="tone-orange"
         title="Tidak ada template"
         :description="
           filter === 'all'
@@ -158,7 +157,7 @@ onMounted(load)
   padding: var(--sp-1);
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
 }
 
 .tab {
@@ -177,7 +176,7 @@ onMounted(load)
   color: var(--text-heading);
 }
 .tab.active {
-  background: var(--c-primary);
+  background: var(--brand);
   color: #fff;
 }
 
@@ -202,7 +201,7 @@ onMounted(load)
 }
 .tpl:hover {
   transform: translateY(-3px);
-  box-shadow: var(--sh-md);
+  box-shadow: var(--sh-card);
 }
 
 .tpl-thumb {
@@ -210,8 +209,8 @@ onMounted(load)
   display: grid;
   place-items: center;
   aspect-ratio: 16 / 10;
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
+  background: var(--n-100);
+  color: var(--n-500);
   overflow: hidden;
 }
 .tpl-thumb img {
@@ -229,7 +228,7 @@ onMounted(load)
   gap: var(--sp-1);
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-pill);
-  background: var(--c-warning);
+  background: var(--warn);
   color: #fff;
   font-size: var(--fs-micro);
   font-weight: var(--fw-bold);

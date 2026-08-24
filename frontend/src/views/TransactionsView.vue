@@ -71,7 +71,7 @@ onMounted(load)
             <tr v-for="t in items" :key="t.id">
               <td>
                 <span class="doc">
-                  <span class="icon-chip icon-chip-sm tone-blue"><FileText :size="15" /></span>
+                  <span class="icon-chip icon-chip-sm tone-brand"><FileText :size="15" /></span>
                   <span class="cell-strong">{{ t.document_name || '-' }}</span>
                 </span>
               </td>
@@ -89,7 +89,7 @@ onMounted(load)
         <article v-for="t in items" :key="t.id" class="tx-card">
           <header class="row-between">
             <span class="row">
-              <span class="icon-chip icon-chip-sm tone-blue"><FileText :size="15" /></span>
+              <span class="icon-chip icon-chip-sm tone-brand"><FileText :size="15" /></span>
               <span class="cell-strong">{{ t.document_name || '-' }}</span>
             </span>
             <StatusBadge :status="t.status" :label="t.status_label" />
@@ -140,7 +140,7 @@ onMounted(load)
   gap: var(--sp-3);
   padding: var(--sp-4);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
 }
 
 .tx-card header {
@@ -168,7 +168,7 @@ onMounted(load)
 
 .tx-note {
   padding: var(--sp-2) var(--sp-3);
-  background: var(--c-warning-soft);
+  background: var(--warn-soft);
   border-radius: var(--r-sm);
   font-size: var(--fs-caption);
   color: var(--text-body);

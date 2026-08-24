@@ -32,6 +32,10 @@ const loading = ref(true)
 const stats = ref(null)
 const recent = ref([])
 
+/** Daftar anggota — data nyata dari GET /admin/users (halaman pertama). */
+const members = ref([])
+const membersLoading = ref(true)
+
 const admin = computed(() => authState.user)
 
 /** Jumlah yang butuh tindakan admin — dipakai di hero. */
@@ -54,7 +58,26 @@ async function load() {
   }
 }
 
-onMounted(load)
+/**
+ * Anggota diambil dari endpoint yang sudah ada. Tidak ada data contoh:
+ * bila permintaan gagal, daftar dibiarkan kosong dan empty state yang tampil.
+ */
+async function loadMembers() {
+  membersLoading.value = true
+  try {
+    const { data } = await api.get('/admin/users')
+    members.value = data.users || []
+  } catch {
+    members.value = []
+  } finally {
+    membersLoading.value = false
+  }
+}
+
+onMounted(() => {
+  load()
+  loadMembers()
+})
 </script>
 
 <template>
@@ -84,10 +107,6 @@ onMounted(load)
           </RouterLink>
         </div>
       </div>
-
-      <div class="hero-side">
-        <span class="hero-avatar">{{ initials(admin?.name) }}</span>
-      </div>
     </section>
 
     <!-- ---------- Statistik transaksi ---------- -->
@@ -96,7 +115,7 @@ onMounted(load)
         label="Menunggu Verifikasi"
         :value="Number(stats?.waiting_verification) || 0"
         :icon="Clock"
-        tone="tone-amber"
+        tone="tone-warn"
         hint="Perlu ditinjau"
         to="/admin/transactions"
       />
@@ -104,7 +123,7 @@ onMounted(load)
         label="Disetujui"
         :value="Number(stats?.approved) || 0"
         :icon="CircleCheck"
-        tone="tone-green"
+        tone="tone-ok"
         hint="Lisensi terbit"
         to="/admin/transactions"
       />
@@ -112,7 +131,7 @@ onMounted(load)
         label="Ditolak"
         :value="Number(stats?.rejected) || 0"
         :icon="CircleX"
-        tone="tone-red"
+        tone="tone-err"
         hint="Perlu unggah ulang"
         to="/admin/transactions"
       />
@@ -120,7 +139,7 @@ onMounted(load)
         label="Pending Lisensi"
         :value="Number(stats?.pending_license) || 0"
         :icon="ServerCrash"
-        tone="tone-purple"
+        tone="tone-neutral"
         hint="Server lisensi offline"
         to="/admin/transactions"
       />
@@ -131,7 +150,7 @@ onMounted(load)
       <section class="card">
         <header class="card-header">
           <h3>
-            <span class="icon-chip icon-chip-sm tone-blue"><Receipt :size="16" /></span>
+            <span class="icon-chip icon-chip-sm tone-brand"><Receipt :size="16" /></span>
             Transaksi Terbaru
           </h3>
           <RouterLink to="/admin/transactions" class="link-more">
@@ -181,7 +200,7 @@ onMounted(load)
         <section class="card">
           <header class="card-header">
             <h3>
-              <span class="icon-chip icon-chip-sm tone-orange">
+              <span class="icon-chip icon-chip-sm tone-neutral">
                 <LayoutTemplate :size="16" />
               </span>
               Katalog
@@ -215,23 +234,63 @@ onMounted(load)
 
           <div class="card-body shortcuts">
             <RouterLink to="/admin/users" class="shortcut">
-              <span class="icon-chip icon-chip-sm tone-blue"><UserPlus :size="16" /></span>
+              <span class="icon-chip icon-chip-sm tone-brand"><UserPlus :size="16" /></span>
               Kelola User
               <ArrowRight class="shortcut-arrow" :size="15" />
             </RouterLink>
             <RouterLink to="/admin/plugins" class="shortcut">
-              <span class="icon-chip icon-chip-sm tone-purple"><Package :size="16" /></span>
+              <span class="icon-chip icon-chip-sm tone-neutral"><Package :size="16" /></span>
               Kelola Plugin
               <ArrowRight class="shortcut-arrow" :size="15" />
             </RouterLink>
             <RouterLink to="/admin/templates" class="shortcut">
-              <span class="icon-chip icon-chip-sm tone-orange">
+              <span class="icon-chip icon-chip-sm tone-neutral">
                 <LayoutTemplate :size="16" />
               </span>
               Kelola Template
               <ArrowRight class="shortcut-arrow" :size="15" />
             </RouterLink>
           </div>
+        </section>
+
+        <!-- Anggota — seluruhnya data nyata dari GET /admin/users -->
+        <section class="card">
+          <header class="card-header">
+            <h2>Anggota</h2>
+            <RouterLink to="/admin/users" class="link-more">
+              Kelola <ArrowRight :size="14" />
+            </RouterLink>
+          </header>
+
+          <SkeletonRows v-if="membersLoading" :rows="3" :height="40" />
+
+          <ul v-else-if="members.length" class="members">
+            <li v-for="m in members" :key="m.id" class="member">
+              <span class="avatar avatar-sm">{{ initials(m.name) }}</span>
+
+              <span class="member-text">
+                <span class="member-name">{{ m.name }}</span>
+                <span class="member-mail">{{ m.email }}</span>
+              </span>
+
+              <span class="member-tags">
+                <span v-if="m.role === 'admin'" class="badge tone-brand">Admin</span>
+                <span
+                  class="status-dot"
+                  :class="{ 'is-on': Number(m.is_active) }"
+                  :title="Number(m.is_active) ? 'Aktif' : 'Nonaktif'"
+                />
+              </span>
+            </li>
+          </ul>
+
+          <EmptyState
+            v-else
+            :icon="Users"
+            title="Belum ada anggota"
+            description="Daftar pengguna akan tampil di sini."
+            compact
+          />
         </section>
       </aside>
     </div>
@@ -244,29 +303,12 @@ onMounted(load)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-8);
-  padding: var(--sp-7);
-  border-radius: var(--r-xl);
-  background: var(--grad-banner);
-  border: 1px solid var(--c-primary-border);
-  position: relative;
-  overflow: hidden;
-}
-.hero::after {
-  content: '';
-  position: absolute;
-  width: 320px;
-  height: 320px;
-  right: -60px;
-  top: -80px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 35%,
-    rgba(86, 204, 242, 0.35),
-    rgba(47, 128, 237, 0.12) 55%,
-    transparent 70%
-  );
-  pointer-events: none;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  border-radius: var(--r);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-card);
 }
 
 .hero-text {
@@ -283,46 +325,28 @@ onMounted(load)
   margin-bottom: var(--sp-2);
 }
 .hero-title {
-  font-size: var(--fs-display);
-  margin-bottom: var(--sp-2);
+  font-size: var(--fs-h1);
+  margin-bottom: var(--sp-1);
 }
 .hero-title span {
-  color: var(--c-primary);
+  color: var(--brand);
 }
 .hero-sub {
   color: var(--text-body);
   max-width: 52ch;
 }
 .hero-sub strong {
-  color: var(--c-primary);
+  color: var(--brand);
   font-weight: var(--fw-bold);
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-3);
-  margin-top: var(--sp-6);
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
 }
 
-.hero-side {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-}
-.hero-avatar {
-  display: grid;
-  place-items: center;
-  width: 76px;
-  height: 76px;
-  border-radius: var(--r-pill);
-  background: var(--bg-surface);
-  border: 3px solid var(--c-primary-border);
-  font-size: var(--fs-h2);
-  font-weight: var(--fw-bold);
-  color: var(--c-primary);
-  box-shadow: var(--sh-sm);
-}
 
 /* ---------- Grid ---------- */
 .stats {
@@ -366,10 +390,10 @@ onMounted(load)
   gap: var(--sp-1);
   font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);
-  color: var(--c-primary);
+  color: var(--brand);
 }
 .link-more:hover {
-  color: var(--c-primary-hover);
+  color: var(--brand-hover);
 }
 
 /* ---------- Katalog ---------- */
@@ -408,7 +432,7 @@ onMounted(load)
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-3);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   font-size: var(--fs-label);
   font-weight: var(--fw-medium);
   color: var(--text-body);
@@ -428,21 +452,68 @@ onMounted(load)
   .hero {
     flex-direction: column;
     align-items: flex-start;
-    padding: var(--sp-6);
-  }
-  .hero-title {
-    font-size: var(--fs-h1);
   }
 }
 
 @media (max-width: 640px) {
-  .hero-avatar {
-    width: 56px;
-    height: 56px;
-    font-size: var(--fs-h3);
+  .hero,
+  .card-body {
+    padding: var(--sp-4);
+  }
+  .hero-actions {
+    width: 100%;
   }
   .hero-actions .btn {
     flex: 1;
   }
+}
+
+/* ---------- Anggota ---------- */
+.members {
+  display: flex;
+  flex-direction: column;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.member:last-child {
+  border-bottom: none;
+}
+
+.member-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.35;
+}
+
+.member-name {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-mail {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
 }
 </style>

@@ -1,107 +1,114 @@
 /**
  * Apeiron Portal — Design Tokens
  *
- * Palet dan skala diturunkan dari referensi desain (dashboard navy + kartu
- * pastel + aksen biru/oranye). Semua komponen hanya boleh memakai token di
- * sini — jangan pernah menulis nilai hex langsung di file komponen.
+ * Prinsip:
+ *  1. SATU warna brand. Warna status (hijau/kuning/merah) hanya untuk status
+ *     yang benar-benar bermakna — bukan untuk memberi variasi pada kartu.
+ *  2. Netral memikul hampir seluruh tampilan. Tidak ada latar pastel dekoratif.
+ *  3. Radius 8px untuk semua persegi-membulat. Lingkaran hanya untuk elemen
+ *     yang memang bulat secara makna (avatar, titik status).
+ *  4. Satu tinggi kontrol. Semua tombol, input, select, dan trigger dropdown
+ *     pada baris yang sama otomatis sejajar.
+ *  5. Bayangan seminimal mungkin, dan sangat tipis bila terpaksa dipakai.
+ *     Field tidak pernah memakai bayangan — pembeda state adalah border 1px.
  *
- * App ini light-only (mengikuti perilaku lama: bundle sebelumnya mengunci
- * data-theme=light dan tidak punya toggle tema sama sekali).
+ * App ini light-only, mengikuti perilaku aplikasi sebelumnya.
  */
 
 :root {
   /* ---------------------------------------------------------------
-     Warna — brand
+     Netral — tulang punggung tampilan
      --------------------------------------------------------------- */
-  --c-primary: #2b6cf6;
-  --c-primary-hover: #1d5ae0;
-  --c-primary-active: #1749b8;
-  --c-primary-soft: #eaf1fe;
-  --c-primary-border: #d3e2fd;
-  --c-primary-rgb: 43, 108, 246;
-
-  --c-accent: #ff7a45;
-  --c-accent-hover: #f2632b;
-  --c-accent-soft: #fff1ea;
-  --c-accent-border: #ffddcc;
+  --n-0: #ffffff;
+  --n-25: #fcfcfd;
+  --n-50: #f9fafb;
+  --n-100: #f2f4f7;
+  --n-200: #e4e7ec;
+  --n-300: #d0d5dd;
+  --n-400: #98a2b3;
+  --n-500: #667085;
+  --n-600: #475467;
+  --n-700: #344054;
+  --n-800: #1d2939;
+  --n-900: #101828;
 
   /* ---------------------------------------------------------------
-     Warna — status
-     Dipakai badge transaksi: waiting / approved / rejected / pending_license
+     Brand — satu warna, dipakai untuk aksi utama dan state aktif
      --------------------------------------------------------------- */
-  --c-success: #21b573;
-  --c-success-hover: #189a61;
-  --c-success-soft: #e7f8f0;
-  --c-success-border: #c6ecdb;
-
-  --c-danger: #f04b55;
-  --c-danger-hover: #d93b45;
-  --c-danger-soft: #fdecee;
-  --c-danger-border: #fbd5d8;
-
-  --c-warning: #f2b527;
-  --c-warning-hover: #d99f16;
-  --c-warning-soft: #fef6e4;
-  --c-warning-border: #fae7bb;
-
-  --c-info: #8b5cf6;
-  --c-info-hover: #7748ea;
-  --c-info-soft: #f3edfe;
-  --c-info-border: #e4d7fc;
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+  --brand-active: #1e40af;
+  --brand-soft: #eff4ff;
+  --brand-border: #b9d0fd;
+  --brand-ink: #1e40af;
 
   /* ---------------------------------------------------------------
-     Warna — permukaan
+     Status — HANYA untuk keadaan yang bermakna
+     (status transaksi, aktif/nonaktif, hasil aksi)
      --------------------------------------------------------------- */
-  --bg-page: #f4f7fe;
-  --bg-surface: #ffffff;
-  --bg-subtle: #f7f9fd;
-  --bg-hover: #f1f5fd;
-  --bg-overlay: rgba(16, 26, 56, 0.48);
+  --ok: #067647;
+  --ok-soft: #ecfdf3;
+  --ok-border: #abefc6;
 
-  --border: #e6ecf7;
-  --border-strong: #d6e0f0;
+  --warn: #b54708;
+  --warn-soft: #fffaeb;
+  --warn-border: #fedf89;
 
-  /* Sidebar — panel putih dengan pill aktif bergradasi biru (referensi) */
-  --sidebar-bg: #ffffff;
-  --sidebar-bg-soft: #f1f5fd;
-  --sidebar-text: #5b6785;
-  --sidebar-text-active: #ffffff;
-  --sidebar-section: #a0a9c0;
-  --sidebar-border: #e9eef8;
+  --err: #b42318;
+  --err-soft: #fef3f2;
+  --err-border: #fecdca;
 
-  /* Gradasi aksen — dipakai pill sidebar, tombol brand, dan cincin progres */
-  --grad-brand: linear-gradient(135deg, #2f80ed 0%, #56ccf2 100%);
-  --grad-banner: linear-gradient(115deg, #eaf2fe 0%, #f5f9ff 45%, #e4eeff 100%);
+  --info: #175cd3;
+  --info-soft: #eff8ff;
+  --info-border: #b2ddff;
 
   /* ---------------------------------------------------------------
-     Warna — teks (hierarki 4 tingkat)
+     Permukaan
      --------------------------------------------------------------- */
-  --text-heading: #16234b;
-  --text-body: #4a5578;
-  --text-muted: #8a93b2;
-  --text-faint: #a8b0c9;
-  --text-inverse: #ffffff;
+  --bg-page: var(--n-50);
+  --bg-surface: var(--n-0);
+  --bg-subtle: var(--n-50);
+  --bg-hover: var(--n-100);
+  --bg-overlay: rgba(16, 24, 40, 0.5);
+
+  --border: var(--n-200);
+  --border-strong: var(--n-300);
+
+  /* Sidebar — putih, menyatu dengan halaman */
+  --sidebar-bg: var(--n-0);
+  --sidebar-text: var(--n-600);
+  --sidebar-text-active: var(--brand-ink);
+  --sidebar-section: var(--n-400);
+  --sidebar-border: var(--n-200);
+
+  /* ---------------------------------------------------------------
+     Teks — empat tingkat
+     --------------------------------------------------------------- */
+  --text-heading: var(--n-900);
+  --text-body: var(--n-700);
+  --text-muted: var(--n-500);
+  --text-faint: var(--n-400);
+  --text-inverse: var(--n-0);
 
   /* ---------------------------------------------------------------
      Tipografi
      --------------------------------------------------------------- */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas,
-    monospace;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --fs-display: 1.75rem;   /* 28px — angka besar di stat card */
-  --fs-h1: 1.5rem;         /* 24px — judul halaman */
-  --fs-h2: 1.25rem;        /* 20px — judul section */
-  --fs-h3: 1.0625rem;      /* 17px — judul kartu */
+  --fs-display: 1.625rem;  /* 26px */
+  --fs-h1: 1.375rem;       /* 22px */
+  --fs-h2: 1.125rem;       /* 18px */
+  --fs-h3: 1rem;           /* 16px */
   --fs-body-lg: 0.9375rem; /* 15px */
-  --fs-body: 0.875rem;     /* 14px — teks utama */
-  --fs-label: 0.8125rem;   /* 13px — label form/tabel */
-  --fs-caption: 0.75rem;   /* 12px — keterangan */
-  --fs-micro: 0.6875rem;   /* 11px — badge/overline */
+  --fs-body: 0.875rem;     /* 14px */
+  --fs-label: 0.8125rem;   /* 13px */
+  --fs-caption: 0.75rem;   /* 12px */
+  --fs-micro: 0.6875rem;   /* 11px */
 
   --lh-tight: 1.25;
-  --lh-snug: 1.4;
+  --lh-snug: 1.45;
   --lh-normal: 1.6;
 
   --fw-regular: 400;
@@ -109,7 +116,7 @@
   --fw-semibold: 600;
   --fw-bold: 700;
 
-  --tracking-tight: -0.02em;
+  --tracking-tight: -0.011em;
   --tracking-normal: 0;
   --tracking-wide: 0.04em;
 
@@ -126,45 +133,46 @@
   --sp-8: 2rem;
   --sp-10: 2.5rem;
   --sp-12: 3rem;
-  --sp-16: 4rem;
 
   /* ---------------------------------------------------------------
-     Radius
+     Radius — 8px untuk semua, kecuali yang memang bulat
      --------------------------------------------------------------- */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
-  --r-2xl: 24px;
+  --r: 8px;
+  --r-sm: 6px;   /* hanya untuk elemen mungil di dalam kontrol 8px */
   --r-pill: 999px;
 
   /* ---------------------------------------------------------------
-     Shadow — lembut & difus, khas referensi
+     Tinggi kontrol — satu nilai, dipakai semua kontrol sebaris
      --------------------------------------------------------------- */
-  --sh-xs: 0 1px 2px rgba(22, 35, 75, 0.05);
-  --sh-sm: 0 2px 8px rgba(22, 35, 75, 0.05);
-  --sh-md: 0 4px 16px rgba(22, 35, 75, 0.07);
-  --sh-lg: 0 12px 32px rgba(22, 35, 75, 0.1);
-  --sh-primary: 0 6px 18px rgba(var(--c-primary-rgb), 0.28);
+  --h-control: 38px;
+  --h-control-sm: 32px;
+  --h-control-lg: 44px;
 
-  --ring: 0 0 0 3px rgba(var(--c-primary-rgb), 0.18);
+  /* Ukuran ikon yang selaras dengan tinggi kontrol */
+  --icon: 16px;
+  --icon-sm: 14px;
+
+  /* ---------------------------------------------------------------
+     Bayangan — nyaris tak terlihat.
+     Field TIDAK PERNAH memakai bayangan; state dibedakan lewat border.
+     --------------------------------------------------------------- */
+  --sh-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --sh-pop: 0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.04);
 
   /* ---------------------------------------------------------------
      Layout
      --------------------------------------------------------------- */
-  --sidebar-w: 260px;
-  --sidebar-w-collapsed: 76px;
-  --topbar-h: 72px;
-  --rail-w: 320px;
-  --content-max: 1600px;
+  --sidebar-w: 248px;
+  --topbar-h: 60px;
+  --rail-w: 312px;
+  --content-max: 1440px;
 
   /* ---------------------------------------------------------------
-     Motion
+     Motion — singkat dan halus
      --------------------------------------------------------------- */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-fast: 120ms;
-  --dur: 200ms;
-  --dur-slow: 320ms;
+  --dur-fast: 100ms;
+  --dur: 160ms;
 
   --z-dropdown: 100;
   --z-sidebar: 200;
@@ -173,35 +181,39 @@
   --z-toast: 500;
 }
 
-/* Kartu statistik pastel — tiap varian membawa trio bg/border/ikon.
-   Dipakai lewat class .tone-{nama} pada StatCard. */
-.tone-blue {
-  --tone-bg: #eaf1fe;
-  --tone-border: #d3e2fd;
-  --tone-fg: #2b6cf6;
+/**
+ * Nada status.
+ * Dipakai HANYA pada elemen yang menyatakan keadaan — badge status transaksi,
+ * aktif/nonaktif, hasil aksi. Jangan dipakai untuk mewarnai kartu agar
+ * "berwarna-warni".
+ */
+.tone-neutral {
+  --tone-fg: var(--n-600);
+  --tone-bg: var(--n-100);
+  --tone-border: var(--n-200);
 }
-.tone-orange {
-  --tone-bg: #fff1ea;
-  --tone-border: #ffddcc;
-  --tone-fg: #ff7a45;
+.tone-brand {
+  --tone-fg: var(--brand-ink);
+  --tone-bg: var(--brand-soft);
+  --tone-border: var(--brand-border);
 }
-.tone-green {
-  --tone-bg: #e7f8f0;
-  --tone-border: #c6ecdb;
-  --tone-fg: #21b573;
+.tone-ok {
+  --tone-fg: var(--ok);
+  --tone-bg: var(--ok-soft);
+  --tone-border: var(--ok-border);
 }
-.tone-purple {
-  --tone-bg: #f3edfe;
-  --tone-border: #e4d7fc;
-  --tone-fg: #8b5cf6;
+.tone-warn {
+  --tone-fg: var(--warn);
+  --tone-bg: var(--warn-soft);
+  --tone-border: var(--warn-border);
 }
-.tone-red {
-  --tone-bg: #fdecee;
-  --tone-border: #fbd5d8;
-  --tone-fg: #f04b55;
+.tone-err {
+  --tone-fg: var(--err);
+  --tone-bg: var(--err-soft);
+  --tone-border: var(--err-border);
 }
-.tone-amber {
-  --tone-bg: #fef6e4;
-  --tone-border: #fae7bb;
-  --tone-fg: #f2b527;
+.tone-info {
+  --tone-fg: var(--info);
+  --tone-bg: var(--info-soft);
+  --tone-border: var(--info-border);
 }

@@ -184,7 +184,7 @@ onMounted(load)
             <h3 class="tpl-name">{{ t.name }}</h3>
             <span
               class="badge"
-              :class="Number(t.is_standard) ? 'tone-blue' : 'tone-purple'"
+              :class="Number(t.is_standard) ? 'tone-brand' : 'tone-neutral'"
             >
               {{ Number(t.is_standard) ? 'Standard' : 'Premium' }}
             </span>
@@ -224,7 +224,6 @@ onMounted(load)
     <div v-else class="card">
       <EmptyState
         :icon="LayoutTemplate"
-        tone="tone-orange"
         title="Belum ada template"
         description="Tambahkan template pertama untuk ditampilkan ke user."
       >
@@ -350,7 +349,7 @@ onMounted(load)
       @close="deleteTarget = null"
     >
       <div class="confirm">
-        <span class="icon-chip tone-red confirm-icon"><TriangleAlert :size="22" /></span>
+        <span class="icon-chip tone-err confirm-icon"><TriangleAlert :size="22" /></span>
         <p>
           Yakin ingin menghapus <strong>{{ deleteTarget?.name }}</strong>?
           Thumbnail-nya juga akan dihapus.
@@ -408,8 +407,8 @@ onMounted(load)
   display: grid;
   place-items: center;
   aspect-ratio: 16 / 10;
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
+  background: var(--n-100);
+  color: var(--n-500);
   overflow: hidden;
 }
 .tpl-thumb img {
@@ -427,7 +426,7 @@ onMounted(load)
   gap: var(--sp-1);
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-pill);
-  background: var(--c-warning);
+  background: var(--warn);
   color: #fff;
   font-size: var(--fs-micro);
   font-weight: var(--fw-bold);
@@ -466,10 +465,10 @@ onMounted(load)
   gap: var(--sp-1);
   font-size: var(--fs-caption);
   font-weight: var(--fw-medium);
-  color: var(--c-primary);
+  color: var(--brand);
 }
 .tpl-link:hover {
-  color: var(--c-primary-hover);
+  color: var(--brand-hover);
 }
 
 .tpl-actions {
@@ -483,9 +482,9 @@ onMounted(load)
 }
 
 .btn.danger:hover:not(:disabled) {
-  background: var(--c-danger-soft);
-  border-color: var(--c-danger-border);
-  color: var(--c-danger);
+  background: var(--err-soft);
+  border-color: var(--err-border);
+  color: var(--err);
 }
 
 /* ---- Pemilih thumbnail ---- */
@@ -495,14 +494,14 @@ onMounted(load)
   aspect-ratio: 16 / 9;
   max-height: 200px;
   border: 1.5px dashed var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: var(--bg-subtle);
   cursor: pointer;
   overflow: hidden;
   transition: border-color var(--dur) var(--ease);
 }
 .thumb-picker:hover {
-  border-color: var(--c-primary);
+  border-color: var(--brand);
 }
 .thumb-picker img {
   width: 100%;
@@ -545,7 +544,7 @@ onMounted(load)
 .confirm-icon {
   width: 52px;
   height: 52px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r);
 }
 .confirm p {
   color: var(--text-body);

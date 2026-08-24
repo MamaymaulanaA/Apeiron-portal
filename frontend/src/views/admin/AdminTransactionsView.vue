@@ -321,7 +321,7 @@ onMounted(load)
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span class="icon-chip icon-chip-sm tone-blue"><FileText :size="16" /></span>
+            <span class="icon-chip icon-chip-sm tone-brand"><FileText :size="16" /></span>
             <span class="doc-file-name">
               {{ detail.document_original_name || 'Lihat dokumen' }}
             </span>
@@ -439,12 +439,12 @@ onMounted(load)
   transition: all var(--dur) var(--ease);
 }
 .filter:hover {
-  border-color: var(--c-primary-border);
+  border-color: var(--brand-border);
   color: var(--text-heading);
 }
 .filter.active {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: var(--brand);
+  border-color: var(--brand);
   color: #fff;
 }
 
@@ -498,9 +498,9 @@ onMounted(load)
 
 .note {
   padding: var(--sp-3) var(--sp-4);
-  background: var(--c-warning-soft);
-  border: 1px solid var(--c-warning-border);
-  border-radius: var(--r-md);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r);
   font-size: var(--fs-label);
   color: var(--text-body);
 }
@@ -518,7 +518,7 @@ onMounted(load)
 .doc-image {
   display: block;
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   overflow: hidden;
   background: var(--bg-subtle);
 }
@@ -534,14 +534,14 @@ onMounted(load)
   gap: var(--sp-3);
   padding: var(--sp-4);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: var(--bg-subtle);
   color: var(--text-body);
   transition: border-color var(--dur) var(--ease);
 }
 .doc-file:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
+  border-color: var(--brand);
+  color: var(--brand);
 }
 .doc-file-name {
   flex: 1;

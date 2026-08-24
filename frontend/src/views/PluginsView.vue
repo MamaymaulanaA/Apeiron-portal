@@ -64,7 +64,7 @@ onMounted(load)
 
     <!-- ---------- Kartu rilis plugin ---------- -->
     <section v-if="plugin" class="release card">
-      <span class="icon-chip release-icon tone-purple">
+      <span class="icon-chip release-icon tone-neutral">
         <Package :size="24" />
       </span>
 
@@ -90,10 +90,10 @@ onMounted(load)
     <section class="card">
       <header class="card-header">
         <h3>
-          <span class="icon-chip icon-chip-sm tone-green"><KeyRound :size="16" /></span>
+          <span class="icon-chip icon-chip-sm tone-ok"><KeyRound :size="16" /></span>
           Lisensi Saya
         </h3>
-        <span v-if="hasLicense" class="badge tone-green">
+        <span v-if="hasLicense" class="badge tone-ok">
           {{ licenses.length }} aktif
         </span>
       </header>
@@ -104,7 +104,7 @@ onMounted(load)
         <article v-for="l in licenses" :key="l.id" class="lic">
           <header class="lic-head">
             <span class="row">
-              <span class="icon-chip icon-chip-sm tone-green"><KeyRound :size="15" /></span>
+              <span class="icon-chip icon-chip-sm tone-ok"><KeyRound :size="15" /></span>
               <span>
                 <span class="lic-product">{{ l.product_id || 'Apeiron Kit' }}</span>
                 <span class="text-caption">
@@ -155,7 +155,6 @@ onMounted(load)
       <EmptyState
         v-else
         :icon="KeyRound"
-        tone="tone-green"
         title="Belum ada lisensi"
         description="Lisensi diterbitkan otomatis setelah bukti transaksi Anda disetujui admin."
       >
@@ -181,7 +180,7 @@ onMounted(load)
 .release-icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r);
   background: var(--tone-bg);
   flex-shrink: 0;
 }
@@ -210,8 +209,8 @@ onMounted(load)
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-4);
-  background: var(--c-warning-soft);
-  border-radius: var(--r-md);
+  background: var(--warn-soft);
+  border-radius: var(--r);
   font-size: var(--fs-caption);
   color: var(--text-body);
 }
@@ -227,7 +226,7 @@ onMounted(load)
 .lic {
   padding: var(--sp-5);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: var(--bg-subtle);
 }
 

@@ -130,7 +130,7 @@ function go(p) {
 }
 
 .pager-btn.active {
-  background: var(--c-primary);
+  background: var(--brand);
   color: #fff;
 }
 

@@ -10,29 +10,29 @@
 export const TX_STATUS = {
   waiting_verification: {
     label: 'Menunggu Verifikasi',
-    tone: 'tone-amber',
+    tone: 'tone-warn',
     icon: 'Clock',
   },
   approved: {
     label: 'Disetujui',
-    tone: 'tone-green',
+    tone: 'tone-ok',
     icon: 'CircleCheck',
   },
   rejected: {
     label: 'Ditolak',
-    tone: 'tone-red',
+    tone: 'tone-err',
     icon: 'CircleX',
   },
   pending_license: {
     label: 'Pending Lisensi (Server Offline)',
-    tone: 'tone-purple',
+    tone: 'tone-neutral',
     icon: 'ServerCrash',
   },
 }
 
 export function statusMeta(status) {
   return (
-    TX_STATUS[status] || { label: status || '-', tone: 'tone-blue', icon: 'Circle' }
+    TX_STATUS[status] || { label: status || '-', tone: 'tone-brand', icon: 'Circle' }
   )
 }
 

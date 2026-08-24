@@ -20,19 +20,19 @@
 
 .auth-error {
   padding: var(--sp-3) var(--sp-4);
-  background: var(--c-danger-soft);
-  border: 1px solid var(--c-danger-border);
-  border-radius: var(--r-md);
+  background: var(--err-soft);
+  border: 1px solid var(--err-border);
+  border-radius: var(--r);
   font-size: var(--fs-label);
   font-weight: var(--fw-medium);
-  color: var(--c-danger);
+  color: var(--err);
 }
 
 .auth-note {
   padding: var(--sp-3) var(--sp-4);
-  background: var(--c-primary-soft);
-  border: 1px solid var(--c-primary-border);
-  border-radius: var(--r-md);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--r);
   font-size: var(--fs-caption);
   color: var(--text-body);
 }
@@ -61,10 +61,10 @@
 }
 .auth-alt a {
   font-weight: var(--fw-semibold);
-  color: var(--c-primary);
+  color: var(--brand);
 }
 .auth-alt a:hover {
-  color: var(--c-primary-hover);
+  color: var(--brand-hover);
 }
 
 /* Dua kolom untuk field pendek di layar lega */

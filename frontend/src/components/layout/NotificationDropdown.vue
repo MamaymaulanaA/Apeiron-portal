@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
           <p v-if="notifState.loading" class="notif-state">Memuat…</p>
 
           <div v-else-if="!notifState.items.length" class="notif-empty">
-            <span class="icon-chip tone-blue"><Inbox :size="20" /></span>
+            <span class="icon-chip tone-brand"><Inbox :size="20" /></span>
             <p class="text-label">Belum ada notifikasi</p>
             <p class="text-caption">Pemberitahuan akan muncul di sini.</p>
           </div>
@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
             type="button"
             @click="onItemClick(n)"
           >
-            <span class="icon-chip icon-chip-sm tone-blue">
+            <span class="icon-chip icon-chip-sm tone-brand">
               <component :is="iconFor(n.type)" :size="16" />
             </span>
             <span class="notif-body">
@@ -152,14 +152,14 @@ onBeforeUnmount(() => {
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   color: var(--text-body);
   background: var(--bg-subtle);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .notif-trigger:hover {
-  background: var(--c-primary-soft);
-  color: var(--c-primary);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 
 .notif-count {
@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border-radius: var(--r-pill);
-  background: var(--c-danger);
+  background: var(--err);
   color: #fff;
   font-size: var(--fs-micro);
   font-weight: var(--fw-bold);
@@ -187,8 +187,8 @@ onBeforeUnmount(() => {
   width: min(360px, calc(100vw - 32px));
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-lg);
+  border-radius: var(--r);
+  box-shadow: var(--sh-pop);
   z-index: var(--z-dropdown);
   overflow: hidden;
 }
@@ -211,10 +211,10 @@ onBeforeUnmount(() => {
   gap: var(--sp-1);
   font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);
-  color: var(--c-primary);
+  color: var(--brand);
 }
 .notif-mark:hover {
-  color: var(--c-primary-hover);
+  color: var(--brand-hover);
 }
 
 .notif-list {
@@ -254,10 +254,10 @@ onBeforeUnmount(() => {
   background: var(--bg-hover);
 }
 .notif-item.unread {
-  background: var(--c-primary-soft);
+  background: var(--brand-soft);
 }
 .notif-item.unread:hover {
-  background: var(--c-primary-border);
+  background: var(--brand-border);
 }
 
 .notif-body {
@@ -296,7 +296,7 @@ onBeforeUnmount(() => {
   height: 7px;
   margin-top: 6px;
   border-radius: 50%;
-  background: var(--c-primary);
+  background: var(--brand);
   flex-shrink: 0;
 }
 

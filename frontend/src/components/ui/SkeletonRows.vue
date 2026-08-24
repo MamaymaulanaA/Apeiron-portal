@@ -26,7 +26,7 @@ defineProps({
 }
 
 .skeleton {
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: linear-gradient(
     90deg,
     var(--bg-subtle) 25%,

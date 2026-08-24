@@ -11,7 +11,7 @@ const home = computed(() => {
 
 <template>
   <div class="nf">
-    <span class="icon-chip nf-icon tone-blue">
+    <span class="icon-chip nf-icon tone-brand">
       <Compass :size="30" :stroke-width="1.8" />
     </span>
 
@@ -43,14 +43,14 @@ const home = computed(() => {
 .nf-icon {
   width: 64px;
   height: 64px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r);
   margin-bottom: var(--sp-3);
 }
 
 .nf-code {
   font-size: var(--fs-display);
   font-weight: var(--fw-bold);
-  color: var(--c-primary);
+  color: var(--brand);
   letter-spacing: var(--tracking-tight);
 }
 

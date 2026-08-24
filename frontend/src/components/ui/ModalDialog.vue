@@ -87,8 +87,8 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: calc(100dvh - 2 * var(--sp-8));
   background: var(--bg-surface);
-  border-radius: var(--r-xl);
-  box-shadow: var(--sh-lg);
+  border-radius: var(--r);
+  box-shadow: var(--sh-pop);
   overflow: hidden;
 }
 
@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
   }
   .modal {
     max-height: 92dvh;
-    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    border-radius: var(--r) var(--r) 0 0;
   }
   .modal-foot {
     flex-direction: column-reverse;

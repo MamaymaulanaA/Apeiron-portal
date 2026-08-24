@@ -221,7 +221,7 @@ onMounted(load)
                 <td>
                   <span
                     class="badge"
-                    :class="u.role === 'admin' ? 'tone-purple' : 'tone-blue'"
+                    :class="u.role === 'admin' ? 'tone-neutral' : 'tone-brand'"
                   >
                     <ShieldCheck v-if="u.role === 'admin'" :size="13" />
                     {{ u.role === 'admin' ? 'Admin' : 'User' }}
@@ -230,7 +230,7 @@ onMounted(load)
                 <td>
                   <span
                     class="badge badge-dot"
-                    :class="Number(u.is_active) ? 'tone-green' : 'tone-red'"
+                    :class="Number(u.is_active) ? 'tone-ok' : 'tone-err'"
                   >
                     {{ Number(u.is_active) ? 'Aktif' : 'Nonaktif' }}
                   </span>
@@ -385,7 +385,7 @@ onMounted(load)
       @close="deleteTarget = null"
     >
       <div class="confirm">
-        <span class="icon-chip tone-red confirm-icon"><TriangleAlert :size="22" /></span>
+        <span class="icon-chip tone-err confirm-icon"><TriangleAlert :size="22" /></span>
         <p>
           Yakin ingin menghapus <strong>{{ deleteTarget?.name }}</strong>?
           Tindakan ini tidak dapat dibatalkan.
@@ -418,9 +418,9 @@ onMounted(load)
 }
 
 .btn-icon.danger:hover:not(:disabled) {
-  background: var(--c-danger-soft);
-  border-color: var(--c-danger-border);
-  color: var(--c-danger);
+  background: var(--err-soft);
+  border-color: var(--err-border);
+  color: var(--err);
 }
 
 /* ---- Form ---- */
@@ -452,7 +452,7 @@ onMounted(load)
 .confirm-icon {
   width: 52px;
   height: 52px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r);
 }
 .confirm p {
   color: var(--text-body);

@@ -42,8 +42,8 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth')
 .boot-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--c-primary-border);
-  border-top-color: var(--c-primary);
+  border: 3px solid var(--brand-border);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }

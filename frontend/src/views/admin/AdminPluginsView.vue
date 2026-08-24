@@ -150,7 +150,6 @@ onMounted(load)
       <EmptyState
         v-else-if="!items.length"
         :icon="Package"
-        tone="tone-purple"
         title="Belum ada plugin"
         description="Unggah rilis pertama agar user dapat mengunduhnya."
       >
@@ -164,14 +163,14 @@ onMounted(load)
 
       <div v-else class="plugin-list">
         <article v-for="p in items" :key="p.id" class="plugin">
-          <span class="icon-chip tone-purple plugin-icon">
+          <span class="icon-chip tone-neutral plugin-icon">
             <FileArchive :size="20" />
           </span>
 
           <div class="plugin-text">
             <header class="plugin-head">
               <h3>v{{ p.version }}</h3>
-              <span v-if="Number(p.is_active)" class="badge tone-green">
+              <span v-if="Number(p.is_active)" class="badge tone-ok">
                 <CircleCheck :size="13" />
                 Aktif
               </span>
@@ -244,7 +243,7 @@ onMounted(load)
           </span>
 
           <label class="zip-picker" :class="{ filled: zipFile }">
-            <span class="icon-chip icon-chip-sm tone-purple">
+            <span class="icon-chip icon-chip-sm tone-neutral">
               <FileArchive :size="16" />
             </span>
             <span class="zip-text">
@@ -277,7 +276,7 @@ onMounted(load)
       @close="deleteTarget = null"
     >
       <div class="confirm">
-        <span class="icon-chip tone-red confirm-icon"><TriangleAlert :size="22" /></span>
+        <span class="icon-chip tone-err confirm-icon"><TriangleAlert :size="22" /></span>
         <p>
           Yakin ingin menghapus <strong>v{{ deleteTarget?.version }}</strong>?
           File ZIP di server juga akan dihapus.
@@ -320,18 +319,18 @@ onMounted(load)
   gap: var(--sp-4);
   padding: var(--sp-5);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .plugin:hover {
-  border-color: var(--c-primary-border);
-  box-shadow: var(--sh-sm);
+  border-color: var(--brand-border);
+  box-shadow: var(--sh-card);
 }
 
 .plugin-icon {
   width: 48px;
   height: 48px;
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: var(--tone-bg);
   flex-shrink: 0;
 }
@@ -372,9 +371,9 @@ onMounted(load)
 }
 
 .btn.danger:hover:not(:disabled) {
-  background: var(--c-danger-soft);
-  border-color: var(--c-danger-border);
-  color: var(--c-danger);
+  background: var(--err-soft);
+  border-color: var(--err-border);
+  color: var(--err);
 }
 
 /* ---- Pemilih ZIP ---- */
@@ -384,18 +383,18 @@ onMounted(load)
   gap: var(--sp-3);
   padding: var(--sp-4);
   border: 1.5px dashed var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
   background: var(--bg-subtle);
   cursor: pointer;
   transition: border-color var(--dur) var(--ease);
 }
 .zip-picker:hover {
-  border-color: var(--c-primary);
+  border-color: var(--brand);
 }
 .zip-picker.filled {
   border-style: solid;
-  border-color: var(--c-success-border);
-  background: var(--c-success-soft);
+  border-color: var(--ok-border);
+  background: var(--ok-soft);
 }
 .zip-text {
   flex: 1;
@@ -426,7 +425,7 @@ onMounted(load)
 .confirm-icon {
   width: 52px;
   height: 52px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r);
 }
 .confirm p {
   color: var(--text-body);

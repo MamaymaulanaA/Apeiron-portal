@@ -93,14 +93,14 @@ const highlights = [
   height: 420px;
   right: -140px;
   top: -120px;
-  background: radial-gradient(circle, var(--c-primary), transparent 65%);
+  background: radial-gradient(circle, var(--brand), transparent 65%);
 }
 .auth-aside::after {
   width: 320px;
   height: 320px;
   left: -110px;
   bottom: -90px;
-  background: radial-gradient(circle, var(--c-accent), transparent 65%);
+  background: radial-gradient(circle, var(--n-500), transparent 65%);
 }
 
 .auth-brand,
@@ -120,9 +120,8 @@ const highlights = [
   place-items: center;
   width: 42px;
   height: 42px;
-  border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--c-primary), #5b8dff);
-  box-shadow: var(--sh-primary);
+  border-radius: var(--r);
+  background: linear-gradient(135deg, var(--brand), #5b8dff);
 }
 .brand-text {
   display: flex;
