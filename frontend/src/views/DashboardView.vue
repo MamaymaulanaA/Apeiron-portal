@@ -674,8 +674,8 @@ onMounted(() => {
   gap: var(--sp-5);
   padding: var(--sp-6) var(--sp-7);
   border-radius: var(--r);
-  background: linear-gradient(105deg, #eaf1ff 0%, #f4f8ff 46%, #e8f0ff 100%);
-  border: 1px solid var(--brand-border);
+  background: linear-gradient(105deg, #dbe8ff 0%, #eaf1ff 52%, #dde9ff 100%);
+  border: 1px solid #c7dbff;
   overflow: hidden;
 }
 
@@ -728,11 +728,12 @@ onMounted(() => {
    disembunyikan agar tidak menekan teks. */
 .banner-art {
   display: none;
-  width: 300px;
-  height: 190px;
+  width: 320px;
   flex-shrink: 0;
-  margin: calc(var(--sp-6) * -1) calc(var(--sp-7) * -1) calc(var(--sp-6) * -1) 0;
-  align-self: stretch;
+  align-self: flex-end;
+  /* Hanya sisi bawah dan kanan yang ditarik keluar padding; sisi atas
+     dibiarkan agar ayunan tidak memotong rambut karakter. */
+  margin: 0 calc(var(--sp-7) * -1) calc(var(--sp-6) * -1) 0;
 }
 
 @media (min-width: 1060px) {
