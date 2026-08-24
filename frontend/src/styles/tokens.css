@@ -139,8 +139,8 @@
   /* ---------------------------------------------------------------
      Radius — 8px untuk semua, kecuali yang memang bulat
      --------------------------------------------------------------- */
-  --r: 8px;
-  --r-sm: 6px;   /* hanya untuk elemen mungil di dalam kontrol 8px */
+  --r: 10px;
+  --r-sm: 8px;   /* untuk elemen mungil di dalam kontrol beradius 10px */
   --r-pill: 999px;
 
   /* ---------------------------------------------------------------

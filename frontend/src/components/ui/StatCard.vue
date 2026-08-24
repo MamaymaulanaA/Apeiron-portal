@@ -1,10 +1,10 @@
 <script setup>
 /**
- * Kartu ringkasan — mengikuti pola stat card pada referensi: chip ikon
- * berwarna, angka besar, lalu label.
+ * Kartu ringkasan — chip ikon berwarna, angka besar, lalu label.
  *
- * Latar mengikuti `tone`. Aturan design system tetap berlaku: radius 8px,
- * border 1px, tanpa bayangan.
+ * Latar memakai tint sangat tipis dari `tone`, tetapi GARISNYA netral.
+ * Empat kartu bergaris warna-warni terbaca seperti dekorasi tanpa alasan;
+ * warna cukup dibawa oleh ikon saja.
  */
 import { computed } from 'vue'
 import { formatNumber } from '@/lib/format'
@@ -50,13 +50,15 @@ const display = computed(() =>
   gap: var(--sp-3);
   padding: var(--sp-4);
   background: var(--tone-bg);
-  border: 1px solid var(--tone-border);
+  border: 1px solid var(--border);
   border-radius: var(--r);
   transition: border-color var(--dur) var(--ease);
 }
 
+/* Hover cukup menegaskan garis netral. Melompat ke warna penuh membuat satu
+   kartu terlihat menyala sendiri di antara yang lain. */
 .stat.clickable:hover {
-  border-color: var(--tone-fg);
+  border-color: var(--border-strong);
 }
 
 .stat-icon {
