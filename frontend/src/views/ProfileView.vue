@@ -23,6 +23,7 @@ import {
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, initials } from '@/lib/format'
+import profileArt from '@/assets/profile-illustration.webp'
 import { patchUser } from '@/stores/auth'
 import { toast } from '@/stores/toast'
 
@@ -117,7 +118,21 @@ onMounted(load)
       <!-- ---------- Kartu identitas ---------- -->
       <aside class="stack">
         <section class="card identity">
-          <span class="avatar avatar-lg">{{ initials(profile?.name) }}</span>
+          <!-- Ilustrasi mengisi bagian atas kartu yang tadinya kosong.
+               Avatar ditumpuk sedikit di atasnya agar keduanya terbaca sebagai
+               satu blok identitas, bukan dua elemen terpisah. -->
+          <div class="identity-art">
+            <img
+              :src="profileArt"
+              alt=""
+              aria-hidden="true"
+              width="560"
+              height="420"
+              decoding="async"
+            >
+          </div>
+
+          <span class="avatar avatar-lg identity-avatar">{{ initials(profile?.name) }}</span>
           <h2 class="identity-name">{{ profile?.name }}</h2>
           <p class="text-caption">{{ profile?.email }}</p>
 
@@ -329,8 +344,29 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--sp-7) var(--sp-6);
+  padding: 0 var(--sp-6) var(--sp-6);
   text-align: center;
+  overflow: hidden;
+}
+
+/* Ilustrasi memenuhi lebar kartu, dengan latar lembut agar tepi gambar yang
+   transparan tidak terlihat menggantung di atas kartu putih. */
+.identity-art {
+  width: calc(100% + var(--sp-6) * 2);
+  margin: 0 calc(var(--sp-6) * -1);
+  background: linear-gradient(180deg, var(--brand-soft) 0%, var(--bg-surface) 100%);
+}
+.identity-art img {
+  width: 100%;
+  height: auto;
+}
+
+/* Avatar naik sedikit menimpa ilustrasi, dengan cincin putih sebagai pemisah. */
+.identity-avatar {
+  margin-top: calc(var(--sp-6) * -1);
+  border: 3px solid var(--bg-surface);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 
 .identity-name {
