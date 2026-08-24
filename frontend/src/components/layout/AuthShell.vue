@@ -3,6 +3,7 @@
  * Kerangka halaman login & register: panel brand di kiri, form di kanan.
  * Panel kiri disembunyikan di bawah 900px agar form mendapat ruang penuh.
  */
+import BannerArt from '@/components/ui/BannerArt.vue'
 import {
   ShieldCheck,
   Zap,
@@ -42,6 +43,8 @@ const highlights = [
         <h2>{{ pitchTitle }}</h2>
         <p>{{ pitchText }}</p>
 
+        <BannerArt class="auth-art" />
+
         <ul class="auth-points">
           <li v-for="h in highlights" :key="h.text">
             <span class="point-icon"><component :is="h.icon" :size="16" /></span>
@@ -74,6 +77,7 @@ const highlights = [
   display: none;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   padding: var(--sp-10);
   background: linear-gradient(160deg, #16234b 0%, #1c2c5e 55%, #24397a 100%);
   color: #fff;
@@ -111,14 +115,20 @@ const highlights = [
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-8);
+  align-items: center;
+  gap: var(--sp-6);
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
 }
 
 .auth-foot {
   position: absolute;
-  left: var(--sp-10);
-  bottom: var(--sp-10);
+  left: 0;
+  right: 0;
+  bottom: var(--sp-8);
   z-index: 1;
+  text-align: center;
 }
 
 .auth-brand {
@@ -152,26 +162,36 @@ const highlights = [
 }
 
 .auth-pitch h2 {
-  font-size: 1.875rem;
+  font-size: 1.75rem;
   line-height: 1.3;
   color: #fff;
-  margin-bottom: var(--sp-4);
-  max-width: 24ch;
-  /* Menyeimbangkan panjang tiap baris agar tidak menyisakan satu kata
-     sendirian di baris terakhir. */
+  margin-bottom: var(--sp-3);
   text-wrap: balance;
 }
 .auth-pitch > p {
   color: #b9c4de;
-  max-width: 46ch;
   line-height: var(--lh-normal);
+  text-wrap: pretty;
+}
+
+/* Ilustrasi memakai berkas yang sama dengan banner dashboard, jadi tidak ada
+   aset tambahan yang perlu diunduh setelah user masuk. */
+.auth-art {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: var(--sp-6) auto 0;
 }
 
 .auth-points {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--sp-3);
-  margin-top: var(--sp-8);
+  margin: var(--sp-6) auto 0;
+  width: max-content;
+  max-width: 100%;
+  text-align: left;
 }
 .auth-points li {
   display: flex;
