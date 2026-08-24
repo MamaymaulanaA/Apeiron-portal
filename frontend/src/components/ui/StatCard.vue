@@ -2,9 +2,9 @@
 /**
  * Kartu ringkasan — chip ikon berwarna, angka besar, lalu label.
  *
- * Latar memakai tint sangat tipis dari `tone`, tetapi GARISNYA netral.
- * Empat kartu bergaris warna-warni terbaca seperti dekorasi tanpa alasan;
- * warna cukup dibawa oleh ikon saja.
+ * Kartunya putih dan bergaris netral seperti kartu lain di dashboard.
+ * SATU-SATUNYA bagian berwarna adalah chip ikon; mewarnai seluruh latar
+ * membuat empat kartu sebaris terbaca sebagai hiasan tanpa alasan.
  */
 import { computed } from 'vue'
 import { formatNumber } from '@/lib/format'
@@ -49,7 +49,7 @@ const display = computed(() =>
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-4);
-  background: var(--tone-bg);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--r);
   transition: border-color var(--dur) var(--ease);
@@ -68,7 +68,7 @@ const display = computed(() =>
   height: 40px;
   flex-shrink: 0;
   border-radius: var(--r);
-  background: var(--bg-surface);
+  background: var(--tone-bg);
   color: var(--tone-fg);
 }
 

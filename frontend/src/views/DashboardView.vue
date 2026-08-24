@@ -42,6 +42,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import BannerArt from '@/components/ui/BannerArt.vue'
+import BannerBackdrop from '@/components/ui/BannerBackdrop.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative, initials } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -222,6 +223,8 @@ onMounted(() => {
     <div class="dash-main">
       <!-- ---------- Banner sambutan ---------- -->
       <section class="banner">
+        <BannerBackdrop />
+
         <div class="banner-text">
           <span class="banner-pill">{{ progress }}% proses lisensi</span>
           <h1 class="banner-title">
@@ -680,6 +683,8 @@ onMounted(() => {
 }
 
 .banner-text {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   flex: 1;
 }
@@ -728,6 +733,8 @@ onMounted(() => {
    disembunyikan agar tidak menekan teks. */
 .banner-art {
   display: none;
+  position: relative;
+  z-index: 1;
   width: 320px;
   flex-shrink: 0;
   align-self: flex-end;
