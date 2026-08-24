@@ -1,13 +1,24 @@
 <script setup>
 /**
- * Riwayat transaksi user — GET /user/transactions.
- * Hanya menampilkan; tidak ada aksi yang mengubah data di halaman ini.
+ * Halaman Transaksi.
+ *
+ * Dua bagian:
+ *   1. Panel pengajuan — unggah bukti, atau keterangan menunggu verifikasi.
+ *   2. Riwayat seluruh pengajuan.
+ *
+ * Memakai dua endpoint yang sudah ada:
+ *   GET /user/transactions → daftar riwayat
+ *   GET /user/dashboard    → transaksi aktif + flag can_upload
+ *
+ * can_upload sengaja diambil dari backend, bukan disimpulkan dari daftar
+ * riwayat, supaya aturan siapa yang boleh mengunggah tetap satu sumber.
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Receipt, FileText } from 'lucide-vue-next'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
+import SubmissionPanel from '@/components/transaction/SubmissionPanel.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { toast } from '@/stores/toast'
@@ -15,11 +26,26 @@ import { toast } from '@/stores/toast'
 const loading = ref(true)
 const items = ref([])
 
+const active = ref(null)
+const canUpload = ref(false)
+const hasLicense = ref(false)
+
+/** Panel hanya relevan selama pengajuan belum disetujui. */
+const showPanel = computed(
+  () => !hasLicense.value && active.value?.status !== 'approved'
+)
+
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/user/transactions')
-    items.value = data.transactions || []
+    const [list, dash] = await Promise.all([
+      api.get('/user/transactions'),
+      api.get('/user/dashboard'),
+    ])
+    items.value = list.data.transactions || []
+    active.value = dash.data.transaction || null
+    canUpload.value = !!dash.data.can_upload
+    hasLicense.value = !!dash.data.license
   } catch (e) {
     toast.error(errorMessage(e, 'Gagal memuat riwayat transaksi'))
   } finally {
@@ -39,7 +65,18 @@ onMounted(load)
       </div>
     </header>
 
+    <SubmissionPanel
+      v-if="!loading && showPanel"
+      :transaction="active"
+      :can-upload="canUpload"
+      @uploaded="load"
+    />
+
     <section class="card">
+      <header class="card-header">
+        <h2>Riwayat pengajuan</h2>
+      </header>
+
       <SkeletonRows v-if="loading" :rows="4" />
 
       <EmptyState

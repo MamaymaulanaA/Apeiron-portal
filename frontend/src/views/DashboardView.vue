@@ -40,7 +40,6 @@ import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import BannerArt from '@/components/ui/BannerArt.vue'
 import BannerBackdrop from '@/components/ui/BannerBackdrop.vue'
-import AccessGate from '@/components/dashboard/AccessGate.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative, initials } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -68,8 +67,9 @@ const plugin = computed(() => data.value?.latest_plugin || null)
 const canUpload = computed(() => !!data.value?.can_upload)
 
 /**
- * Dashboard hanya terbuka setelah bukti transaksi disetujui. Keputusannya
- * diambil dari status yang dikirim backend, bukan dari keadaan lokal.
+ * Apakah lisensi sudah aktif. Dashboard tetap terbuka apa pun hasilnya —
+ * nilai ini hanya menentukan aksi mana yang ditawarkan di banner.
+ * Pengajuan dan status menunggu ditangani halaman Transaksi.
  */
 const hasAccess = computed(
   () => !!license.value || transaction.value?.status === 'approved'
@@ -199,12 +199,6 @@ onMounted(() => {
       <SkeletonRows :rows="3" :height="72" />
     </div>
 
-    <AccessGate
-      v-else-if="!hasAccess"
-      :transaction="transaction"
-      :can-upload="canUpload"
-      @uploaded="load"
-    />
 
     <div v-else class="dash">
     <!-- ================= Kolom utama ================= -->
@@ -221,13 +215,18 @@ onMounted(() => {
           </h1>
           <p class="banner-sub">{{ guidance }}</p>
 
-          <!-- Dashboard hanya terbuka setelah transaksi disetujui, jadi aksi
-               unggah tidak pernah relevan di sini — itu ditangani AccessGate. -->
+          <!-- Pengajuan bukti transaksi hidup di halaman Transaksi, jadi di
+               sini cukup mengarahkan ke sana selama lisensi belum aktif. -->
           <div class="banner-actions">
             <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
               <Download :size="16" />
               Unduh Plugin
             </a>
+            <RouterLink v-else-if="!hasAccess" to="/transactions" class="btn btn-primary">
+              <Receipt :size="16" />
+              {{ transaction ? 'Lihat Status Pengajuan' : 'Unggah Bukti Transaksi' }}
+              <ArrowRight :size="15" />
+            </RouterLink>
             <RouterLink v-else to="/plugins" class="btn btn-secondary">
               Lihat Lisensi
               <ArrowRight :size="15" />
