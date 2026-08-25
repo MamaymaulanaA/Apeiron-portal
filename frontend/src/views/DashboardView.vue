@@ -80,13 +80,15 @@ const view = ref('grid')
 /**
  * Katalog template dipotong per halaman.
  *
- * Delapan per halaman bukan angka bebas: kisinya empat kolom di layar lebar,
- * jadi delapan mengisi tepat dua baris penuh. Kolom utama karenanya punya
- * tinggi yang tetap berapa pun jumlah template — yang membuat kaki kedua kolom
- * bisa disejajarkan sama sekali. Tanpa batas ini tingginya berubah tiap kali
+ * Sembilan per halaman. Selama template masih sembilan atau kurang, semuanya
+ * tampil dan tombol halaman tidak muncul sama sekali — barulah pada yang
+ * kesepuluh paginasinya hidup.
+ *
+ * Batas ini juga yang memberi kolom utama tinggi maksimum yang tetap, sehingga
+ * kaki kedua kolom bisa disejajarkan. Tanpa itu tingginya berubah tiap kali
  * admin menambah satu template.
  */
-const TEMPLATES_PER_PAGE = 8
+const TEMPLATES_PER_PAGE = 9
 const templatePage = ref(1)
 
 const user = computed(() => authState.user)
@@ -409,8 +411,12 @@ onMounted(() => {
 
         <SkeletonRows v-if="loading" :rows="2" :height="96" />
 
+        <!-- Grid dan paginasinya HARUS berada di dalam satu cabang.
+             Menyisipkan PaginationBar di antara v-else-if dan v-else memutus
+             rantainya: v-else lalu menempel ke v-if milik paginasi, dan empty
+             state ikut tampil bersamaan dengan kartu-kartu template. -->
+        <template v-else-if="filteredTemplates.length">
         <div
-          v-else-if="filteredTemplates.length"
           class="tpl-wrap"
           :class="view === 'grid' ? 'tpl-grid' : 'tpl-list'"
         >
@@ -457,6 +463,7 @@ onMounted(() => {
           :pagination="templatePagination"
           @change="templatePage = $event"
         />
+        </template>
 
         <EmptyState
           v-else
