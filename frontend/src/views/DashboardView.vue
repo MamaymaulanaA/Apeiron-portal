@@ -33,6 +33,7 @@ import {
   MessagesSquare,
   UsersRound,
   Users,
+  Lock,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -40,6 +41,8 @@ import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
+import PlatformIcon from '@/components/ui/PlatformIcon.vue'
+import { tutorialIcon, platformLabel, platformTone, GROUP_ACCESS_COPY } from '@/lib/community'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -52,6 +55,19 @@ const copied = ref('')
 
 const members = ref([])
 const membersLoading = ref(false)
+
+/**
+ * Forum (panduan) dan Group. Keduanya dari endpoint yang menyajikan data
+ * database apa adanya, jadi apa pun yang admin ubah langsung terlihat di sini.
+ */
+const tutorials = ref([])
+const tutorialsLoading = ref(true)
+const tutorialsError = ref('')
+
+const groups = ref([])
+const groupAccess = ref('none')
+const groupsLoading = ref(true)
+const groupsError = ref('')
 const memberTab = ref('Aktif')
 
 // Filter template — bekerja di sisi klien atas data yang sudah dimuat.
@@ -60,6 +76,11 @@ const kind = ref('all')
 const view = ref('grid')
 
 const user = computed(() => authState.user)
+
+/** Kalimat untuk keadaan gerbang yang sedang berlaku. */
+const groupCopy = computed(
+  () => GROUP_ACCESS_COPY[groupAccess.value] || GROUP_ACCESS_COPY.none
+)
 const transaction = computed(() => data.value?.transaction || null)
 const license = computed(() => data.value?.license || null)
 const templates = computed(() => data.value?.templates || [])
@@ -172,6 +193,38 @@ async function loadMembers() {
 
 
 
+async function loadTutorials() {
+  tutorialsLoading.value = true
+  tutorialsError.value = ''
+  try {
+    const { data } = await api.get('/user/tutorials')
+    tutorials.value = data.tutorials || []
+  } catch (e) {
+    tutorialsError.value = errorMessage(e, 'Gagal memuat panduan')
+  } finally {
+    tutorialsLoading.value = false
+  }
+}
+
+async function loadGroups() {
+  groupsLoading.value = true
+  groupsError.value = ''
+  try {
+    const { data } = await api.get('/user/groups')
+    // Keadaan akses datang dari server. Frontend tidak pernah menghitungnya
+    // sendiri dari status transaksi — kalau ia menghitung sendiri, gerbangnya
+    // jadi soal tampilan, bukan soal izin.
+    groupAccess.value = data.access || 'none'
+    groups.value = data.groups || []
+  } catch (e) {
+    groupsError.value = errorMessage(e, 'Gagal memuat group')
+    groupAccess.value = 'none'
+    groups.value = []
+  } finally {
+    groupsLoading.value = false
+  }
+}
+
 async function copyText(value, key) {
   try {
     await navigator.clipboard.writeText(value)
@@ -185,6 +238,8 @@ async function copyText(value, key) {
 onMounted(() => {
   load()
   loadMembers()
+  loadTutorials()
+  loadGroups()
   fetchNotifications()
 })
 </script>
@@ -382,12 +437,38 @@ onMounted(() => {
 
     <!-- ================= Kolom kanan ================= -->
     <aside class="dash-rail">
-      <!-- Forum — belum ada tabel/endpoint di backend -->
-      <RailCard title="Forum" :icon="MessagesSquare" tone="tone-sky" flush>
+      <!-- Forum — pusat panduan, data nyata dari GET /user/tutorials -->
+      <RailCard title="Forum" :icon="MessagesSquare" tone="tone-sky" to="/tutorials" flush>
+        <SkeletonRows v-if="tutorialsLoading" :rows="3" :height="36" />
+
         <EmptyState
+          v-else-if="tutorialsError"
           :icon="MessagesSquare"
-          title="Belum ada forum"
-          description="Fitur forum belum tersedia di server."
+          title="Gagal memuat panduan"
+          :description="tutorialsError"
+          inline
+        />
+
+        <ul v-else-if="tutorials.length" class="tut-list">
+          <li v-for="t in tutorials.slice(0, 4)" :key="t.id">
+            <RouterLink to="/tutorials" class="tut-row">
+              <span class="icon-chip icon-chip-sm tone-sky">
+                <component :is="tutorialIcon(t.icon)" :size="15" />
+              </span>
+              <span class="tut-row-text">
+                <span class="tut-row-title">{{ t.title }}</span>
+                <span v-if="t.category" class="tut-row-meta">{{ t.category }}</span>
+              </span>
+              <ArrowRight class="tut-row-arrow" :size="15" />
+            </RouterLink>
+          </li>
+        </ul>
+
+        <EmptyState
+          v-else
+          :icon="MessagesSquare"
+          title="Belum ada panduan"
+          description="Tutorial akan tampil di sini setelah admin menambahkannya."
           inline
         />
       </RailCard>
@@ -442,14 +523,67 @@ onMounted(() => {
         />
       </RailCard>
 
-      <!-- Group — belum ada tabel/endpoint di backend -->
+      <!-- Group — GET /user/groups.
+           Gerbangnya di server: ketika akses belum terbuka, respons memang
+           tidak memuat link sama sekali, jadi tidak ada yang bisa didapat
+           dengan mengutak-atik tampilan. -->
       <RailCard title="Group" :icon="UsersRound" tone="tone-mint" flush>
+        <SkeletonRows v-if="groupsLoading" :rows="2" :height="44" />
+
         <EmptyState
+          v-else-if="groupsError"
           :icon="UsersRound"
-          title="Belum ada group"
-          description="Fitur group belum tersedia di server."
+          title="Gagal memuat group"
+          :description="groupsError"
           inline
         />
+
+        <!-- Akses terbuka -->
+        <ul v-else-if="groupAccess === 'granted' && groups.length" class="group-list">
+          <li v-for="g in groups" :key="g.id">
+            <a
+              class="group-row"
+              :href="g.link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="icon-chip icon-chip-sm" :class="platformTone(g.platform)">
+                <PlatformIcon :platform="g.platform" :size="15" />
+              </span>
+              <span class="group-text">
+                <span class="group-name">{{ g.name }}</span>
+                <span class="group-meta">{{ platformLabel(g.platform) }}</span>
+              </span>
+              <ExternalLink class="group-arrow" :size="15" />
+            </a>
+          </li>
+        </ul>
+
+        <!-- Akses terbuka, tapi admin belum menambahkan grup apa pun -->
+        <EmptyState
+          v-else-if="groupAccess === 'granted'"
+          :icon="UsersRound"
+          title="Belum ada group"
+          description="Group akan tampil di sini setelah admin menambahkannya."
+          inline
+        />
+
+        <!-- Belum berhak: alasannya dijelaskan, bukan sekadar kosong -->
+        <div v-else class="group-locked">
+          <span class="icon-chip icon-chip-sm tone-neutral"><Lock :size="15" /></span>
+          <div class="group-locked-text">
+            <p class="text-label">{{ groupCopy.title }}</p>
+            <p class="text-caption">{{ groupCopy.description }}</p>
+          </div>
+          <RouterLink
+            v-if="groupAccess !== 'pending'"
+            to="/transactions"
+            class="btn btn-sm btn-secondary group-locked-cta"
+          >
+            {{ groupAccess === 'rejected' ? 'Unggah Ulang' : 'Ke Transaksi' }}
+            <ArrowRight :size="14" />
+          </RouterLink>
+        </div>
       </RailCard>
 
       <!-- Lisensi — data nyata -->
@@ -982,6 +1116,83 @@ onMounted(() => {
   margin-top: 2px;
   font-size: var(--fs-micro);
   color: var(--text-faint);
+}
+
+/* ============ Forum (panduan) ============ */
+.tut-list,
+.group-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tut-row,
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--dur) var(--ease);
+}
+.tut-list li:last-child .tut-row,
+.group-list li:last-child .group-row {
+  border-bottom: none;
+}
+.tut-row:hover,
+.group-row:hover {
+  background: var(--bg-hover);
+}
+
+.tut-row-text,
+.group-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.tut-row-title,
+.group-name {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tut-row-meta,
+.group-meta {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.tut-row-arrow,
+.group-arrow {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+/* ============ Group terkunci ============ */
+.group-locked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.group-locked-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group-locked-cta {
+  flex-basis: 100%;
 }
 
 /* ============ Responsif ============ */

@@ -41,6 +41,12 @@ const routes = [
     meta: { auth: true, title: 'Template' },
   },
   {
+    path: '/tutorials',
+    name: 'tutorials',
+    component: () => import('@/views/TutorialsView.vue'),
+    meta: { auth: true, title: 'Panduan' },
+  },
+  {
     path: '/plugins',
     name: 'plugins',
     component: () => import('@/views/PluginsView.vue'),
@@ -87,6 +93,18 @@ const routes = [
     name: 'admin-plugins',
     component: () => import('@/views/admin/AdminPluginsView.vue'),
     meta: { auth: true, admin: true, title: 'Kelola Plugin' },
+  },
+  {
+    path: '/admin/tutorials',
+    name: 'admin-tutorials',
+    component: () => import('@/views/admin/AdminTutorialsView.vue'),
+    meta: { auth: true, admin: true, title: 'Kelola Panduan' },
+  },
+  {
+    path: '/admin/groups',
+    name: 'admin-groups',
+    component: () => import('@/views/admin/AdminGroupsView.vue'),
+    meta: { auth: true, admin: true, title: 'Kelola Group' },
   },
 
   // Root diarahkan sesuai peran (perilaku lama).

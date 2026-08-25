@@ -82,6 +82,8 @@ require_once PORTAL_ROOT . '/src/Models/UserLicense.php';
 require_once PORTAL_ROOT . '/src/Models/Template.php';
 require_once PORTAL_ROOT . '/src/Models/Plugin.php';
 require_once PORTAL_ROOT . '/src/Models/Notification.php';
+require_once PORTAL_ROOT . '/src/Models/CommunityGroup.php';
+require_once PORTAL_ROOT . '/src/Models/Tutorial.php';
 
 // Load Services
 require_once PORTAL_ROOT . '/src/Services/ServerApiService.php';
@@ -92,6 +94,7 @@ require_once PORTAL_ROOT . '/src/Services/TransactionService.php';
 require_once API_ROOT . '/controllers/AuthController.php';
 require_once API_ROOT . '/controllers/UserController.php';
 require_once API_ROOT . '/controllers/AdminController.php';
+require_once API_ROOT . '/controllers/CommunityController.php';
 
 // Get request info
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -150,6 +153,21 @@ $routes = [
     'POST:/admin/plugins' => ['AdminController', 'uploadPlugin'],
     'POST:/admin/plugins/{id}/update' => ['AdminController', 'updatePlugin'],
     'DELETE:/admin/plugins/{id}' => ['AdminController', 'deletePlugin'],
+
+    // Group & Forum - user
+    'GET:/user/groups' => ['CommunityController', 'userGroups'],
+    'GET:/user/tutorials' => ['CommunityController', 'userTutorials'],
+    'GET:/user/tutorials/{id}' => ['CommunityController', 'userTutorialDetail'],
+
+    // Group & Forum - admin
+    'GET:/admin/groups' => ['CommunityController', 'adminGroups'],
+    'POST:/admin/groups' => ['CommunityController', 'createGroup'],
+    'PUT:/admin/groups/{id}' => ['CommunityController', 'updateGroup'],
+    'DELETE:/admin/groups/{id}' => ['CommunityController', 'deleteGroup'],
+    'GET:/admin/tutorials' => ['CommunityController', 'adminTutorials'],
+    'POST:/admin/tutorials' => ['CommunityController', 'createTutorial'],
+    'PUT:/admin/tutorials/{id}' => ['CommunityController', 'updateTutorial'],
+    'DELETE:/admin/tutorials/{id}' => ['CommunityController', 'deleteTutorial'],
 
     // Notifications (shared - works for both user and admin)
     'GET:/notifications' => ['UserController', 'notifications'],

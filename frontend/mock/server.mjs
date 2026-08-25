@@ -13,6 +13,15 @@ import { createServer } from 'node:http'
 const PORT = 8000
 const ROLE = process.env.ROLE === 'admin' ? 'admin' : 'user'
 
+/**
+ * Keadaan gerbang grup, untuk memeriksa keempat cabang tanpa menyentuh
+ * database: none | pending | rejected | granted (bawaan).
+ *   ACCESS=pending node mock/server.mjs
+ */
+const ACCESS = ['none', 'pending', 'rejected', 'granted'].includes(process.env.ACCESS)
+  ? process.env.ACCESS
+  : 'granted'
+
 const USER = {
   id: 7,
   name: ROLE === 'admin' ? 'Rangga Pratama' : 'Sinta Dewi',
@@ -70,6 +79,47 @@ const USERS = [
   { id: 42, username: 'yoga', name: 'Yoga Prasetyo', email: 'yoga@example.com', role: 'user', is_active: 1, created_at: '2026-08-07 06:50:00', last_login_at: '2026-08-11 13:05:00' },
   { id: 45, username: null, name: 'Putri Handayani', email: 'putri@example.com', role: 'user', is_active: 0, created_at: '2026-08-10 11:05:00', last_login_at: null },
 ]
+
+const GROUPS = [
+  { id: 1, name: 'Komunitas Apeiron Kit', description: 'Diskusi harian, tanya jawab pemasangan, dan pengumuman rilis.', link: 'https://chat.whatsapp.com/ABCdefGHIjkl', platform: 'whatsapp', is_active: 1, sort_order: 1, created_at: '2026-08-01 09:00:00', updated_at: '2026-08-01 09:00:00' },
+  { id: 2, name: 'Kanal Pengumuman', description: 'Kanal satu arah untuk kabar rilis dan pemeliharaan.', link: 'https://t.me/apeironkit', platform: 'telegram', is_active: 1, sort_order: 2, created_at: '2026-08-02 09:00:00', updated_at: '2026-08-02 09:00:00' },
+  { id: 3, name: 'Server Discord Kreator', description: null, link: 'https://discord.gg/apeiron', platform: 'discord', is_active: 1, sort_order: 3, created_at: '2026-08-03 09:00:00', updated_at: '2026-08-03 09:00:00' },
+  { id: 4, name: 'Grup Reseller (nonaktif)', description: 'Sedang ditutup sementara.', link: 'https://chat.whatsapp.com/XYZ', platform: 'whatsapp', is_active: 0, sort_order: 4, created_at: '2026-08-04 09:00:00', updated_at: '2026-08-04 09:00:00' },
+]
+
+const TUTORIALS = [
+  { id: 1, title: 'Cara Install Template Undangan', excerpt: 'Langkah memasang template ke WordPress, dari unggah berkas sampai undangan pertama tayang.', content: 'Masuk ke dashboard WordPress Anda, lalu buka menu Appearance > Themes.\n\nKlik Add New, kemudian Upload Theme, dan pilih berkas ZIP template yang sudah diunduh dari portal.\n\nSetelah proses unggah selesai, klik Activate. Template siap dipakai dan Anda bisa mulai mengisi data undangan lewat menu Apeiron Kit.', category: 'Template', icon: 'LayoutTemplate', external_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', is_published: 1, sort_order: 1, created_at: '2026-08-05 09:00:00', updated_at: '2026-08-05 09:00:00' },
+  { id: 2, title: 'Cara Install Plugin Apeiron Kit', excerpt: 'Memasang plugin dari berkas ZIP dan memastikan versinya sudah yang terbaru.', content: 'Unduh berkas plugin dari halaman Plugin di portal ini.\n\nDi WordPress, buka Plugins > Add New > Upload Plugin, pilih berkas ZIP tadi, lalu klik Install Now.\n\nAktifkan plugin. Menu Apeiron Kit akan muncul di sidebar WordPress.', category: 'Plugin', icon: 'Package', external_url: 'https://youtu.be/dQw4w9WgXcQ', is_published: 1, sort_order: 2, created_at: '2026-08-06 09:00:00', updated_at: '2026-08-06 09:00:00' },
+  { id: 3, title: 'Panduan Aktivasi Lisensi', excerpt: 'Menyalin license key dari portal dan memasukkannya ke plugin.', content: 'Buka halaman Plugin di portal, lalu salin License Key dan API Key Anda.\n\nDi WordPress, buka Apeiron Kit > Lisensi, tempelkan kedua kunci itu, lalu klik Aktifkan.\n\nBila muncul pesan gagal, pastikan tidak ada spasi ikut tersalin di awal atau akhir kunci.', category: 'Lisensi', icon: 'KeyRound', external_url: null, is_published: 1, sort_order: 3, created_at: '2026-08-07 09:00:00', updated_at: '2026-08-07 09:00:00' },
+  { id: 4, title: 'Cara Menggunakan Plugin', excerpt: 'Mengenal menu utama plugin dan alur membuat undangan pertama.', content: 'Setelah plugin aktif, buka menu Apeiron Kit di sidebar WordPress.\n\nIsi data mempelai, tanggal acara, dan lokasi pada tab Informasi. Semua perubahan tersimpan otomatis.\n\nGunakan tab Tampilan untuk memilih tema warna dan musik latar.', category: 'Plugin', icon: 'Settings', external_url: 'https://docs.example.com/apeiron', is_published: 1, sort_order: 4, created_at: '2026-08-08 09:00:00', updated_at: '2026-08-08 09:00:00' },
+  { id: 5, title: 'Draf: Cara Kustom CSS', excerpt: 'Belum terbit - hanya tampil di panel admin.', content: 'Isi sedang disusun.', category: 'Lanjutan', icon: 'Wrench', external_url: null, is_published: 0, sort_order: 5, created_at: '2026-08-09 09:00:00', updated_at: '2026-08-09 09:00:00' },
+]
+
+const TUTORIAL_ICONS = ['BookOpen','Download','KeyRound','Package','LayoutTemplate','Rocket','Settings','CircleHelp','Video','FileText','Wrench','Zap']
+
+/** Meniru Tutorial::youtubeId() di backend. */
+function youtubeId(url) {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    const host = u.hostname.replace(/^www\./, '')
+    if (host === 'youtu.be') return u.pathname.slice(1) || null
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const v = u.searchParams.get('v')
+      if (v) return v
+      const m = u.pathname.match(/^\/(embed|shorts)\/([A-Za-z0-9_-]{6,})/)
+      if (m) return m[2]
+    }
+  } catch { /* URL tidak valid */ }
+  return null
+}
+
+const toCard = (t) => ({
+  id: t.id, title: t.title, excerpt: t.excerpt, category: t.category, icon: t.icon,
+  external_url: t.external_url, youtube_id: youtubeId(t.external_url),
+  has_content: !!(t.content && t.content.trim()), is_published: t.is_published,
+  sort_order: t.sort_order, created_at: t.created_at, updated_at: t.updated_at,
+})
 
 const NOTIFS = [
   { id: 5, user_id: 7, type: 'plugin_update', title: 'Update Plugin Tersedia!', message: 'Plugin Apeiron Kit versi 2.4.1 telah tersedia. Silakan download versi terbaru dari dashboard Anda.', reference_id: 3, is_read: 0, created_at: '2026-08-23 23:40:00' },
@@ -163,6 +213,22 @@ const routes = {
   'GET /admin/templates': () => ({ templates: TEMPLATES }),
   'GET /admin/plugins': () => ({ plugins: PLUGINS }),
 
+  'GET /user/groups': () => ({
+    access: ACCESS,
+    transaction_status: { none: null, pending: 'waiting_verification', rejected: 'rejected', granted: 'approved' }[ACCESS],
+    admin_notes: ACCESS === 'rejected' ? 'Nominal tidak sesuai, mohon unggah bukti yang benar.' : null,
+    groups: ACCESS === 'granted' ? GROUPS.filter((g) => g.is_active) : [],
+  }),
+  'GET /user/tutorials': () => {
+    const list = TUTORIALS.filter((t) => t.is_published).map(toCard)
+    return { tutorials: list, categories: [...new Set(list.map((t) => t.category).filter(Boolean))] }
+  },
+  'GET /admin/groups': () => ({ groups: GROUPS }),
+  'GET /admin/tutorials': () => ({
+    tutorials: TUTORIALS.map((t) => ({ ...toCard(t), content: t.content })),
+    icons: TUTORIAL_ICONS,
+  }),
+
   'GET /notifications': () => ({ notifications: NOTIFS, unread_count: 2 }),
   'GET /notifications/unread-count': () => ({ unread_count: 2 }),
 }
@@ -188,6 +254,18 @@ createServer((req, res) => {
         transaction: { ...t, document_url: `/storage/documents/${t.document_path}` },
       })
     )
+  }
+
+  // Detail tutorial (route berparameter)
+  const tutorialMatch = path.match(/^\/user\/tutorials\/(\d+)$/)
+  if (req.method === 'GET' && tutorialMatch) {
+    const t = TUTORIALS.find((x) => x.id === Number(tutorialMatch[1]) && x.is_published)
+    if (!t) {
+      res.writeHead(404)
+      return res.end(JSON.stringify({ error: 'Tutorial tidak ditemukan' }))
+    }
+    res.writeHead(200)
+    return res.end(JSON.stringify({ tutorial: { ...toCard(t), content: t.content } }))
   }
 
   const handler = routes[key]
