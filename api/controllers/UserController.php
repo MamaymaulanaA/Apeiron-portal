@@ -288,14 +288,18 @@ class UserController
      *
      * @return array{status: ?array, stale: bool, checked_at: ?string, error: ?string}
      */
-    private static function licenseStatusFor(UserLicense $l): array
+    private static function licenseStatusFor(UserLicense $l, bool $force = false): array
     {
         $status = $l->license_status;
         $stale = false;
         $checkedAt = $l->license_checked_at;
         $error = null;
 
-        if ($l->needsRefresh()) {
+        // $force dipakai invoice: dokumen itu diunduh lalu disimpan, jadi
+        // angkanya harus benar pada detik diunduh — bukan sisa cache sepuluh
+        // menit lalu. Halaman Plugin tetap memakai cache karena ia dibuka
+        // berkali-kali dan servernya punya rate limit.
+        if ($force || $l->needsRefresh()) {
             $fresh = ServerApiService::fetchLicenseStatus($l->license_key, $l->product_id);
 
             if ($fresh !== null) {
@@ -489,7 +493,7 @@ class UserController
         // Keadaan lisensi dibaca lewat jalur yang sama dengan halaman Plugin,
         // supaya invoice tidak pernah menyebut status yang berbeda dari yang
         // dilihat user di layar.
-        $status = $license ? (self::licenseStatusFor($license)['status'] ?? null) : null;
+        $status = $license ? (self::licenseStatusFor($license, true)['status'] ?? null) : null;
 
         $invoiceId = 'INV-' . str_pad((string) $transaction->id, 6, '0', STR_PAD_LEFT);
 
@@ -534,25 +538,41 @@ class UserController
         return $label . ' • ' . (int) $s['days_remaining'] . ' hari lagi';
     }
 
-    /** Tanggal untuk invoice; '-' bila datanya memang tidak ada. */
+    /**
+     * Tanggal untuk invoice; '-' bila datanya memang tidak ada.
+     *
+     * Memakai format_date(), BUKAN date(). Aplikasi menyetel zona waktu PHP ke
+     * UTC untuk penyimpanan dan perhitungan, jadi date() akan mencetak jam UTC
+     * — dan invoice ini memberi label "WIB" di belakangnya. Hasilnya jam yang
+     * meleset tujuh jam sambil mengaku waktu Jakarta. format_date() yang
+     * melakukan konversinya, sama seperti bagian aplikasi lain.
+     */
     private static function invoiceDate(?string $value, bool $withTime = false): string
     {
         if (!$value) return '-';
-        $ts = strtotime($value);
-        if ($ts === false) return '-';
+        if (strtotime($value) === false) return '-';
 
-        return date($withTime ? 'd M Y, H:i' : 'd M Y', $ts) . ($withTime ? ' WIB' : '');
+        return format_date($value, $withTime ? 'd M Y, H:i' : 'd M Y') . ($withTime ? ' WIB' : '');
     }
 
     /**
      * Susun invoice sebagai satu berkas HTML utuh.
      *
-     * Versi sebelumnya membangun HTML-nya dengan `return` lalu menambahkan
-     * sisanya dengan `$html .=` di bawahnya — kode yang tidak pernah berjalan.
-     * Akibatnya berkas yang terunduh terpotong tepat setelah tabel: tanpa
-     * license key, tanpa footer, dan tanpa penutup </html>. Di sini seluruh
-     * dokumen disusun dalam satu rangkaian, jadi bentuk itu tidak bisa
-     * terulang.
+     * YANG SENGAJA TIDAK ADA DI SINI: license key, API key, dan nominal.
+     *
+     * Kunci dihilangkan bukan karena tidak muat, tetapi karena invoice adalah
+     * berkas yang diunduh, disimpan, diteruskan lewat email, dan kadang
+     * dicetak. Menaruh kunci di dalamnya membuat setiap salinan dokumen ini
+     * menjadi salinan kredensial. Kuncinya tetap tersedia di halaman Plugin,
+     * di balik login, yang memang tempatnya.
+     *
+     * Nominal dihilangkan atas permintaan: dokumen ini dipakai sebagai bukti
+     * kepemilikan lisensi, bukan rincian tagihan.
+     *
+     * Versi sebelumnya juga menyusun HTML-nya dengan `return` lalu menambahkan
+     * sisanya dengan `$html .=` di bawahnya — kode yang tidak pernah berjalan,
+     * sehingga berkas yang terunduh terpotong tepat setelah tabel. Di sini
+     * seluruh dokumen disusun dalam satu rangkaian.
      */
     private static function generateInvoiceHtml(
         string $invoiceId,
@@ -564,27 +584,27 @@ class UserController
         $e = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 
         $app = $e(APP_NAME);
-        $amount = $e(format_currency((float) ($transaction->amount ?? 0)));
         $product = $e($transaction->product_id ?? 'apeiron-kit');
 
         // Periode diambil dari server. Tidak lagi ditulis "Lifetime" begitu
         // saja — sebelumnya invoice selalu mengklaim Lifetime padahal server
         // menerbitkan lisensi satu tahun.
         $period = $status
-            ? $e($status['duration_label'] ?? ($status['is_lifetime'] ?? false ? 'Lifetime' : 'Berjangka'))
+            ? $e($status['duration_label'] ?? (!empty($status['is_lifetime']) ? 'Lifetime' : 'Berjangka'))
             : '-';
 
-        $rows = '';
+        $body = '';
         if ($license) {
             $facts = [
-                ['Status lisensi', $e(self::licenseSummary($status))],
+                ['Produk', $product],
                 ['Tipe lisensi', $period],
+                ['Status', $e(self::licenseSummary($status))],
                 ['Tanggal aktivasi', $e(self::invoiceDate($status['activated_at'] ?? null))],
             ];
 
-            // Lifetime tidak punya tanggal berakhir, jadi barisnya berbunyi
-            // "Selamanya" alih-alih tanggal kosong.
             if ($status) {
+                // Lifetime tidak punya tanggal berakhir, jadi barisnya berbunyi
+                // "Selamanya" alih-alih tanggal kosong.
                 $facts[] = !empty($status['is_lifetime'])
                     ? ['Berlaku hingga', 'Selamanya']
                     : [
@@ -601,32 +621,24 @@ class UserController
                 }
             }
 
+            $rows = '';
             foreach ($facts as [$k, $v]) {
                 $rows .= '<div class="fact"><dt>' . $k . '</dt><dd>' . $v . '</dd></div>';
             }
-        }
 
-        $licenseBlock = '';
-        if ($license) {
-            $licenseBlock = '
+            $body = '
       <section class="panel">
         <h2>Lisensi</h2>
-
-        <div class="keys">
-          <div class="key">
-            <span class="key-label">License Key</span>
-            <code>' . $e($license->license_key) . '</code>
-          </div>' .
-          ($license->api_key ? '
-          <div class="key">
-            <span class="key-label">API Key</span>
-            <code>' . $e($license->api_key) . '</code>
-          </div>' : '') . '
-        </div>
-
         <dl class="facts">' . $rows . '</dl>' .
         ($status ? '' : '
         <p class="note">Status lisensi belum bisa dibaca dari server saat invoice ini dibuat.</p>') . '
+        <p class="note">License key dan API key tidak dicantumkan di dokumen ini. Keduanya tersedia di halaman Plugin &amp; Lisensi setelah Anda masuk.</p>
+      </section>';
+        } else {
+            $body = '
+      <section class="panel">
+        <h2>Lisensi</h2>
+        <p class="note">Belum ada lisensi yang terhubung dengan transaksi ini.</p>
       </section>';
         }
 
@@ -670,7 +682,7 @@ class UserController
   }
 
   .sheet {
-    max-width: 780px;
+    max-width: 720px;
     margin: 0 auto;
     background: #fff;
     border: 1px solid var(--line);
@@ -710,56 +722,23 @@ class UserController
     flex-wrap: wrap;
     gap: 24px;
     padding: 24px 32px;
-    border-bottom: 1px solid var(--line);
   }
   .party { flex: 1 1 220px; min-width: 0; }
   .party h2 { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .party p { margin: 0 0 2px; }
   .party strong { color: var(--ink); font-weight: 500; }
 
-  table { width: 100%; border-collapse: collapse; }
-  thead th {
-    padding: 10px 32px;
-    font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
-    color: var(--muted); text-align: left; background: var(--subtle);
-    border-bottom: 1px solid var(--line);
-  }
-  tbody td { padding: 16px 32px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  .num { text-align: right; white-space: nowrap; }
-  .item-name { color: var(--ink); font-weight: 500; }
-  .item-sub { font-size: 13px; color: var(--muted); }
-
-  tfoot td { padding: 16px 32px; }
-  .total-label { text-align: right; color: var(--muted); }
-  .total-value { text-align: right; font-size: 18px; font-weight: 500; color: var(--ink); white-space: nowrap; }
-
   .panel { padding: 24px 32px; border-top: 1px solid var(--line); }
   .panel h2 { margin: 0 0 14px; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-
-  .keys { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
-  .key-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
-  .key code {
-    display: block;
-    padding: 9px 12px;
-    background: var(--subtle);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    font-family: "Ubuntu Mono", ui-monospace, Consolas, monospace;
-    font-size: 13px;
-    color: var(--ink);
-    /* Kunci lisensi panjang dan tidak punya spasi; tanpa ini ia melebar
-       keluar halaman dan terpotong saat dicetak. */
-    word-break: break-all;
-  }
 
   /* auto-fit: jumlah kolom mengikuti berapa baris yang benar-benar ada,
      karena Lifetime dan Expired sengaja menampilkan lebih sedikit. */
   .facts {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px 20px;
+    gap: 14px 20px;
     margin: 0;
-    padding: 16px;
+    padding: 18px;
     background: var(--subtle);
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -767,7 +746,7 @@ class UserController
   .fact dt { font-size: 12px; color: var(--muted); }
   .fact dd { margin: 2px 0 0; font-weight: 500; color: var(--ink); }
 
-  .note { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+  .note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
 
   .foot { padding: 22px 32px; text-align: center; font-size: 12px; color: var(--muted); background: var(--subtle); border-top: 1px solid var(--line); }
   .foot p { margin: 0 0 4px; }
@@ -782,7 +761,6 @@ class UserController
 
   @media (max-width: 560px) {
     .head, .parties, .panel, .foot { padding-left: 20px; padding-right: 20px; }
-    thead th, tbody td, tfoot td { padding-left: 20px; padding-right: 20px; }
     .doc { text-align: left; }
   }
 </style>
@@ -792,7 +770,7 @@ class UserController
     <header class="head">
       <div class="brand">
         ' . $app . '
-        <span>Invoice pembelian lisensi</span>
+        <span>Bukti kepemilikan lisensi</span>
       </div>
       <div class="doc">
         <div class="doc-no">' . $e($invoiceId) . '</div>
@@ -803,7 +781,7 @@ class UserController
 
     <section class="parties">
       <div class="party">
-        <h2>Ditagihkan kepada</h2>
+        <h2>Diterbitkan untuk</h2>
         <p><strong>' . $e($user->name) . '</strong></p>
         <p>' . $e($user->email) . '</p>
         <p>ID Pelanggan #' . $e(str_pad((string) $user->id, 5, '0', STR_PAD_LEFT)) . '</p>
@@ -815,36 +793,11 @@ class UserController
         <p>Disetujui ' . $e(self::invoiceDate($transaction->approved_at ?? null)) . '</p>
       </div>
     </section>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Deskripsi</th>
-          <th>Periode</th>
-          <th class="num">Jumlah</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>
-            <div class="item-name">Lisensi ' . $product . '</div>
-            <div class="item-sub">1 lisensi untuk 1 situs</div>
-          </td>
-          <td>' . $period . '</td>
-          <td class="num">' . $amount . '</td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="2" class="total-label">Total dibayar</td>
-          <td class="total-value">' . $amount . '</td>
-        </tr>
-      </tfoot>
-    </table>
-' . $licenseBlock . '
+' . $body . '
     <footer class="foot">
       <p>Terima kasih telah menggunakan ' . $app . '.</p>
-      <p>Invoice ini dibuat otomatis dan sah tanpa tanda tangan.</p>
+      <p>Status lisensi di atas menunjukkan keadaan pada ' . $e(self::invoiceDate(gmdate('Y-m-d H:i:s'), true)) . ', saat dokumen ini diunduh.</p>
+      <p>Dokumen ini dibuat otomatis dan sah tanpa tanda tangan.</p>
       <p>&copy; ' . date('Y') . ' ' . $app . '</p>
     </footer>
   </main>

@@ -12,13 +12,30 @@
  *
  * Berikutnya: invoice tidak boleh mengarang. Periode lisensi datang dari
  * server, bukan tulisan "Lifetime" yang dipasang mati seperti sebelumnya.
+ *
+ * Dan yang ketiga: invoice TIDAK BOLEH memuat license key, API key, maupun
+ * nominal. Kunci sengaja dikeluarkan karena dokumen ini diunduh, disimpan,
+ * dan diteruskan lewat email — setiap salinannya akan jadi salinan
+ * kredensial. Tes di bawah menjaga kunci itu tidak diam-diam kembali lewat
+ * perubahan berikutnya.
  */
 
 define('APP_NAME', 'Apeiron Portal');
 
-function format_currency(float $amount): string
+define('APP_TIMEZONE', 'Asia/Jakarta');
+// Sama seperti produksi: penyimpanan dan perhitungan UTC, tampilan Jakarta.
+date_default_timezone_set('UTC');
+
+/** Salinan format_date() dari config/app.php. */
+function format_date(string $date, string $format = 'd M Y H:i'): string
 {
-    return 'Rp ' . number_format($amount, 0, ',', '.');
+    try {
+        $dt = new DateTime($date, new DateTimeZone('UTC'));
+        $dt->setTimezone(new DateTimeZone(APP_TIMEZONE));
+        return $dt->format($format);
+    } catch (Exception $e) {
+        return $date;
+    }
 }
 
 // Hanya bagian invoice yang diambil, supaya tes tidak menyeret database,
@@ -104,9 +121,6 @@ $h = Inv::html('INV-000042', $user, $tx, $lic, $AKTIF);
 check('ada <!DOCTYPE', str_starts_with($h, '<!DOCTYPE html>'), true);
 check('ada penutup </html>', str_ends_with(trim($h), '</html>'), true);
 check('ada </body>', str_contains($h, '</body>'), true);
-// Inilah yang hilang di versi lama.
-check('LICENSE KEY ADA', str_contains($h, 'APEIRON-81BC283035-C7B737988D-776038F43B12-9A0C4E'), true);
-check('api key ada', str_contains($h, '63c25c7c003fdf26a5324e73e95ba4c3'), true);
 check('footer ada', str_contains($h, 'Terima kasih telah menggunakan'), true);
 // Tag pembuka dan penutup <div> harus seimbang; kalau dokumennya terpotong
 // di tengah, jumlahnya tidak akan sama.
@@ -116,12 +130,31 @@ check(
     true
 );
 
+echo "--- jam ditampilkan dalam WIB, bukan UTC ---\n";
+// approved_at tersimpan 12:30 UTC. Dalam WIB itu 19:30. Sebelum ini
+// invoice mencetak '12:30 WIB' — jam UTC yang diberi label Jakarta.
+check('jam dikonversi ke WIB', str_contains($h, '19:30 WIB'), true);
+check('bukan jam UTC mentah', str_contains($h, '12:30 WIB'), false);
+
+echo "--- rahasia tidak boleh ikut tercetak ---\n";
+// Ketiganya ADA di objek yang dioper ke generator; yang diuji di sini
+// adalah bahwa generator MEMILIH untuk tidak mencetaknya. Kalau suatu
+// saat kunci dikembalikan ke invoice, tes inilah yang gagal lebih dulu.
+check('license key TIDAK tercetak', str_contains($h, $lic->license_key), false);
+check('api key TIDAK tercetak', str_contains($h, $lic->api_key), false);
+check('nominal TIDAK tercetak', str_contains($h, '499'), false);
+check('tanpa "Total dibayar"', str_contains(tampil($h), 'Total dibayar'), false);
+check('tanpa kolom Jumlah', str_contains(tampil($h), 'JUMLAH'), false);
+// Pembaca diberi tahu ke mana harus mencari kuncinya.
+check('ada penjelasan kunci', str_contains(tampil($h), 'tidak dicantumkan'), true);
+check('mengarahkan ke halaman Plugin', str_contains(tampil($h), 'Plugin'), true);
+
 echo "--- data nyata, bukan contoh ---\n";
-check('nominal transaksi tampil', str_contains($h, 'Rp 499.000'), true);
 check('nama pelanggan tampil', str_contains($h, 'Sinta Dewi'), true);
 check('email tampil', str_contains($h, 'sinta@example.com'), true);
 check('nomor invoice tampil', str_contains($h, 'INV-000042'), true);
 check('tanggal disetujui tampil', str_contains($h, '21 Aug 2026'), true);
+check('produk tampil', str_contains(tampil($h), 'apeiron-kit'), true);
 // Versi lama selalu menulis "Lifetime access to premium plugin".
 check('tanpa teks contoh lama', str_contains($h, 'Lifetime access to premium'), false);
 
@@ -148,9 +181,8 @@ check('status Expired', str_contains(tampil($he), 'Expired'), true);
 
 echo "--- status belum terbaca ---\n";
 $hn = Inv::html('INV-000042', $user, $tx, $lic, null);
-// Invoice tetap terbit dan license key tetap ada; yang tidak diketahui
-// dinyatakan apa adanya, bukan ditebak.
-check('license key tetap ada', str_contains($hn, 'APEIRON-81BC283035'), true);
+// Invoice tetap terbit; yang tidak diketahui dinyatakan apa adanya.
+check('kunci tetap tidak tercetak', str_contains($hn, 'APEIRON-81BC283035'), false);
 check('mengaku belum diketahui', str_contains($hn, 'Belum diketahui'), true);
 check('ada catatan penjelas', str_contains($hn, 'belum bisa dibaca dari server'), true);
 check('dokumen tetap utuh', str_ends_with(trim($hn), '</html>'), true);
@@ -158,13 +190,13 @@ check('dokumen tetap utuh', str_ends_with(trim($hn), '</html>'), true);
 echo "--- tanpa lisensi sama sekali ---\n";
 $h0 = Inv::html('INV-000042', $user, $tx, null, null);
 check('dokumen tetap utuh', str_ends_with(trim($h0), '</html>'), true);
-check('tanpa blok lisensi', str_contains(tampil($h0), 'License Key'), false);
-check('nominal tetap tampil', str_contains($h0, 'Rp 499.000'), true);
+check('menyebut belum ada lisensi', str_contains(tampil($h0), 'Belum ada lisensi'), true);
+check('nominal tetap tidak tercetak', str_contains($h0, '499'), false);
 
 echo "--- font dan warna ---\n";
 check('Ubuntu dimuat', str_contains($h, 'family=Ubuntu'), true);
 check('Ubuntu jadi font utama', str_contains($h, 'font-family: "Ubuntu"'), true);
-check('Ubuntu Mono untuk kunci', str_contains($h, '"Ubuntu Mono"'), true);
+check('Ubuntu Mono tersedia', str_contains($h, '"Ubuntu Mono"'), true);
 check('biru utama dipakai', str_contains($h, '#2563eb'), true);
 // Hijau lama tidak boleh kembali lewat invoice.
 check('tanpa hijau #2ecc71', str_contains($h, '#2ecc71'), false);
