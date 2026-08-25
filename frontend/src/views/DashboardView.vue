@@ -987,8 +987,7 @@ onMounted(() => {
 @media (max-width: 640px) {
   .toolbar,
   .tpl-wrap,
-  .card-body,
-  .member-strip {
+  .card-body {
     padding: var(--sp-4);
   }
   .detail {

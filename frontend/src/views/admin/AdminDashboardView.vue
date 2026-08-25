@@ -106,7 +106,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page">
+  <!-- Tata letak mengikuti dashboard user: kolom kanan berjalan dari baris
+       paling atas, bukan menyusul di bawah banner. Banner ikut menyempit ke
+       lebar kolom utama, jadi ia tidak lagi membentang sampai tepi kanan. -->
+  <div class="dash">
+    <div class="dash-main">
     <!-- ---------- Banner sambutan (komponen yang sama dengan dashboard user) -->
     <WelcomeBanner :pill="queueLabel">
       <template #title>
@@ -171,9 +175,62 @@ onMounted(() => {
       />
     </section>
 
-    <!-- ---------- Transaksi terbaru + rail ---------- -->
-    <div class="split">
-      <div class="stack main-col">
+      <!-- ---------- Anggota ----------
+           Duduk di kolom utama, tepat di bawah empat kartu ringkasan, sebagai
+           deretan avatar mendatar. Di kolom kanan yang selebar 312px daftar ini
+           hanya muat satu nama per baris dan memanjang ke bawah; di sini lebar
+           kolom utama dipakai untuk memperlihatkan banyak anggota sekaligus. -->
+      <section class="card">
+        <header class="card-header">
+          <h3>
+            <span class="icon-chip icon-chip-sm tone-sky"><Users :size="16" /></span>
+            Anggota
+            <span v-if="membersTotal" class="badge tone-neutral">{{ membersTotal }}</span>
+          </h3>
+          <RouterLink to="/admin/users" class="link-more">
+            Kelola <ArrowRight :size="14" />
+          </RouterLink>
+        </header>
+
+        <SkeletonRows v-if="membersLoading" :rows="1" :height="104" />
+
+        <template v-else-if="members.length">
+          <ul class="strip scroll-area">
+            <li v-for="m in members" :key="m.id" class="strip-item">
+              <span class="strip-face">
+                <span class="avatar avatar-lg">{{ initials(m.name) }}</span>
+                <span
+                  class="strip-dot"
+                  :class="{ 'is-on': Number(m.is_active) }"
+                  :title="Number(m.is_active) ? 'Aktif' : 'Nonaktif'"
+                />
+              </span>
+              <!-- Email dipasang sebagai title, bukan baris kedua: pada lebar
+                   104px alamat email selalu terpotong jadi beberapa huruf dan
+                   tidak memberi informasi apa pun. -->
+              <span class="strip-name" :title="m.email">{{ m.name }}</span>
+              <span v-if="m.role === 'admin'" class="badge tone-brand">Admin</span>
+            </li>
+          </ul>
+
+          <!-- Endpoint hanya mengirim halaman pertama (15 baris). Mengatakannya
+               terus terang lebih baik daripada membiarkan daftar yang terpotong
+               terlihat seperti daftar lengkap. -->
+          <p v-if="members.length < membersTotal" class="members-note">
+            {{ members.length }} teratas dari {{ membersTotal }} anggota
+          </p>
+        </template>
+
+        <EmptyState
+          v-else
+          :icon="Users"
+          title="Belum ada anggota"
+          description="Daftar pengguna akan tampil di sini."
+          compact
+        />
+      </section>
+
+      <!-- ---------- Transaksi terbaru ---------- -->
       <section class="card">
         <header class="card-header">
           <h3>
@@ -221,194 +278,143 @@ onMounted(() => {
           description="Pengajuan dari user akan tampil di sini."
         />
       </section>
-
-        <!-- Aktivitas — GET /notifications, endpoint yang sama dengan lonceng
-             di topbar. Kartu kedua di kolom utama ini juga yang membuat kaki
-             kedua kolom bertemu di garis yang sama. -->
-        <section class="card">
-          <header class="card-header">
-            <h3>
-              <span class="icon-chip icon-chip-sm tone-lilac"><Activity :size="16" /></span>
-              Aktivitas
-            </h3>
-          </header>
-
-          <SkeletonRows v-if="notifState.loading && !recentActivity.length" :rows="3" :height="40" />
-
-          <ul v-else-if="recentActivity.length" class="feed">
-            <li v-for="n in recentActivity" :key="n.id" class="feed-item">
-              <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
-              <span class="feed-text">
-                <span class="feed-title">{{ n.title }}</span>
-                <span class="feed-msg">{{ n.message }}</span>
-                <span class="feed-time">
-                  <Clock :size="11" />
-                  {{ formatRelative(n.created_at) }}
-                </span>
-              </span>
-            </li>
-          </ul>
-
-          <EmptyState
-            v-else
-            :icon="Activity"
-            title="Belum ada aktivitas"
-            description="Pemberitahuan akan muncul di sini."
-            compact
-          />
-        </section>
-      </div>
-
-      <!-- Rail: ringkasan katalog + pintasan -->
-      <aside class="stack rail">
-        <section class="card">
-          <header class="card-header">
-            <h3>
-              <span class="icon-chip icon-chip-sm tone-neutral">
-                <LayoutTemplate :size="16" />
-              </span>
-              Katalog
-            </h3>
-          </header>
-
-          <!-- Empat angka dalam kisi 2×2, bukan empat baris bertumpuk. Isinya
-               sama persis, tingginya turun dari 279px ke sekitar 195px — kolom
-               kanan jadi tidak menjulang jauh melewati kolom utama. -->
-          <div class="card-body catalog">
-            <div class="catalog-cell">
-              <span class="catalog-label">Total template</span>
-              <strong>{{ Number(stats?.total_templates) || 0 }}</strong>
-            </div>
-            <div class="catalog-cell">
-              <span class="catalog-label">Total user</span>
-              <strong>{{ Number(stats?.total_users) || 0 }}</strong>
-            </div>
-            <div class="catalog-cell">
-              <span class="catalog-label">Standard</span>
-              <strong>{{ Number(stats?.standard_templates) || 0 }}</strong>
-            </div>
-            <div class="catalog-cell">
-              <span class="catalog-label">Premium</span>
-              <strong>{{ Number(stats?.premium_templates) || 0 }}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="card">
-          <header class="card-header">
-            <h3>
-              <span class="icon-chip icon-chip-sm tone-neutral"><Zap :size="16" /></span>
-              Pintasan
-            </h3>
-          </header>
-
-          <div class="card-body shortcuts">
-            <RouterLink to="/admin/users" class="shortcut">
-              <span class="icon-chip icon-chip-sm tone-brand"><UserPlus :size="16" /></span>
-              Kelola User
-              <ArrowRight class="shortcut-arrow" :size="15" />
-            </RouterLink>
-            <RouterLink to="/admin/plugins" class="shortcut">
-              <span class="icon-chip icon-chip-sm tone-neutral"><Package :size="16" /></span>
-              Kelola Plugin
-              <ArrowRight class="shortcut-arrow" :size="15" />
-            </RouterLink>
-            <RouterLink to="/admin/templates" class="shortcut">
-              <span class="icon-chip icon-chip-sm tone-neutral">
-                <LayoutTemplate :size="16" />
-              </span>
-              Kelola Template
-              <ArrowRight class="shortcut-arrow" :size="15" />
-            </RouterLink>
-          </div>
-        </section>
-
-        <!-- Anggota — seluruhnya data nyata dari GET /admin/users -->
-        <section class="card members-card">
-          <header class="card-header">
-            <h3>
-              <span class="icon-chip icon-chip-sm tone-neutral"><Users :size="16" /></span>
-              Anggota
-              <span v-if="membersTotal" class="badge tone-neutral">{{ membersTotal }}</span>
-            </h3>
-            <RouterLink to="/admin/users" class="link-more">
-              Kelola <ArrowRight :size="14" />
-            </RouterLink>
-          </header>
-
-          <SkeletonRows v-if="membersLoading" :rows="3" :height="40" />
-
-          <template v-else-if="members.length">
-            <ul class="members scroll-area">
-              <li v-for="m in members" :key="m.id" class="member">
-                <span class="avatar avatar-sm">{{ initials(m.name) }}</span>
-
-                <span class="member-text">
-                  <span class="member-name">{{ m.name }}</span>
-                  <span class="member-mail">{{ m.email }}</span>
-                </span>
-
-                <span class="member-tags">
-                  <span v-if="m.role === 'admin'" class="badge tone-brand">Admin</span>
-                  <span
-                    class="status-dot"
-                    :class="{ 'is-on': Number(m.is_active) }"
-                    :title="Number(m.is_active) ? 'Aktif' : 'Nonaktif'"
-                  />
-                </span>
-              </li>
-            </ul>
-
-            <!-- Endpoint hanya mengirim halaman pertama (15 baris). Mengatakannya
-                 terus terang lebih baik daripada membiarkan daftar yang terpotong
-                 terlihat seperti daftar lengkap. -->
-            <p v-if="members.length < membersTotal" class="members-note">
-              {{ members.length }} teratas dari {{ membersTotal }} anggota
-            </p>
-          </template>
-
-          <EmptyState
-            v-else
-            :icon="Users"
-            title="Belum ada anggota"
-            description="Daftar pengguna akan tampil di sini."
-            compact
-          />
-        </section>
-      </aside>
     </div>
+
+    <!-- ---------- Kolom kanan ---------- -->
+    <aside class="dash-rail">
+      <!-- Aktivitas — GET /notifications, endpoint yang sama dengan lonceng di
+           topbar, jadi tidak ada permintaan baru ke server. Tempatnya di kolom
+           kanan, sejajar dengan Aktivitas di dashboard user. -->
+      <section class="card">
+        <header class="card-header">
+          <h3>
+            <span class="icon-chip icon-chip-sm tone-lilac"><Activity :size="16" /></span>
+            Aktivitas
+          </h3>
+        </header>
+
+        <SkeletonRows v-if="notifState.loading && !recentActivity.length" :rows="3" :height="40" />
+
+        <ul v-else-if="recentActivity.length" class="feed">
+          <li v-for="n in recentActivity" :key="n.id" class="feed-item">
+            <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
+            <span class="feed-text">
+              <span class="feed-title">{{ n.title }}</span>
+              <span class="feed-msg">{{ n.message }}</span>
+              <span class="feed-time">
+                <Clock :size="11" />
+                {{ formatRelative(n.created_at) }}
+              </span>
+            </span>
+          </li>
+        </ul>
+
+        <EmptyState
+          v-else
+          :icon="Activity"
+          title="Belum ada aktivitas"
+          description="Pemberitahuan akan muncul di sini."
+          compact
+        />
+      </section>
+
+      <section class="card">
+        <header class="card-header">
+          <h3>
+            <span class="icon-chip icon-chip-sm tone-neutral">
+              <LayoutTemplate :size="16" />
+            </span>
+            Katalog
+          </h3>
+        </header>
+
+        <!-- Empat angka dalam kisi 2×2, masing-masing di kotaknya sendiri. -->
+        <div class="card-body catalog">
+          <div class="catalog-cell">
+            <span class="catalog-label">Total template</span>
+            <strong>{{ Number(stats?.total_templates) || 0 }}</strong>
+          </div>
+          <div class="catalog-cell">
+            <span class="catalog-label">Total user</span>
+            <strong>{{ Number(stats?.total_users) || 0 }}</strong>
+          </div>
+          <div class="catalog-cell">
+            <span class="catalog-label">Standard</span>
+            <strong>{{ Number(stats?.standard_templates) || 0 }}</strong>
+          </div>
+          <div class="catalog-cell">
+            <span class="catalog-label">Premium</span>
+            <strong>{{ Number(stats?.premium_templates) || 0 }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <header class="card-header">
+          <h3>
+            <span class="icon-chip icon-chip-sm tone-neutral"><Zap :size="16" /></span>
+            Pintasan
+          </h3>
+        </header>
+
+        <div class="card-body shortcuts">
+          <RouterLink to="/admin/users" class="shortcut">
+            <span class="icon-chip icon-chip-sm tone-brand"><UserPlus :size="16" /></span>
+            Kelola User
+            <ArrowRight class="shortcut-arrow" :size="15" />
+          </RouterLink>
+          <RouterLink to="/admin/plugins" class="shortcut">
+            <span class="icon-chip icon-chip-sm tone-neutral"><Package :size="16" /></span>
+            Kelola Plugin
+            <ArrowRight class="shortcut-arrow" :size="15" />
+          </RouterLink>
+          <RouterLink to="/admin/templates" class="shortcut">
+            <span class="icon-chip icon-chip-sm tone-neutral">
+              <LayoutTemplate :size="16" />
+            </span>
+            Kelola Template
+            <ArrowRight class="shortcut-arrow" :size="15" />
+          </RouterLink>
+        </div>
+      </section>
+    </aside>
   </div>
 </template>
 
 <style scoped>
-/* ---------- Grid ---------- */
-.stats {
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-}
+/* ---------- Grid ----------
+   Struktur dan ambang batasnya sengaja sama persis dengan dashboard user:
+   dua kolom sejak baris pertama, sehingga banner dan kolom kanan berangkat
+   dari garis atas yang sama.
 
-/* minmax(0, 1fr) — bukan 1fr — supaya kolom boleh menyusut lebih kecil dari
+   minmax(0, 1fr) — bukan 1fr — supaya kolom boleh menyusut lebih kecil dari
    konten terlebarnya. Tanpa ini tabel dengan min-width memaksa grid melebar
    dan seluruh halaman ikut scroll horizontal di layar kecil. */
-/* align-items dibiarkan pada nilai bawaan (stretch), bukan start. Dengan
-   stretch kedua kolom mendapat tinggi baris yang sama, sehingga kartu terakhir
-   di kolom kanan bisa memanjang mengisi sisa ruang dan kaki kedua kolom
-   bertemu di garis yang sama. */
-.split {
+.dash {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--sp-6);
+  gap: var(--sp-4);
+  align-items: start;
 }
-@media (min-width: 1200px) {
-  .split {
+
+.dash-main,
+.dash-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .dash {
     grid-template-columns: minmax(0, 1fr) var(--rail-w);
   }
 }
 
-/* Keduanya sudah .stack (flex kolom); yang perlu ditambah hanya izin menyusut
-   di bawah lebar konten terlebarnya. */
-.main-col,
-.rail {
-  min-width: 0;
+/* Empat kartu ringkasan tetap muat berjajar di dalam kolom utama yang kini
+   lebih sempit — 180px sama dengan ambang di dashboard user. */
+.stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
 }
 
 /* ---------- Sel user ---------- */
@@ -561,44 +567,72 @@ onMounted(() => {
   }
 }
 
-/* ---------- Anggota ---------- */
+/* ---------- Anggota ----------
+   Deretan avatar mendatar, mengikuti referensi. Bergulir ke samping, bukan ke
+   bawah: kartunya tetap setinggi satu baris berapa pun jumlah anggotanya,
+   jadi kolom utama tidak lagi terseret memanjang seperti waktu daftar ini
+   masih berupa baris bertumpuk di kolom kanan. */
+.strip {
+  display: flex;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
 
-/* Kartu terakhir di kolom kanan. flex: 1 membuatnya memakan sisa tinggi kolom,
-   yang di layar lebar berarti kakinya berhenti tepat sejajar dengan kolom
-   utama. overflow: hidden menahan sudut daftar agar tidak menyembul keluar
-   sudut membulat kartu. */
-.members-card {
-  flex: 1 1 auto;
+.strip-item {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-.members-card .card-header,
-.members-note {
+  align-items: center;
+  gap: var(--sp-2);
+  /* Lebar tetap supaya jarak antar-avatar rata berapa pun panjang namanya. */
+  width: 104px;
   flex-shrink: 0;
+  text-align: center;
 }
 
-/* GET /admin/users mengirim 15 baris. Dibiarkan apa adanya, kartu ini setinggi
-   15 × 61px = 915px dan kolom kanan menjulur jauh melewati kolom utama —
-   persis keluhan "anggota kebawah semua".
+.strip-face {
+  position: relative;
+  display: block;
+}
 
-   Sekarang daftarnya tumbuh mengikuti sisa tinggi kolom, dengan lantai 4,5
-   baris supaya tetap terbaca kalau kolom utama kebetulan pendek. Angka 61px
-   adalah tinggi baris terukur (avatar 28px, dua baris teks, padding 12px
-   atas-bawah, border 1px); setengah baris membuat baris berikutnya terpotong,
-   isyarat bahwa daftar masih bisa digulir.
+/* Cincin netral tipis, bukan bayangan — sama seperti pembeda state pada
+   field. Warna hanya dipakai titik statusnya. */
+.strip-face .avatar {
+  border: 1px solid var(--border-strong);
+}
 
-   flex-basis 0 — bukan auto — supaya tinggi 15 baris TIDAK ikut dihitung
-   sebagai tinggi alami kolom. Dengan basis auto daftar ini menyeret kolom
-   kanan kembali ke 1029px dan seluruh halaman ikut memanjang; dengan basis 0
-   daftar hanya memakan sisa ruang yang benar-benar tersedia. */
-.members {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0;
-  min-height: calc(61px * 4.5);
-  overscroll-behavior: contain;
+.strip-dot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--n-400);
+  border: 2px solid var(--bg-surface);
+}
+.strip-dot.is-on {
+  background: var(--ok);
+}
+
+/* Nama boleh turun ke baris kedua, lalu dipotong. Dipaksa satu baris, tujuh
+   dari lima belas nama terukur terpotong — termasuk nama sependek "Rangga
+   Pratama". min-height dua baris membuat semua kartu tetap rata tingginya
+   meski namanya cuma satu kata. */
+.strip-name {
+  max-width: 100%;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+  color: var(--text-heading);
+  min-height: calc(var(--fs-caption) * var(--lh-snug) * 2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .members-note {
@@ -606,48 +640,5 @@ onMounted(() => {
   border-top: 1px solid var(--border);
   font-size: var(--fs-caption);
   color: var(--text-muted);
-}
-
-.member {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-5);
-  border-bottom: 1px solid var(--border);
-}
-.member:last-child {
-  border-bottom: none;
-}
-
-.member-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-  line-height: 1.35;
-}
-
-.member-name {
-  font-size: var(--fs-label);
-  font-weight: var(--fw-medium);
-  color: var(--text-heading);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-mail {
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-tags {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex-shrink: 0;
 }
 </style>
