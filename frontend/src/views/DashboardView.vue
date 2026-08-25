@@ -154,7 +154,12 @@ const filteredTemplates = computed(() => {
 })
 
 
-const recentActivity = computed(() => notifState.items.slice(0, 5))
+/**
+ * Tidak dipotong di sini: kartunya menampilkan tiga baris lalu digulir, sama
+ * seperti Aktivitas di dashboard admin. Memotong daftar hanya menyembunyikan
+ * sisanya tanpa memberi cara melihatnya.
+ */
+const recentActivity = computed(() => notifState.items)
 
 async function load() {
   loading.value = true
@@ -580,7 +585,7 @@ onMounted(() => {
 
       <!-- Aktivitas — data nyata dari GET /notifications -->
       <RailCard title="Aktivitas" :icon="Activity" tone="tone-lilac" flush>
-        <ul v-if="recentActivity.length" class="feed">
+        <ul v-if="recentActivity.length" class="feed scroll-area">
           <li v-for="n in recentActivity" :key="n.id" class="feed-item">
             <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
             <span class="feed-text">
@@ -617,8 +622,8 @@ onMounted(() => {
             <span>user aktif</span>
           </p>
 
-          <ul v-if="activeMembers.length" class="active-grid">
-            <li v-for="(m, i) in activeMembers.slice(0, 6)" :key="m.seed || i" class="active-item">
+          <ul v-if="activeMembers.length" class="active-strip">
+            <li v-for="(m, i) in activeMembers" :key="m.seed || i" class="active-item">
               <span class="active-face">
                 <span class="avatar"><UserAvatar :name="m.name" :seed="m.seed" /></span>
                 <span class="active-dot" aria-hidden="true" />
@@ -627,8 +632,8 @@ onMounted(() => {
             </li>
           </ul>
 
-          <p v-if="activeCount > activeMembers.slice(0, 6).length" class="active-rest">
-            +{{ activeCount - activeMembers.slice(0, 6).length }} anggota lainnya
+          <p v-if="activeCount > activeMembers.length" class="active-rest">
+            +{{ activeCount - activeMembers.length }} anggota lainnya
           </p>
         </template>
 
@@ -999,9 +1004,17 @@ onMounted(() => {
 }
 
 /* ============ Aktivitas ============ */
+/* Tiga baris lalu digulir. Satu baris terukur 110px (padding, judul, pesan
+   yang dipotong dua baris, dan waktu), jadi batasnya 330px — nilai yang sama
+   dengan Aktivitas di dashboard admin.
+
+   Tanpa batas ini kartunya tumbuh sampai 613px dan kolom kanan menjulur jauh
+   melewati kolom utama. */
 .feed {
   display: flex;
   flex-direction: column;
+  max-height: calc(110px * 3);
+  overscroll-behavior: contain;
 }
 
 .feed-item {
@@ -1076,15 +1089,24 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
-/* Kisi profil, bukan deretan avatar bertumpuk.
-   Versi bertumpuk memang padat, tapi wajahnya jadi 28px tanpa nama — yang
-   tersampaikan cuma "ada beberapa orang", dan sisa kartunya terlihat kosong.
-   Wajah 40px dengan nama di bawahnya membuat kartu ini benar-benar
-   memperlihatkan orang, bukan sekadar angka. */
-.active-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-4) var(--sp-2);
+/* Satu baris yang digulir ke samping, bukan kisi dua baris.
+   Kartunya jadi setinggi satu baris berapa pun jumlah anggotanya, sehingga
+   kaki kolom kanan tidak bergeser tiap kali komunitasnya bertambah.
+
+   Batang scrollbar-nya disembunyikan: ia memotong kaki kartu dan terbaca
+   sebagai garis nyasar. Avatar yang terpotong di tepi kanan sudah cukup
+   memberi tahu bahwa barisnya berlanjut, dan menggulir tetap bisa — dengan
+   roda, usap, maupun keyboard. */
+.active-strip {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.active-strip::-webkit-scrollbar {
+  display: none;
 }
 
 .active-item {
@@ -1092,7 +1114,10 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--sp-2);
-  min-width: 0;
+  /* Lebar tetap supaya jaraknya rata berapa pun panjang namanya. 84px karena
+     pada 72px dua nama tiga-kata terukur terpotong. */
+  width: 84px;
+  flex-shrink: 0;
   text-align: center;
 }
 

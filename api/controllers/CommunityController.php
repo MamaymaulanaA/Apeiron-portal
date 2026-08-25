@@ -80,7 +80,8 @@ class CommunityController
     /**
      * GET /user/active-members
      *
-     * Jumlah anggota aktif, dan beberapa di antaranya untuk deretan avatar.
+     * Jumlah anggota aktif lain, dan yang terbaru di antaranya untuk deretan
+     * avatar. Admin dan pemanggilnya sendiri tidak termasuk.
      * BUKAN direktori anggota: /admin/users dilindungi requireAdmin() dan tetap
      * begitu — kalau user biasa perlu melihat daftar penuh, itu keputusan
      * tersendiri, bukan efek samping dari sebuah kartu di dashboard.
@@ -92,18 +93,35 @@ class CommunityController
     public function activeMembers(): void
     {
         requireAuth();
+        $me = currentUser();
+
+        /*
+         * Admin dan diri sendiri dikecualikan — pada hitungan MAUPUN daftarnya.
+         *
+         * Kalau hanya daftarnya yang disaring, angkanya jadi berbohong: kartu
+         * menyebut 42 lalu memperlihatkan orang-orang yang tidak berjumlah 42,
+         * dan "+N anggota lainnya" ikut salah. Keduanya harus memakai saringan
+         * yang sama.
+         *
+         * Admin bukan sesama anggota komunitas, dan diri sendiri bukan "anggota
+         * lain" — jadi keduanya memang bukan bagian dari yang dihitung.
+         */
+        $where = "is_active = 1 AND role = 'user' AND id <> ?";
+        $params = [(int) ($me->id ?? 0)];
 
         $total = (int) (Database::fetchOne(
-            "SELECT COUNT(*) as count FROM users WHERE is_active = 1"
+            "SELECT COUNT(*) as count FROM users WHERE {$where}",
+            $params
         )['count'] ?? 0);
 
-        // Yang paling baru masuk lebih dulu — deretan avatar jadi tanda kehidupan
-        // komunitas, bukan daftar arsip.
+        // Yang terbaru mendaftar lebih dulu. Bukan last_login_at: yang diminta
+        // adalah anggota baru, bukan yang kebetulan paling sering membuka.
         $rows = Database::fetchAll(
             "SELECT name, email FROM users
-             WHERE is_active = 1
-             ORDER BY last_login_at DESC, created_at DESC
-             LIMIT 12"
+             WHERE {$where}
+             ORDER BY created_at DESC, id DESC
+             LIMIT 20",
+            $params
         );
 
         $members = array_map(static fn(array $r) => [

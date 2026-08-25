@@ -222,15 +222,17 @@ const routes = {
   'GET /admin/templates': () => ({ templates: TEMPLATES }),
   'GET /admin/plugins': () => ({ plugins: PLUGINS }),
 
-  'GET /user/active-members': () => ({
-    active_count: USERS.filter((u) => u.is_active).length + 8,
-    members: USERS.filter((u) => u.is_active).map((u) => ({
-      name: u.name,
+  'GET /user/active-members': () => {
+    // Saringan yang sama dengan backend: aktif, bukan admin, bukan diri sendiri.
+    const others = USERS.filter((u) => u.is_active && u.role !== 'admin' && u.id !== USER.id)
+    return {
+      // +8 hanya untuk memunculkan baris "+N anggota lainnya" di lokal.
+      active_count: others.length + 8,
       // Backend mengirim hash email, bukan emailnya. Mock ikut begitu supaya
       // bentuk datanya sama.
-      seed: `seed-${u.id}`,
-    })),
-  }),
+      members: others.map((u) => ({ name: u.name, seed: `seed-${u.id}` })),
+    }
+  },
   'GET /user/groups': () => ({
     access: ACCESS,
     transaction_status: { none: null, pending: 'waiting_verification', rejected: 'rejected', granted: 'approved' }[ACCESS],
