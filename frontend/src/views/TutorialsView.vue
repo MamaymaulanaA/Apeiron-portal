@@ -104,7 +104,7 @@ onMounted(load)
     </header>
 
     <!-- Penyaring hanya tampil bila ada yang bisa disaring -->
-    <div v-if="!loading && !loadError && tutorials.length" class="toolbar control-row">
+    <div v-if="!loading && !loadError && tutorials.length" class="control-row">
       <div class="input-group toolbar-search">
         <Search class="input-icon" :size="16" />
         <input v-model="search" class="input" type="search" placeholder="Cari panduan…">
@@ -243,7 +243,25 @@ onMounted(load)
           {{ para }}
         </p>
 
-        <p v-if="!detail?.content" class="text-caption">
+        <!-- Langkah bergambar. Inilah gambar yang berada DI DALAM isi panduan,
+             berbeda dari gambar sampul yang hanya tampil di kartu. -->
+        <ol v-if="detail?.steps?.length" class="steps">
+          <li v-for="(st, i) in detail.steps" :key="st.id ?? i" class="step">
+            <span class="step-no">{{ i + 1 }}</span>
+            <div class="step-body">
+              <p v-if="st.body" class="step-text">{{ st.body }}</p>
+              <img
+                v-if="st.image_path"
+                class="step-img"
+                :src="`/storage/tutorials/${st.image_path}`"
+                :alt="`Langkah ${i + 1}`"
+                loading="lazy"
+              >
+            </div>
+          </li>
+        </ol>
+
+        <p v-if="!detail?.content && !detail?.steps?.length" class="text-caption">
           Panduan ini belum punya isi tertulis.
           <template v-if="detail?.external_url">Silakan buka tautannya di bawah.</template>
         </p>
@@ -267,17 +285,17 @@ onMounted(load)
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-}
+/* Tata letaknya dari .control-row di base.css; di sini hanya ukuran anaknya.
+   .toolbar-select WAJIB menimpa width: 100% milik .select — tanpa itu select
+   memakan satu baris penuh dan ketiga kontrol menumpuk ke bawah, bukan
+   berjajar. Nilainya sama dengan toolbar katalog template. */
 .toolbar-search {
-  flex: 1 1 260px;
+  flex: 1;
   min-width: 160px;
 }
 .toolbar-select {
-  flex: 0 0 auto;
+  width: auto;
+  min-width: 140px;
 }
 
 @media (max-width: 640px) {
@@ -427,6 +445,56 @@ onMounted(load)
 }
 .detail-para + .detail-para {
   margin-top: var(--sp-3);
+}
+
+/* ---------- Langkah ---------- */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  margin-top: var(--sp-5);
+  /* Nomornya digambar sendiri lewat .step-no; penanda bawaan <ol> akan
+     menggandakan angkanya. */
+  list-style: none;
+  padding: 0;
+}
+
+.step {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.step-no {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-border);
+  color: var(--brand-ink);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+}
+
+.step-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  flex: 1;
+}
+
+.step-text {
+  color: var(--text-body);
+  line-height: var(--lh-normal);
+}
+
+.step-img {
+  width: 100%;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
 }
 .detail-lead + .detail-para {
   margin-top: var(--sp-4);

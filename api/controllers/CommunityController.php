@@ -206,7 +206,7 @@ class CommunityController
         $tutorial = Tutorial::findPublished((int) ($params['id'] ?? 0));
         if (!$tutorial) jsonResponse(['error' => 'Tutorial tidak ditemukan'], 404);
 
-        jsonResponse(['tutorial' => $tutorial->toArray()]);
+        jsonResponse(['tutorial' => self::withSteps($tutorial)]);
     }
 
     // =========================================================================
@@ -218,7 +218,10 @@ class CommunityController
         requireAdmin();
 
         jsonResponse([
-            'tutorials' => array_map(static fn(Tutorial $t) => $t->toArray(), Tutorial::all()),
+            'tutorials' => array_map(
+                static fn(Tutorial $t) => self::withSteps($t),
+                Tutorial::all()
+            ),
             'icons' => Tutorial::ICONS,
         ]);
     }
@@ -250,9 +253,12 @@ class CommunityController
                 'sort_order' => (int) ($input['sort_order'] ?? 0),
             ]);
 
+            self::saveSteps($id, []);
+
+            $created = Tutorial::find($id);
             jsonResponse([
                 'message' => 'Tutorial berhasil ditambahkan',
-                'tutorial' => Tutorial::find($id)?->toArray(),
+                'tutorial' => $created ? self::withSteps($created) : null,
             ], 201);
         } catch (Exception $e) {
             jsonResponse(['error' => 'Gagal menambahkan tutorial'], 500);
@@ -305,9 +311,12 @@ class CommunityController
                     ? (int) $input['sort_order'] : $tutorial->sort_order,
             ]);
 
+            self::saveSteps($tutorial->id, TutorialStep::forTutorial($tutorial->id));
+
+            $saved = Tutorial::find($tutorial->id);
             jsonResponse([
                 'message' => 'Tutorial berhasil diperbarui',
-                'tutorial' => Tutorial::find($tutorial->id)?->toArray(),
+                'tutorial' => $saved ? self::withSteps($saved) : null,
             ]);
         } catch (Exception $e) {
             jsonResponse(['error' => 'Gagal memperbarui tutorial'], 500);
@@ -324,6 +333,12 @@ class CommunityController
         try {
             // Baris hilang tanpa berkasnya ikut hilang berarti storage terus
             // tumbuh oleh gambar yang tidak lagi bisa dijangkau siapa pun.
+            // Gambar langkah harus didata SEBELUM baris induknya dihapus:
+            // ON DELETE CASCADE akan menghapus barisnya, dan setelah itu tidak
+            // ada lagi yang tahu berkas mana yang perlu dibuang.
+            foreach (TutorialStep::imagePathsFor($tutorial->id) as $stepImage) {
+                self::deleteImageFile($stepImage);
+            }
             self::deleteImageFile($tutorial->image_path);
             $tutorial->delete();
             jsonResponse(['message' => 'Tutorial berhasil dihapus']);
@@ -347,31 +362,110 @@ class CommunityController
         return $json ?: $_POST;
     }
 
+    /** Tutorial beserta langkah-langkahnya. */
+    private static function withSteps(Tutorial $tutorial): array
+    {
+        return $tutorial->toArray() + [
+            'steps' => array_map(
+                static fn(TutorialStep $s) => $s->toArray(),
+                TutorialStep::forTutorial($tutorial->id)
+            ),
+        ];
+    }
+
     /**
-     * Menyimpan berkas dari field `image`, atau null bila tidak ada unggahan.
+     * Menulis ulang seluruh langkah sebuah tutorial dari field `steps`.
+     *
+     * BENTUK YANG DIHARAPKAN
+     * `steps` adalah string JSON berisi array objek:
+     *   [{ body, image_path, image_action }]
+     * dengan image_action salah satu dari:
+     *   keep    — pertahankan image_path yang dikirim
+     *   remove  — kosongkan gambarnya
+     *   replace — pakai berkas dari $_FILES['step_image_<i>']
+     *
+     * KENAPA HAPUS-LALU-TULIS-ULANG, BUKAN DIFF PER BARIS
+     * Langkah tidak punya makna sendiri di luar urutannya; yang dikirim admin
+     * adalah keadaan akhir yang ia inginkan. Mencocokkan baris satu per satu
+     * hanya menambah cabang yang bisa salah, tanpa memberi apa pun. Yang tetap
+     * harus hati-hati adalah berkas: gambar yang tidak lagi dipakai dihapus,
+     * dan gambar yang masih dipakai TIDAK boleh ikut terhapus.
+     *
+     * $existing dipakai untuk mencari selisihnya. Saat membuat tutorial baru ia
+     * kosong, jadi tidak ada yang perlu dibandingkan.
+     */
+    private static function saveSteps(int $tutorialId, array $existing): void
+    {
+        $raw = $_POST['steps'] ?? null;
+        if ($raw === null) return;
+
+        $decoded = json_decode((string) $raw, true);
+        if (!is_array($decoded)) return;
+
+        $kept = [];
+        $rows = [];
+
+        foreach (array_values($decoded) as $i => $step) {
+            if (!is_array($step)) continue;
+
+            $body = self::nullableText($step['body'] ?? null);
+            $action = $step['image_action'] ?? 'keep';
+            $image = null;
+
+            if ($action === 'replace') {
+                $image = self::storeImage('step_image_' . $i);
+            } elseif ($action === 'keep') {
+                // basename() supaya nilai dari klien tidak bisa menunjuk ke
+                // luar folder storage.
+                $candidate = self::nullableText($step['image_path'] ?? null);
+                $image = $candidate ? basename($candidate) : null;
+            }
+
+            // Langkah tanpa teks DAN tanpa gambar tidak menyampaikan apa pun.
+            if ($body === null && $image === null) continue;
+
+            if ($image !== null) $kept[] = $image;
+            $rows[] = ['body' => $body, 'image_path' => $image, 'position' => count($rows)];
+        }
+
+        TutorialStep::deleteForTutorial($tutorialId);
+        foreach ($rows as $row) {
+            TutorialStep::create($row + ['tutorial_id' => $tutorialId]);
+        }
+
+        // Berkas lama yang tidak lagi dirujuk langkah mana pun.
+        foreach ($existing as $old) {
+            if ($old->image_path && !in_array($old->image_path, $kept, true)) {
+                self::deleteImageFile($old->image_path);
+            }
+        }
+    }
+
+    /**
+     * Menyimpan berkas dari field yang disebut, atau null bila tidak ada unggahan.
      *
      * Pemeriksaannya sama persis dengan thumbnail template yang sudah berjalan:
      * ekstensi dari daftar tertutup, batas 2MB, dan MIME diperiksa dari isi
      * berkas — bukan dari header yang dikirim klien, yang bisa ditulis apa saja.
      * Nama berkas dibuat sendiri, tidak pernah memakai nama asli dari klien.
      */
-    private static function storeImage(): ?string
+    private static function storeImage(string $field = 'image'): ?string
     {
-        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+        if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
             return null;
         }
 
-        $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
             jsonResponse(['error' => 'Gambar harus berformat JPG, PNG, GIF, atau WEBP'], 400);
         }
 
-        if ($_FILES['image']['size'] > 2 * 1024 * 1024) {
+        if ($_FILES[$field]['size'] > 2 * 1024 * 1024) {
             jsonResponse(['error' => 'Ukuran gambar maksimal 2MB'], 400);
         }
 
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $realMime = finfo_file($finfo, $_FILES['image']['tmp_name']);
+        $realMime = finfo_file($finfo, $_FILES[$field]['tmp_name']);
         finfo_close($finfo);
         if (!str_starts_with((string) $realMime, 'image/')) {
             jsonResponse(['error' => 'File bukan gambar yang valid'], 400);
@@ -383,7 +477,7 @@ class CommunityController
         }
 
         $filename = 'tut_' . uniqid('', true) . '.' . $ext;
-        if (!move_uploaded_file($_FILES['image']['tmp_name'], $dir . $filename)) {
+        if (!move_uploaded_file($_FILES[$field]['tmp_name'], $dir . $filename)) {
             jsonResponse(['error' => 'Gagal menyimpan gambar'], 500);
         }
 

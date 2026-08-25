@@ -95,6 +95,14 @@ const TUTORIALS = [
   { id: 5, title: 'Draf: Cara Kustom CSS', excerpt: 'Belum terbit - hanya tampil di panel admin.', content: 'Isi sedang disusun.', category: 'Lanjutan', icon: 'Wrench', external_url: null, is_published: 0, sort_order: 5, created_at: '2026-08-09 09:00:00', updated_at: '2026-08-09 09:00:00' },
 ]
 
+const TUTORIAL_STEPS = {
+  1: [
+    { id: 1, position: 0, body: 'Masuk ke dashboard WordPress, lalu buka Appearance > Themes.', image_path: null },
+    { id: 2, position: 1, body: 'Klik Add New, lalu Upload Theme, dan pilih berkas ZIP template.', image_path: null },
+    { id: 3, position: 2, body: 'Setelah unggahan selesai, klik Activate.', image_path: null },
+  ],
+}
+
 const TUTORIAL_ICONS = ['BookOpen','Download','KeyRound','Package','LayoutTemplate','Rocket','Settings','CircleHelp','Video','FileText','Wrench','Zap']
 
 /** Meniru Tutorial::youtubeId() di backend. */
@@ -226,7 +234,7 @@ const routes = {
   },
   'GET /admin/groups': () => ({ groups: GROUPS }),
   'GET /admin/tutorials': () => ({
-    tutorials: TUTORIALS.map((t) => ({ ...toCard(t), content: t.content })),
+    tutorials: TUTORIALS.map((t) => ({ ...toCard(t), content: t.content, steps: TUTORIAL_STEPS[t.id] || [] })),
     icons: TUTORIAL_ICONS,
   }),
 
@@ -266,7 +274,7 @@ createServer((req, res) => {
       return res.end(JSON.stringify({ error: 'Tutorial tidak ditemukan' }))
     }
     res.writeHead(200)
-    return res.end(JSON.stringify({ tutorial: { ...toCard(t), content: t.content } }))
+    return res.end(JSON.stringify({ tutorial: { ...toCard(t), content: t.content, steps: TUTORIAL_STEPS[t.id] || [] } }))
   }
 
   const handler = routes[key]

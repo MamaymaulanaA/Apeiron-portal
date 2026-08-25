@@ -84,6 +84,7 @@ require_once PORTAL_ROOT . '/src/Models/Plugin.php';
 require_once PORTAL_ROOT . '/src/Models/Notification.php';
 require_once PORTAL_ROOT . '/src/Models/CommunityGroup.php';
 require_once PORTAL_ROOT . '/src/Models/Tutorial.php';
+require_once PORTAL_ROOT . '/src/Models/TutorialStep.php';
 
 // Load Services
 require_once PORTAL_ROOT . '/src/Services/ServerApiService.php';

@@ -17,12 +17,14 @@ import {
   Youtube,
   RotateCcw,
   EyeOff,
-  ImagePlus,
-  X,
+  Plus as PlusIcon,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import ModalDialog from '@/components/ui/ModalDialog.vue'
+import MediaField from '@/components/ui/MediaField.vue'
 import { api, errorMessage } from '@/lib/api'
 import { tutorialIcon, TUTORIAL_ICON_NAMES } from '@/lib/community'
 import { toast } from '@/stores/toast'
@@ -41,16 +43,39 @@ const confirmOpen = ref(false)
 const deleting = ref(null)
 const removing = ref(false)
 
+/** Gambar sampul — tampil di kartu, bukan di dalam isi panduan. */
+const cover = ref(blankMedia())
+
 /**
- * Media tutorial. `imageFile` hanya terisi bila admin memilih berkas baru;
- * `removeImage` menandai penghapusan gambar yang sudah tersimpan. Keduanya
- * dibedakan karena tiga keadaan itu berbeda bagi backend: ganti, hapus, atau
- * biarkan.
+ * Langkah bergambar. Inilah yang membuat gambar berada DI DALAM isi panduan:
+ * tiap langkah punya teksnya sendiri dan gambarnya sendiri, bukan satu gambar
+ * untuk seluruh panduan.
  */
-const imageFile = ref(null)
-const imagePreview = ref('')
-const removeImage = ref(false)
-const dragging = ref(false)
+const steps = ref([])
+
+function blankMedia(path = null) {
+  return { path, file: null, preview: '', action: 'keep' }
+}
+
+function blankStep() {
+  return { body: '', media: blankMedia() }
+}
+
+function addStep() {
+  steps.value.push(blankStep())
+}
+
+function removeStep(i) {
+  steps.value.splice(i, 1)
+}
+
+/** Pindah satu posisi; urutan inilah yang disimpan sebagai `position`. */
+function moveStep(i, delta) {
+  const j = i + delta
+  if (j < 0 || j >= steps.value.length) return
+  const [row] = steps.value.splice(i, 1)
+  steps.value.splice(j, 0, row)
+}
 
 function blankForm() {
   return {
@@ -78,20 +103,11 @@ async function load() {
   }
 }
 
-function resetMedia() {
-  // Preview dari berkas lokal adalah object URL; melepasnya mencegah kebocoran
-  // memori saat form dibuka-tutup berkali-kali.
-  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
-  imageFile.value = null
-  imagePreview.value = ''
-  removeImage.value = false
-  dragging.value = false
-}
-
 function openCreate() {
   editing.value = null
   form.value = blankForm()
-  resetMedia()
+  cover.value = blankMedia()
+  steps.value = []
   formError.value = ''
   formOpen.value = true
 }
@@ -108,46 +124,13 @@ function openEdit(t) {
     is_published: !!Number(t.is_published),
     sort_order: Number(t.sort_order) || 0,
   }
-  resetMedia()
-  imagePreview.value = t.image_path ? `/storage/tutorials/${t.image_path}` : ''
+  cover.value = blankMedia(t.image_path || null)
+  steps.value = (t.steps || []).map((st) => ({
+    body: st.body || '',
+    media: blankMedia(st.image_path || null),
+  }))
   formError.value = ''
   formOpen.value = true
-}
-
-/** Batas dicerminkan dari backend; backend tetap penentu akhirnya. */
-function acceptFile(file) {
-  if (!file) return
-  if (!file.type.startsWith('image/')) {
-    toast.error('Berkas harus berupa gambar')
-    return
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    toast.error('Ukuran gambar maksimal 2MB')
-    return
-  }
-  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
-  imageFile.value = file
-  imagePreview.value = URL.createObjectURL(file)
-  removeImage.value = false
-}
-
-function onPick(e) {
-  acceptFile(e.target.files?.[0])
-  // Kosongkan supaya memilih berkas yang sama dua kali tetap memicu change.
-  e.target.value = ''
-}
-
-function onDrop(e) {
-  dragging.value = false
-  acceptFile(e.dataTransfer?.files?.[0])
-}
-
-function clearImage() {
-  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
-  imageFile.value = null
-  imagePreview.value = ''
-  // Hanya berarti "hapus di server" bila sebelumnya memang ada yang tersimpan.
-  removeImage.value = !!editing.value?.image_path
 }
 
 async function save() {
@@ -171,8 +154,28 @@ async function save() {
     fd.append('external_url', form.value.external_url.trim())
     fd.append('is_published', form.value.is_published ? '1' : '0')
     fd.append('sort_order', String(Number(form.value.sort_order) || 0))
-    if (imageFile.value) fd.append('image', imageFile.value)
-    if (removeImage.value) fd.append('remove_image', '1')
+    if (cover.value.action === 'replace' && cover.value.file) {
+      fd.append('image', cover.value.file)
+    }
+    if (cover.value.action === 'remove') fd.append('remove_image', '1')
+
+    // Teks langkah dikirim sebagai JSON, gambarnya sebagai berkas terpisah
+    // bernomor. Backend memasangkannya lewat indeks yang sama.
+    fd.append(
+      'steps',
+      JSON.stringify(
+        steps.value.map((st) => ({
+          body: st.body.trim(),
+          image_path: st.media.path,
+          image_action: st.media.action,
+        }))
+      )
+    )
+    steps.value.forEach((st, i) => {
+      if (st.media.action === 'replace' && st.media.file) {
+        fd.append(`step_image_${i}`, st.media.file)
+      }
+    })
 
     if (editing.value) {
       await api.post(`/admin/tutorials/${editing.value.id}/update`, fd)
@@ -380,42 +383,11 @@ onMounted(load)
         </div>
 
         <div class="field">
-          <span class="label">Gambar</span>
-
-          <!-- Area jatuh + klik. Input file-nya disembunyikan, bukan dihapus:
-               ia tetap yang menangani pemilihan berkas, termasuk lewat keyboard. -->
-          <div
-            class="media"
-            :class="{ dragging, filled: !!imagePreview }"
-            @dragover.prevent="dragging = true"
-            @dragleave.prevent="dragging = false"
-            @drop.prevent="onDrop"
-          >
-            <template v-if="imagePreview">
-              <img class="media-img" :src="imagePreview" alt="Pratinjau gambar">
-              <div class="media-actions">
-                <label class="btn btn-sm btn-secondary">
-                  <ImagePlus :size="14" />
-                  Ganti
-                  <input class="media-input" type="file" accept="image/*" @change="onPick">
-                </label>
-                <button class="btn btn-sm btn-danger btn-icon" type="button" aria-label="Hapus gambar" @click="clearImage">
-                  <X :size="14" />
-                </button>
-              </div>
-            </template>
-
-            <label v-else class="media-drop">
-              <span class="icon-chip tone-sky"><ImagePlus :size="20" /></span>
-              <span class="media-title">Tarik gambar ke sini, atau klik untuk memilih</span>
-              <span class="media-hint">JPG, PNG, GIF, atau WEBP · maksimal 2MB</span>
-              <input class="media-input" type="file" accept="image/*" @change="onPick">
-            </label>
-          </div>
-
+          <span class="label">Gambar sampul</span>
+          <MediaField v-model="cover" />
           <span class="hint">
-            Dipakai sebagai gambar kartu di halaman Panduan user. Bila kosong,
-            kartunya memakai ikon di bawah.
+            Tampil di kartu halaman Panduan. Bila kosong, kartunya memakai ikon
+            di bawah. Untuk gambar di dalam isi panduan, pakai Langkah.
           </span>
         </div>
 
@@ -451,6 +423,70 @@ onMounted(load)
             “Lihat Tutorial”. Kosongkan bila tidak ada.
           </span>
         </label>
+
+        <!-- Langkah bergambar: di sinilah gambar masuk ke dalam isi panduan -->
+        <div class="field">
+          <span class="label">Langkah</span>
+          <span class="hint">
+            Tiap langkah punya gambarnya sendiri. Kosongkan bagian ini bila
+            panduannya cukup berupa teks di kolom Isi.
+          </span>
+
+          <ol v-if="steps.length" class="steps">
+            <li v-for="(st, i) in steps" :key="i" class="step">
+              <header class="step-head">
+                <span class="step-no">{{ i + 1 }}</span>
+                <span class="step-tools">
+                  <button
+                    class="btn btn-sm btn-secondary btn-icon"
+                    type="button"
+                    aria-label="Naikkan langkah"
+                    :disabled="i === 0"
+                    @click="moveStep(i, -1)"
+                  >
+                    <ArrowUp :size="14" />
+                  </button>
+                  <button
+                    class="btn btn-sm btn-secondary btn-icon"
+                    type="button"
+                    aria-label="Turunkan langkah"
+                    :disabled="i === steps.length - 1"
+                    @click="moveStep(i, 1)"
+                  >
+                    <ArrowDown :size="14" />
+                  </button>
+                  <button
+                    class="btn btn-sm btn-danger btn-icon"
+                    type="button"
+                    aria-label="Hapus langkah"
+                    @click="removeStep(i)"
+                  >
+                    <Trash2 :size="14" />
+                  </button>
+                </span>
+              </header>
+
+              <textarea
+                v-model="st.body"
+                class="input textarea"
+                rows="3"
+                placeholder="Jelaskan langkah ini…"
+              />
+
+              <MediaField
+                v-model="st.media"
+                compact
+                :max-height="160"
+                label="Tambah gambar untuk langkah ini"
+              />
+            </li>
+          </ol>
+
+          <button class="btn btn-secondary step-add" type="button" @click="addStep">
+            <PlusIcon :size="15" />
+            Tambah Langkah
+          </button>
+        </div>
 
         <label class="check">
           <input v-model="form.is_published" type="checkbox">
@@ -584,73 +620,54 @@ onMounted(load)
   object-fit: cover;
 }
 
-.media {
-  position: relative;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r);
-  background: var(--bg-subtle);
-  overflow: hidden;
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
-}
-.media.dragging {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-}
-/* Setelah terisi ia bukan lagi target jatuh yang kosong, jadi garis putus
-   diganti garis utuh seperti kontrol lain. */
-.media.filled {
-  border-style: solid;
-  border-color: var(--border);
-}
-
-.media-drop {
+/* ---------- Langkah ---------- */
+.steps {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-6) var(--sp-5);
-  text-align: center;
-  cursor: pointer;
-}
-.media-title {
-  font-size: var(--fs-label);
-  font-weight: var(--fw-medium);
-  color: var(--text-heading);
-}
-.media-hint {
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-}
-
-/* Disembunyikan dari mata, tetap ada untuk keyboard dan pembaca layar. */
-.media-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+  gap: var(--sp-3);
+  /* Nomor langkah digambar sendiri lewat .step-no, jadi penanda bawaan <ol>
+     tidak diperlukan dan justru menggandakan angkanya. */
+  list-style: none;
   padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
 
-.media-img {
-  display: block;
-  width: 100%;
-  max-height: 220px;
-  object-fit: cover;
-}
-
-.media-actions {
+.step {
   display: flex;
-  gap: var(--sp-2);
-  padding: var(--sp-3);
-  border-top: 1px solid var(--border);
-  background: var(--bg-surface);
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-subtle);
 }
-.media-actions .btn {
-  cursor: pointer;
+
+.step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.step-no {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-border);
+  color: var(--brand-ink);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+}
+
+.step-tools {
+  display: inline-flex;
+  gap: var(--sp-2);
+}
+
+.step-add {
+  align-self: flex-start;
 }
 
 /* Pemilih ikon: kisi tombol, bukan kotak teks bebas. Daftarnya tertutup di
