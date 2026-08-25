@@ -431,12 +431,19 @@ h3 {
   border-radius: var(--r);
 }
 
+/* inline-flex, bukan grid: grid satu kolom menumpuk ikon dan label jadi dua
+   baris, dan karena tingginya dikunci setinggi wadahnya, labelnya melimpah
+   keluar kotak. Untuk tombol ikon-saja hasilnya sama persis — sama-sama di
+   tengah — jadi ini murni menambah kemampuan menampung teks. */
 .segmented-item {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
   height: 100%;
   min-width: 30px;
   padding: 0 var(--sp-2);
+  white-space: nowrap;
   border-radius: var(--r-sm);
   color: var(--text-muted);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);

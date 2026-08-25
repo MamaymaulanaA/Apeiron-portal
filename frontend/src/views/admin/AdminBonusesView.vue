@@ -574,11 +574,16 @@ onMounted(load)
   padding: var(--sp-3);
 }
 
+/* inline-grid dengan kolom 1fr: kedua segmen ikut selebar label terpanjang,
+   jadi "Link" tidak tampak terjepit di sebelah "Upload File". flex-start
+   menahan seluruh kontrolnya agar tidak melar selebar form. */
 .source-toggle {
   align-self: flex-start;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
 }
 .source-toggle .segmented-item {
-  gap: var(--sp-2);
   padding: 0 var(--sp-4);
   font-size: var(--fs-label);
 }
