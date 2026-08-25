@@ -222,6 +222,15 @@ const routes = {
   'GET /admin/templates': () => ({ templates: TEMPLATES }),
   'GET /admin/plugins': () => ({ plugins: PLUGINS }),
 
+  'GET /user/active-members': () => ({
+    active_count: USERS.filter((u) => u.is_active).length + 8,
+    members: USERS.filter((u) => u.is_active).map((u) => ({
+      name: u.name,
+      // Backend mengirim hash email, bukan emailnya. Mock ikut begitu supaya
+      // bentuk datanya sama.
+      seed: `seed-${u.id}`,
+    })),
+  }),
   'GET /user/groups': () => ({
     access: ACCESS,
     transaction_status: { none: null, pending: 'waiting_verification', rejected: 'rejected', granted: 'approved' }[ACCESS],

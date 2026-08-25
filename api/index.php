@@ -157,6 +157,7 @@ $routes = [
 
     // Group & Forum - user
     'GET:/user/groups' => ['CommunityController', 'userGroups'],
+    'GET:/user/active-members' => ['CommunityController', 'activeMembers'],
     'GET:/user/tutorials' => ['CommunityController', 'userTutorials'],
     'GET:/user/tutorials/{id}' => ['CommunityController', 'userTutorialDetail'],
 

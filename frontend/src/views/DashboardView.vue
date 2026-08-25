@@ -53,8 +53,10 @@ const loading = ref(true)
 const data = ref(null)
 const copied = ref('')
 
-const members = ref([])
-const membersLoading = ref(false)
+/** Anggota aktif — jumlah dan beberapa avatar, dari GET /user/active-members. */
+const activeCount = ref(0)
+const activeMembers = ref([])
+const activeLoading = ref(true)
 
 /**
  * Forum (panduan) dan Group. Keduanya dari endpoint yang menyajikan data
@@ -68,7 +70,6 @@ const groups = ref([])
 const groupAccess = ref('none')
 const groupsLoading = ref(true)
 const groupsError = ref('')
-const memberTab = ref('Aktif')
 
 // Filter template — bekerja di sisi klien atas data yang sudah dimuat.
 const search = ref('')
@@ -152,11 +153,6 @@ const filteredTemplates = computed(() => {
   return list
 })
 
-const visibleMembers = computed(() =>
-  memberTab.value === 'Aktif'
-    ? members.value.filter((m) => Number(m.is_active))
-    : members.value
-)
 
 const recentActivity = computed(() => notifState.items.slice(0, 5))
 
@@ -172,21 +168,18 @@ async function load() {
   }
 }
 
-/**
- * Anggota hanya diambil bila yang membuka adalah admin — GET /admin/users
- * dilindungi requireAdmin(), jadi memanggilnya sebagai user biasa hanya akan
- * menghasilkan 403. Bila gagal, daftar dibiarkan kosong (tanpa data contoh).
- */
-async function loadMembers() {
-  if (!isAdmin.value) return
-  membersLoading.value = true
+async function loadActiveMembers() {
+  activeLoading.value = true
   try {
-    const { data: res } = await api.get('/admin/users')
-    members.value = res.users || []
+    const { data } = await api.get('/user/active-members')
+    activeCount.value = Number(data.active_count) || 0
+    activeMembers.value = data.members || []
   } catch {
-    members.value = []
+    // Kartu pelengkap; kegagalannya tidak boleh mengganggu sisa dashboard.
+    activeCount.value = 0
+    activeMembers.value = []
   } finally {
-    membersLoading.value = false
+    activeLoading.value = false
   }
 }
 
@@ -237,7 +230,7 @@ async function copyText(value, key) {
 
 onMounted(() => {
   load()
-  loadMembers()
+  loadActiveMembers()
   loadTutorials()
   loadGroups()
   fetchNotifications()
@@ -474,56 +467,6 @@ onMounted(() => {
         />
       </RailCard>
 
-      <!-- Aktivitas — data nyata dari GET /notifications -->
-      <RailCard title="Aktivitas" :icon="Activity" tone="tone-lilac" flush>
-        <ul v-if="recentActivity.length" class="feed">
-          <li v-for="n in recentActivity" :key="n.id" class="feed-item">
-            <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
-            <span class="feed-text">
-              <span class="feed-title">{{ n.title }}</span>
-              <span class="feed-msg">{{ n.message }}</span>
-              <span class="feed-time">
-                <Clock :size="11" />
-                {{ formatRelative(n.created_at) }}
-              </span>
-            </span>
-          </li>
-        </ul>
-
-        <EmptyState
-          v-else
-          :icon="Activity"
-          title="Belum ada aktivitas"
-          description="Pemberitahuan akan muncul di sini."
-          compact
-        />
-      </RailCard>
-
-
-      <!-- Anggota — data nyata dari GET /admin/users (hanya admin) -->
-      <RailCard v-if="isAdmin" title="Anggota" :icon="Users" tone="tone-sky" to="/admin/users" flush>
-        <SkeletonRows v-if="membersLoading" :rows="3" :height="36" />
-
-        <ul v-else-if="visibleMembers.length" class="member-list">
-          <li v-for="m in visibleMembers.slice(0, 6)" :key="m.id" class="member-row">
-            <span class="avatar avatar-sm"><UserAvatar :name="m.name" :seed="m.email" /></span>
-            <span class="member-text">
-              <span class="member-name">{{ m.name }}</span>
-              <span class="member-mail">{{ m.email }}</span>
-            </span>
-            <span class="status-dot" :class="{ 'is-on': Number(m.is_active) }" />
-          </li>
-        </ul>
-
-        <EmptyState
-          v-else
-          :icon="Users"
-          title="Belum ada anggota"
-          description="Daftar pengguna akan tampil di sini."
-          inline
-        />
-      </RailCard>
-
       <!-- Group — GET /user/groups.
            Gerbangnya di server: ketika akses belum terbuka, respons memang
            tidak memuat link sama sekali, jadi tidak ada yang bisa didapat
@@ -635,36 +578,71 @@ onMounted(() => {
         />
       </RailCard>
 
-      <!-- Plugin — data nyata -->
-      <RailCard title="Plugin Terbaru" :icon="Package" tone="tone-peach">
-        <template v-if="plugin">
-          <p class="plugin-version">v{{ plugin.version }}</p>
-          <p v-if="plugin.changelog" class="text-caption plugin-log">
-            {{ plugin.changelog }}
+      <!-- Aktivitas — data nyata dari GET /notifications -->
+      <RailCard title="Aktivitas" :icon="Activity" tone="tone-lilac" flush>
+        <ul v-if="recentActivity.length" class="feed">
+          <li v-for="n in recentActivity" :key="n.id" class="feed-item">
+            <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
+            <span class="feed-text">
+              <span class="feed-title">{{ n.title }}</span>
+              <span class="feed-msg">{{ n.message }}</span>
+              <span class="feed-time">
+                <Clock :size="11" />
+                {{ formatRelative(n.created_at) }}
+              </span>
+            </span>
+          </li>
+        </ul>
+
+        <EmptyState
+          v-else
+          :icon="Activity"
+          title="Belum ada aktivitas"
+          description="Pemberitahuan akan muncul di sini."
+          compact
+        />
+      </RailCard>
+
+      <!-- Anggota aktif — GET /user/active-members.
+           Jumlah dan beberapa avatar, bukan direktori anggota: endpoint daftar
+           penuh tetap admin-only. Emailnya tidak ikut dikirim; benih avatar
+           berupa hash, jadi wajah tiap orang tetap sama tanpa alamat siapa pun
+           bocor ke sesama user. -->
+      <RailCard title="Anggota Aktif" :icon="Users" tone="tone-sky">
+        <SkeletonRows v-if="activeLoading" :rows="1" :height="72" />
+
+        <template v-else-if="activeCount">
+          <p class="active-count">
+            <strong>{{ activeCount }}</strong>
+            <span>user aktif</span>
           </p>
 
-          <a
-            v-if="canDownload"
-            class="btn btn-primary btn-block"
-            href="/api/user/download-plugin"
-          >
-            <Download :size="15" />
-            Unduh plugin
-          </a>
-          <p v-else class="locked">
-            <CircleAlert :size="14" />
-            Lisensi aktif diperlukan untuk mengunduh.
-          </p>
+          <ul v-if="activeMembers.length" class="active-strip">
+            <li v-for="(m, i) in activeMembers.slice(0, 8)" :key="m.seed || i" class="active-face">
+              <span class="avatar avatar-sm" :title="m.name">
+                <UserAvatar :name="m.name" :seed="m.seed" />
+              </span>
+            </li>
+            <li v-if="activeCount > activeMembers.slice(0, 8).length" class="active-more">
+              +{{ activeCount - activeMembers.slice(0, 8).length }}
+            </li>
+          </ul>
         </template>
 
         <EmptyState
           v-else
-          :icon="Package"
-          title="Belum ada rilis"
-          description="Versi plugin akan tampil di sini."
-          compact
+          :icon="Users"
+          title="Belum ada user aktif"
+          description="Jumlah anggota aktif akan tampil di sini."
+          inline
         />
       </RailCard>
+
+
+
+
+
+
       </aside>
     </div>
   </div>
@@ -747,47 +725,6 @@ onMounted(() => {
   color: var(--brand-hover);
 }
 
-/* ============ Anggota (kolom kanan) ============ */
-.member-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.member-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-5);
-  border-bottom: 1px solid var(--border);
-}
-.member-row:last-child {
-  border-bottom: none;
-}
-
-.member-text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  line-height: 1.35;
-}
-
-.member-name {
-  font-size: var(--fs-label);
-  font-weight: var(--fw-medium);
-  color: var(--text-heading);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-mail {
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* ============ Toolbar ============ */
 .toolbar {
@@ -1117,6 +1054,52 @@ onMounted(() => {
   margin-top: 2px;
   font-size: var(--fs-micro);
   color: var(--text-faint);
+}
+
+/* ============ Anggota aktif ============ */
+.active-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5) 0;
+}
+.active-count strong {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--text-heading);
+}
+.active-count span {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* Avatar bertumpuk: satu deret padat, bukan daftar bernama. Yang disampaikan
+   kartu ini adalah "komunitasnya hidup", bukan siapa saja anggotanya. */
+.active-strip {
+  display: flex;
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+}
+.active-face + .active-face {
+  margin-left: -10px;
+}
+.active-face .avatar {
+  border: 2px solid var(--bg-surface);
+}
+
+.active-more {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--sp-2);
+  margin-left: -10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-hover);
+  border: 2px solid var(--bg-surface);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
 }
 
 /* ============ Forum (panduan) ============ */

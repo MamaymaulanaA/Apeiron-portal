@@ -74,6 +74,47 @@ class CommunityController
     }
 
     // =========================================================================
+    // Anggota aktif — sisi user
+    // =========================================================================
+
+    /**
+     * GET /user/active-members
+     *
+     * Jumlah anggota aktif, dan beberapa di antaranya untuk deretan avatar.
+     * BUKAN direktori anggota: /admin/users dilindungi requireAdmin() dan tetap
+     * begitu — kalau user biasa perlu melihat daftar penuh, itu keputusan
+     * tersendiri, bukan efek samping dari sebuah kartu di dashboard.
+     *
+     * EMAIL TIDAK IKUT DIKIRIM. Avatar dibangkitkan dari benih, dan benihnya
+     * di sini adalah hash email, bukan emailnya. Wajah tiap orang tetap sama
+     * di seluruh aplikasi tanpa satu pun alamat bocor ke sesama user.
+     */
+    public function activeMembers(): void
+    {
+        requireAuth();
+
+        $total = (int) (Database::fetchOne(
+            "SELECT COUNT(*) as count FROM users WHERE is_active = 1"
+        )['count'] ?? 0);
+
+        // Yang paling baru masuk lebih dulu — deretan avatar jadi tanda kehidupan
+        // komunitas, bukan daftar arsip.
+        $rows = Database::fetchAll(
+            "SELECT name, email FROM users
+             WHERE is_active = 1
+             ORDER BY last_login_at DESC, created_at DESC
+             LIMIT 12"
+        );
+
+        $members = array_map(static fn(array $r) => [
+            'name' => $r['name'],
+            'seed' => hash('sha256', strtolower(trim((string) $r['email']))),
+        ], $rows);
+
+        jsonResponse(['active_count' => $total, 'members' => $members]);
+    }
+
+    // =========================================================================
     // Group — sisi admin
     // =========================================================================
 
@@ -112,7 +153,7 @@ class CommunityController
             $group = CommunityGroup::find($id);
             jsonResponse(['message' => 'Group berhasil ditambahkan', 'group' => $group?->toArray()], 201);
         } catch (Exception $e) {
-            jsonResponse(['error' => 'Gagal menambahkan group'], 500);
+            self::failed($e, 'Gagal menambahkan group');
         }
     }
 
@@ -150,7 +191,7 @@ class CommunityController
                 'group' => CommunityGroup::find($group->id)?->toArray(),
             ]);
         } catch (Exception $e) {
-            jsonResponse(['error' => 'Gagal memperbarui group'], 500);
+            self::failed($e, 'Gagal memperbarui group');
         }
     }
 
@@ -165,7 +206,7 @@ class CommunityController
             $group->delete();
             jsonResponse(['message' => 'Group berhasil dihapus']);
         } catch (Exception $e) {
-            jsonResponse(['error' => 'Gagal menghapus group'], 500);
+            self::failed($e, 'Gagal menghapus group');
         }
     }
 
@@ -261,7 +302,7 @@ class CommunityController
                 'tutorial' => $created ? self::withSteps($created) : null,
             ], 201);
         } catch (Exception $e) {
-            jsonResponse(['error' => 'Gagal menambahkan tutorial'], 500);
+            self::failed($e, 'Gagal menambahkan tutorial');
         }
     }
 
@@ -319,7 +360,7 @@ class CommunityController
                 'tutorial' => $saved ? self::withSteps($saved) : null,
             ]);
         } catch (Exception $e) {
-            jsonResponse(['error' => 'Gagal memperbarui tutorial'], 500);
+            self::failed($e, 'Gagal memperbarui tutorial');
         }
     }
 
@@ -343,7 +384,7 @@ class CommunityController
             $tutorial->delete();
             jsonResponse(['message' => 'Tutorial berhasil dihapus']);
         } catch (Exception $e) {
-            jsonResponse(['error' => 'Gagal menghapus tutorial'], 500);
+            self::failed($e, 'Gagal menghapus tutorial');
         }
     }
 
@@ -360,6 +401,39 @@ class CommunityController
     {
         $json = getJsonInput();
         return $json ?: $_POST;
+    }
+
+    /**
+     * Menerjemahkan exception jadi respons yang bisa ditindaklanjuti.
+     *
+     * "Gagal menambahkan tutorial" saja membuat admin buntu: ia tidak bisa
+     * membedakan tabel yang belum dibuat dari disk yang penuh. Dua keadaan yang
+     * paling mungkin terjadi di sini justru yang paling mudah diperbaiki
+     * sendiri — migrasi yang belum dijalankan — jadi keduanya disebut namanya.
+     *
+     * SQLSTATE 42S02 = tabel tidak ada, 42S22 = kolom tidak ada. Keduanya bukan
+     * informasi sensitif: yang membacanya sudah lolos requireAdmin().
+     * Selebihnya tetap pesan umum, dan pesan aslinya masuk ke error_log.
+     */
+    private static function failed(Throwable $e, string $fallback): void
+    {
+        error_log('[CommunityController] ' . $fallback . ' — ' . $e->getMessage());
+
+        $sqlState = ($e instanceof PDOException && isset($e->errorInfo[0])) ? $e->errorInfo[0] : null;
+        $message = $e->getMessage();
+
+        $missingTable = $sqlState === '42S02' || str_contains($message, "doesn't exist");
+        $missingColumn = $sqlState === '42S22' || str_contains($message, 'Unknown column');
+
+        if ($missingTable || $missingColumn) {
+            jsonResponse([
+                'error' => 'Struktur database belum lengkap. Jalankan berkas SQL di '
+                    . 'database/migrations (forum_and_groups, lalu tutorial_image, '
+                    . 'lalu tutorial_steps), kemudian coba lagi.',
+            ], 500);
+        }
+
+        jsonResponse(['error' => $fallback], 500);
     }
 
     /** Tutorial beserta langkah-langkahnya. */

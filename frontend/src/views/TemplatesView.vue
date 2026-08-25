@@ -4,7 +4,7 @@
  * checkout_url dibuka di tab baru, sama seperti perilaku sebelumnya.
  */
 import { ref, computed, onMounted } from 'vue'
-import { LayoutTemplate, ExternalLink, Star } from 'lucide-vue-next'
+import { LayoutTemplate, ExternalLink, Star, Search, LayoutGrid, List } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { api, errorMessage } from '@/lib/api'
 import { toast } from '@/stores/toast'
@@ -12,11 +12,22 @@ import { toast } from '@/stores/toast'
 const loading = ref(true)
 const items = ref([])
 const filter = ref('all') // all | standard | premium
+/* Pencarian dan pilihan tampilan mengikuti halaman Panduan, supaya kedua
+   katalog dikendalikan dengan cara yang sama. */
+const search = ref('')
+const view = ref('grid')
 
 const filtered = computed(() => {
-  if (filter.value === 'standard') return items.value.filter((t) => Number(t.is_standard))
-  if (filter.value === 'premium') return items.value.filter((t) => !Number(t.is_standard))
-  return items.value
+  const q = search.value.trim().toLowerCase()
+  return items.value.filter((t) => {
+    if (filter.value === 'standard' && !Number(t.is_standard)) return false
+    if (filter.value === 'premium' && Number(t.is_standard)) return false
+    if (!q) return true
+    return (
+      t.name.toLowerCase().includes(q) ||
+      (t.description || '').toLowerCase().includes(q)
+    )
+  })
 })
 
 const counts = computed(() => ({
@@ -48,33 +59,49 @@ onMounted(load)
         <p class="text-muted">Pilih template yang sesuai dengan kebutuhan Anda.</p>
       </div>
 
-      <div v-if="items.length" class="tabs" role="tablist">
+    </header>
+
+    <!-- Toolbar sama dengan halaman Panduan: cari, saring, lalu pilih tampilan -->
+    <div v-if="!loading && items.length" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari template…">
+      </div>
+
+      <select v-model="filter" class="select toolbar-select">
+        <option value="all">Semua tipe ({{ counts.all }})</option>
+        <option value="standard">Standard ({{ counts.standard }})</option>
+        <option value="premium">Premium ({{ counts.premium }})</option>
+      </select>
+
+      <div class="segmented">
         <button
-          v-for="tab in [
-            { key: 'all', label: 'Semua' },
-            { key: 'standard', label: 'Standard' },
-            { key: 'premium', label: 'Premium' },
-          ]"
-          :key="tab.key"
-          class="tab"
-          :class="{ active: filter === tab.key }"
+          class="segmented-item"
+          :class="{ active: view === 'grid' }"
           type="button"
-          role="tab"
-          :aria-selected="filter === tab.key"
-          @click="filter = tab.key"
+          aria-label="Tampilan grid"
+          @click="view = 'grid'"
         >
-          {{ tab.label }}
-          <span class="tab-count">{{ counts[tab.key] }}</span>
+          <LayoutGrid :size="15" />
+        </button>
+        <button
+          class="segmented-item"
+          :class="{ active: view === 'list' }"
+          type="button"
+          aria-label="Tampilan daftar"
+          @click="view = 'list'"
+        >
+          <List :size="15" />
         </button>
       </div>
-    </header>
+    </div>
 
     <!-- Skeleton kartu -->
     <div v-if="loading" class="grid cards">
       <div v-for="i in 6" :key="i" class="card skeleton-card" />
     </div>
 
-    <div v-else-if="filtered.length" class="grid cards">
+    <div v-else-if="filtered.length" class="cards" :class="view === 'grid' ? 'grid' : 'tpl-list-view'">
       <article v-for="t in filtered" :key="t.id" class="tpl card">
         <div class="tpl-thumb">
           <img
@@ -123,9 +150,9 @@ onMounted(load)
         :icon="LayoutTemplate"
         title="Tidak ada template"
         :description="
-          filter === 'all'
-            ? 'Template akan muncul di sini setelah ditambahkan admin.'
-            : 'Tidak ada template pada kategori ini.'
+          items.length
+            ? 'Coba kata kunci lain atau pilih tipe yang berbeda.'
+            : 'Template akan muncul di sini setelah ditambahkan admin.'
         "
       />
     </div>
@@ -135,6 +162,56 @@ onMounted(load)
 <style scoped>
 .cards {
   grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+}
+
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+/* Wajib menimpa width: 100% milik .select, kalau tidak select memakan satu
+   baris penuh dan ketiga kontrol menumpuk ke bawah. */
+.toolbar-select {
+  width: auto;
+  min-width: 160px;
+}
+
+/* Tampilan daftar: satu kolom, gambar mengecil di sisi kiri — sama seperti
+   halaman Panduan. */
+.tpl-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.tpl-list-view .tpl {
+  flex-direction: row;
+}
+.tpl-list-view .tpl-thumb {
+  flex-shrink: 0;
+  width: 200px;
+  aspect-ratio: 16 / 10;
+}
+.tpl-list-view .tpl-body {
+  flex: 1;
+  min-width: 0;
+}
+/* Kartu daftar tidak perlu terangkat saat disentuh — geraknya mengganggu
+   pada baris selebar halaman. */
+.tpl-list-view .tpl:hover {
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .tpl-list-view .tpl {
+    flex-direction: column;
+  }
+  .tpl-list-view .tpl-thumb {
+    width: 100%;
+  }
 }
 
 .skeleton-card {

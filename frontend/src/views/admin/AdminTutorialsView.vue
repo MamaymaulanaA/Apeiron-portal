@@ -360,14 +360,18 @@ onMounted(load)
         </label>
 
         <label class="field">
-          <span class="label">Isi panduan</span>
+          <span class="label">Pengantar</span>
           <textarea
             v-model="form.content"
             class="input textarea"
-            rows="7"
-            placeholder="Tulis langkah-langkahnya. Pisahkan paragraf dengan satu baris kosong."
+            rows="5"
+            placeholder="Penjelasan pembuka: untuk siapa panduan ini, dan apa yang perlu disiapkan."
           />
-          <span class="hint">Baris kosong memisahkan paragraf saat ditampilkan ke user.</span>
+          <span class="hint">
+            Paragraf pembuka, tampil di atas langkah-langkah. Untuk instruksi
+            bergambar, pakai <strong>Langkah</strong> di bawah. Pisahkan
+            paragraf dengan satu baris kosong.
+          </span>
         </label>
 
         <div class="field-row">
@@ -428,8 +432,9 @@ onMounted(load)
         <div class="field">
           <span class="label">Langkah</span>
           <span class="hint">
-            Tiap langkah punya gambarnya sendiri. Kosongkan bagian ini bila
-            panduannya cukup berupa teks di kolom Isi.
+            Instruksi bernomor, tiap langkah dengan gambarnya sendiri — di
+            sinilah tangkapan layar dimasukkan. Kosongkan bila panduannya cukup
+            berupa teks di Pengantar.
           </span>
 
           <ol v-if="steps.length" class="steps">
