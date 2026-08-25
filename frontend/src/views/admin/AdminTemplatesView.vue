@@ -6,9 +6,10 @@
  * update dikirim ke POST /admin/templates/{id}/update — sama seperti
  * sebelumnya, karena PHP tidak mengurai multipart pada request PUT.
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   LayoutTemplate,
+  Search,
   Plus,
   Pencil,
   Trash2,
@@ -24,6 +25,25 @@ import { toast } from '@/stores/toast'
 
 const loading = ref(true)
 const items = ref([])
+
+/* Daftar template dimuat utuh dari /admin/templates, jadi menyaring di klien
+   menelusuri seluruh data — bukan hanya sebagian yang kebetulan tampil. */
+const search = ref('')
+const typeFilter = ref('all')
+
+const visibleItems = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return items.value.filter((t) => {
+    if (typeFilter.value === 'standard' && !Number(t.is_standard)) return false
+    if (typeFilter.value === 'premium' && Number(t.is_standard)) return false
+    if (typeFilter.value === 'recommended' && !Number(t.is_recommended)) return false
+    if (!q) return true
+    return (
+      String(t.name || '').toLowerCase().includes(q) ||
+      String(t.description || '').toLowerCase().includes(q)
+    )
+  })
+})
 const acting = ref(false)
 
 const formOpen = ref(false)
@@ -158,12 +178,26 @@ onMounted(load)
       </button>
     </header>
 
+    <div v-if="!loading && items.length" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari nama atau deskripsi template…">
+      </div>
+
+      <select v-model="typeFilter" class="select toolbar-select">
+        <option value="all">Semua tipe</option>
+        <option value="standard">Standard</option>
+        <option value="premium">Premium</option>
+        <option value="recommended">Rekomendasi</option>
+      </select>
+    </div>
+
     <div v-if="loading" class="grid cards">
       <div v-for="i in 6" :key="i" class="card skeleton-card" />
     </div>
 
-    <div v-else-if="items.length" class="grid cards">
-      <article v-for="t in items" :key="t.id" class="tpl card">
+    <div v-else-if="visibleItems.length" class="grid cards">
+      <article v-for="t in visibleItems" :key="t.id" class="tpl card">
         <div class="tpl-thumb">
           <img
             v-if="t.thumbnail_path"
@@ -219,6 +253,16 @@ onMounted(load)
           </div>
         </div>
       </article>
+    </div>
+
+    <!-- "Tidak cocok" dibedakan dari "belum ada": memberi tahu admin yang
+         sedang mencari bahwa katalognya kosong itu keliru. -->
+    <div v-else-if="items.length" class="card">
+      <EmptyState
+        :icon="Search"
+        title="Tidak ada yang cocok"
+        description="Coba kata kunci lain atau ubah saringan tipe."
+      />
     </div>
 
     <div v-else class="card">
@@ -552,5 +596,26 @@ onMounted(load)
 }
 .confirm strong {
   color: var(--text-heading);
+}
+
+/* ---------- Toolbar ----------
+   Bentuknya sama dengan halaman Panduan di sisi user. .toolbar-select WAJIB
+   menimpa width: 100% milik .select — tanpa itu select memakan satu baris
+   penuh dan kontrolnya menumpuk ke bawah. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+.toolbar-select {
+  width: auto;
+  min-width: 150px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
 }
 </style>
