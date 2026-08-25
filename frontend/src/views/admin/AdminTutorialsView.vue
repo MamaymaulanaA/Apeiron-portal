@@ -391,63 +391,9 @@ onMounted(load)
           <input v-model="form.title" class="input" type="text" maxlength="255" placeholder="Cara Install Template">
         </label>
 
-        <label class="field">
-          <span class="label">Ringkasan</span>
-          <input
-            v-model="form.excerpt"
-            class="input"
-            type="text"
-            maxlength="500"
-            placeholder="Satu kalimat yang tampil di kartu."
-          >
-        </label>
-
-        <div class="field-row">
-          <label class="field field-grow">
-            <span class="label">Kategori</span>
-            <input v-model="form.category" class="input" type="text" maxlength="100" placeholder="Template, Plugin, Lisensi…">
-          </label>
-
-          <label class="field">
-            <span class="label">Urutan</span>
-            <input v-model.number="form.sort_order" class="input" type="number" min="0">
-          </label>
-        </div>
-
-        <div class="field">
-          <span class="label">Ikon</span>
-          <div class="icon-picker">
-            <button
-              v-for="name in TUTORIAL_ICON_NAMES"
-              :key="name"
-              class="icon-option"
-              :class="{ active: form.icon === name }"
-              type="button"
-              :aria-label="name"
-              :aria-pressed="form.icon === name"
-              @click="form.icon = name"
-            >
-              <component :is="tutorialIcon(name)" :size="17" />
-            </button>
-          </div>
-        </div>
-
-        <label class="field">
-          <span class="label">Link eksternal</span>
-          <input
-            v-model="form.external_url"
-            class="input"
-            type="url"
-            maxlength="500"
-            placeholder="https://youtube.com/watch?v=…"
-          >
-          <span class="hint">
-            Link YouTube otomatis jadi tombol “Tonton di YouTube”; link lain jadi
-            “Lihat Tutorial”. Kosongkan bila tidak ada.
-          </span>
-        </label>
-
-        <!-- Langkah bergambar: di sinilah gambar masuk ke dalam isi panduan -->
+        <!-- Isi dulu, baru hal-hal yang mengatur tampilannya. Sebelumnya isi
+             panduan ada di urutan keenam, di balik lima field sekunder — yang
+             ditulis terakhir justru hal yang paling utama. -->
         <div class="field">
           <span class="label">Isi panduan <span class="req">*</span></span>
           <span class="hint">
@@ -513,6 +459,68 @@ onMounted(load)
           </button>
         </div>
 
+
+        <hr class="divider">
+        <p class="group-label">Tampilan di kartu</p>
+
+
+        <label class="field">
+          <span class="label">Ringkasan</span>
+          <input
+            v-model="form.excerpt"
+            class="input"
+            type="text"
+            maxlength="500"
+            placeholder="Satu kalimat yang tampil di kartu."
+          >
+        </label>
+
+        <div class="field-row">
+          <label class="field field-grow">
+            <span class="label">Kategori</span>
+            <input v-model="form.category" class="input" type="text" maxlength="100" placeholder="Template, Plugin, Lisensi…">
+          </label>
+
+          <label class="field">
+            <span class="label">Urutan</span>
+            <input v-model.number="form.sort_order" class="input" type="number" min="0">
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="label">Ikon</span>
+          <div class="icon-picker">
+            <button
+              v-for="name in TUTORIAL_ICON_NAMES"
+              :key="name"
+              class="icon-option"
+              :class="{ active: form.icon === name }"
+              type="button"
+              :aria-label="name"
+              :aria-pressed="form.icon === name"
+              @click="form.icon = name"
+            >
+              <component :is="tutorialIcon(name)" :size="17" />
+            </button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span class="label">Link eksternal</span>
+          <input
+            v-model="form.external_url"
+            class="input"
+            type="url"
+            maxlength="500"
+            placeholder="https://youtube.com/watch?v=…"
+          >
+          <span class="hint">
+            Link YouTube otomatis jadi tombol “Tonton di YouTube”; link lain jadi
+            “Lihat Tutorial”. Kosongkan bila tidak ada.
+          </span>
+        </label>
+
+        <!-- Langkah bergambar: di sinilah gambar masuk ke dalam isi panduan -->
         <label class="check">
           <input v-model="form.is_published" type="checkbox">
           <span>
@@ -770,5 +778,15 @@ onMounted(load)
     flex: 1 1 100%;
     width: 100%;
   }
+}
+
+/* Penanda kelompok: memisahkan isi panduan dari field yang hanya mengatur
+   tampilannya, supaya form tidak terbaca sebagai satu tumpukan panjang. */
+.group-label {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 </style>
