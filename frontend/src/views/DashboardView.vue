@@ -30,7 +30,7 @@ import {
   List,
   ExternalLink,
   Activity,
-  MessagesSquare,
+  BookOpen,
   UsersRound,
   Users,
   Lock,
@@ -437,20 +437,21 @@ onMounted(() => {
 
     <!-- ================= Kolom kanan ================= -->
     <aside class="dash-rail">
-      <!-- Forum — pusat panduan, data nyata dari GET /user/tutorials -->
-      <RailCard title="Forum" :icon="MessagesSquare" tone="tone-sky" to="/tutorials" flush>
+      <!-- Panduan — data nyata dari GET /user/tutorials. Tiga teratas saja;
+           selebihnya lewat "Lihat semua". -->
+      <RailCard title="Panduan" :icon="BookOpen" tone="tone-sky" to="/tutorials" flush>
         <SkeletonRows v-if="tutorialsLoading" :rows="3" :height="36" />
 
         <EmptyState
           v-else-if="tutorialsError"
-          :icon="MessagesSquare"
+          :icon="BookOpen"
           title="Gagal memuat panduan"
           :description="tutorialsError"
           inline
         />
 
         <ul v-else-if="tutorials.length" class="tut-list">
-          <li v-for="t in tutorials.slice(0, 4)" :key="t.id">
+          <li v-for="t in tutorials.slice(0, 3)" :key="t.id">
             <RouterLink to="/tutorials" class="tut-row">
               <span class="icon-chip icon-chip-sm tone-sky">
                 <component :is="tutorialIcon(t.icon)" :size="15" />
@@ -466,7 +467,7 @@ onMounted(() => {
 
         <EmptyState
           v-else
-          :icon="MessagesSquare"
+          :icon="BookOpen"
           title="Belum ada panduan"
           description="Tutorial akan tampil di sini setelah admin menambahkannya."
           inline

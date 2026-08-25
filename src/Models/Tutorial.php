@@ -15,6 +15,7 @@ class Tutorial
     public ?string $content;
     public ?string $category;
     public ?string $icon;
+    public ?string $image_path;
     public ?string $external_url;
     public bool $is_published;
     public int $sort_order;
@@ -113,6 +114,7 @@ class Tutorial
             'content' => $data['content'] ?? null,
             'category' => $data['category'] ?? null,
             'icon' => self::normalizeIcon($data['icon'] ?? null),
+            'image_path' => $data['image_path'] ?? null,
             'external_url' => $data['external_url'] ?? null,
             'is_published' => $data['is_published'] ?? 1,
             'sort_order' => $data['sort_order'] ?? 0,
@@ -129,6 +131,7 @@ class Tutorial
         if (array_key_exists('content', $data)) $updateData['content'] = $data['content'];
         if (array_key_exists('category', $data)) $updateData['category'] = $data['category'];
         if (isset($data['icon'])) $updateData['icon'] = self::normalizeIcon($data['icon']);
+        if (array_key_exists('image_path', $data)) $updateData['image_path'] = $data['image_path'];
         if (array_key_exists('external_url', $data)) $updateData['external_url'] = $data['external_url'];
         if (isset($data['is_published'])) $updateData['is_published'] = $data['is_published'];
         if (isset($data['sort_order'])) $updateData['sort_order'] = $data['sort_order'];
@@ -157,6 +160,7 @@ class Tutorial
             'excerpt' => $this->excerpt,
             'category' => $this->category,
             'icon' => self::normalizeIcon($this->icon),
+            'image_path' => $this->image_path,
             'external_url' => $this->external_url,
             'youtube_id' => self::youtubeId($this->external_url),
             'has_content' => $this->content !== null && trim($this->content) !== '',
@@ -181,6 +185,7 @@ class Tutorial
         $t->content = $row['content'] ?? null;
         $t->category = $row['category'] ?? null;
         $t->icon = $row['icon'] ?? null;
+        $t->image_path = $row['image_path'] ?? null;
         $t->external_url = $row['external_url'] ?? null;
         $t->is_published = (bool) $row['is_published'];
         $t->sort_order = (int) ($row['sort_order'] ?? 0);

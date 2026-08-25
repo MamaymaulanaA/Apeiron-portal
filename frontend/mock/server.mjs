@@ -116,6 +116,7 @@ function youtubeId(url) {
 
 const toCard = (t) => ({
   id: t.id, title: t.title, excerpt: t.excerpt, category: t.category, icon: t.icon,
+  image_path: t.image_path ?? null,
   external_url: t.external_url, youtube_id: youtubeId(t.external_url),
   has_content: !!(t.content && t.content.trim()), is_published: t.is_published,
   sort_order: t.sort_order, created_at: t.created_at, updated_at: t.updated_at,

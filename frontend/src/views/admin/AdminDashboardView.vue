@@ -20,7 +20,7 @@ import {
   UserPlus,
   Zap,
   Activity,
-  MessagesSquare,
+  BookOpen,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -28,6 +28,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
+import { tutorialIcon } from '@/lib/community'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -80,16 +81,24 @@ const roleLabel = computed(() => (isAdmin.value ? 'Administrator' : 'Member'))
 const recentActivity = computed(() => notifState.items)
 
 /**
+ * Panduan terbaru. Sumbernya endpoint admin, jadi draf ikut terlihat di sini —
+ * admin perlu tahu apa yang belum terbit, sementara user hanya melihat yang
+ * sudah terbit.
+ */
+const tutorials = ref([])
+const tutorialsLoading = ref(true)
+
+/**
  * Transaksi yang ditampilkan. Endpoint mengirim sepuluh baris; kartunya hanya
- * memuat lima supaya tidak perlu digulir di dalam kartu.
+ * memuat tujuh supaya tidak perlu digulir di dalam kartu.
  *
- * Lima adalah tinggi yang membuat kaki kolom utama jatuh paling dekat dengan
- * kolom kanan pada susunan sekarang. Selisihnya tidak nol, dan tidak bisa nol
- * tanpa menggulir — Forum masih empty state setinggi 138px, dan begitu backend
- * punya tabel forum kartu itu akan tumbuh dan menutup sisanya sendiri.
+ * Tujuh adalah tinggi yang membuat kaki kolom utama jatuh paling dekat dengan
+ * kolom kanan pada susunan sekarang. Angkanya naik dari lima setelah kartu
+ * Panduan berhenti jadi empty state dan mulai memuat tiga baris sungguhan —
+ * kolom kanan bertambah sekitar 105px, jadi kolom utama ikut menyusul.
  * Sepuluh baris penuh tetap bisa dilihat di halaman Transaksi.
  */
-const VISIBLE_TX = 5
+const VISIBLE_TX = 7
 const visibleRecent = computed(() => recent.value.slice(0, VISIBLE_TX))
 
 async function load() {
@@ -123,10 +132,25 @@ async function loadMembers() {
   }
 }
 
+async function loadTutorials() {
+  tutorialsLoading.value = true
+  try {
+    const { data } = await api.get('/admin/tutorials')
+    tutorials.value = data.tutorials || []
+  } catch {
+    // Panduan pelengkap di halaman ini; kegagalannya tidak boleh mengganggu
+    // sisa dashboard.
+    tutorials.value = []
+  } finally {
+    tutorialsLoading.value = false
+  }
+}
+
 onMounted(() => {
   load()
   loadMembers()
   fetchNotifications()
+  loadTutorials()
 })
 </script>
 
@@ -307,23 +331,42 @@ onMounted(() => {
 
     <!-- ---------- Kolom kanan ---------- -->
     <aside class="dash-rail">
-      <!-- Forum — sama seperti di dashboard user: backend belum punya tabel
-           maupun endpoint forum, jadi yang tampil empty state yang jujur,
-           bukan daftar contoh. -->
+      <!-- Panduan — tiga teratas dari GET /admin/tutorials, termasuk draf.
+           Sebelumnya kartu ini masih berbunyi "fitur forum belum tersedia di
+           server" padahal fiturnya sudah hidup. -->
       <section class="card">
         <header class="card-header">
           <h3>
-            <span class="icon-chip icon-chip-sm tone-sky"><MessagesSquare :size="16" /></span>
-            Forum
+            <span class="icon-chip icon-chip-sm tone-sky"><BookOpen :size="16" /></span>
+            Panduan
           </h3>
+          <RouterLink to="/admin/tutorials" class="link-more">
+            Kelola <ArrowRight :size="14" />
+          </RouterLink>
         </header>
 
-        <!-- inline, sama seperti di dashboard user: kartu yang backend-nya
-             memang belum ada tidak perlu memakan tinggi kolom kanan. -->
+        <SkeletonRows v-if="tutorialsLoading" :rows="3" :height="36" />
+
+        <ul v-else-if="tutorials.length" class="tut-list">
+          <li v-for="t in tutorials.slice(0, 3)" :key="t.id">
+            <RouterLink to="/admin/tutorials" class="tut-row">
+              <span class="icon-chip icon-chip-sm tone-sky">
+                <component :is="tutorialIcon(t.icon)" :size="15" />
+              </span>
+              <span class="tut-row-text">
+                <span class="tut-row-title">{{ t.title }}</span>
+                <span class="tut-row-meta">{{ t.category || 'Tanpa kategori' }}</span>
+              </span>
+              <span v-if="!Number(t.is_published)" class="badge tone-neutral">Draf</span>
+            </RouterLink>
+          </li>
+        </ul>
+
         <EmptyState
-          :icon="MessagesSquare"
-          title="Belum ada forum"
-          description="Fitur forum belum tersedia di server."
+          v-else
+          :icon="BookOpen"
+          title="Belum ada panduan"
+          description="Tambahkan tutorial lewat menu Panduan."
           inline
         />
       </section>
@@ -516,6 +559,49 @@ onMounted(() => {
   font-weight: var(--fw-bold);
   line-height: var(--lh-tight);
   color: var(--text-heading);
+}
+
+/* ---------- Panduan ---------- */
+.tut-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--dur) var(--ease);
+}
+.tut-list li:last-child .tut-row {
+  border-bottom: none;
+}
+.tut-row:hover {
+  background: var(--bg-hover);
+}
+
+.tut-row-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.tut-row-title {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tut-row-meta {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
 }
 
 /* ---------- Aktivitas ----------

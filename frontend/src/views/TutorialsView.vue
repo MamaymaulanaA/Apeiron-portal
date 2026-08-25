@@ -15,6 +15,8 @@ import {
   ExternalLink,
   Youtube,
   RotateCcw,
+  LayoutGrid,
+  List,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
@@ -30,6 +32,8 @@ const categories = ref([])
 
 const search = ref('')
 const category = ref('all')
+/** Grid atau daftar — pilihan yang sama dengan katalog template. */
+const view = ref('grid')
 
 /** Detail dibuka lewat endpoint terpisah — daftar tidak mengangkut isi panjang. */
 const detail = ref(null)
@@ -110,6 +114,27 @@ onMounted(load)
         <option value="all">Semua kategori</option>
         <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
       </select>
+
+      <div class="segmented">
+        <button
+          class="segmented-item"
+          :class="{ active: view === 'grid' }"
+          type="button"
+          aria-label="Tampilan grid"
+          @click="view = 'grid'"
+        >
+          <LayoutGrid :size="15" />
+        </button>
+        <button
+          class="segmented-item"
+          :class="{ active: view === 'list' }"
+          type="button"
+          aria-label="Tampilan daftar"
+          @click="view = 'list'"
+        >
+          <List :size="15" />
+        </button>
+      </div>
     </div>
 
     <SkeletonRows v-if="loading" :rows="3" :height="140" />
@@ -154,10 +179,15 @@ onMounted(load)
       </EmptyState>
     </section>
 
-    <ul v-else class="grid tut-grid">
+    <ul v-else class="tut-grid" :class="view === 'grid' ? 'grid' : 'tut-list-view'">
       <li v-for="t in filtered" :key="t.id" class="card tut">
         <button class="tut-open" type="button" @click="openDetail(t)">
-          <span class="icon-chip tone-sky">
+          <!-- Gambar bila ada; kalau tidak, chip ikon supaya tinggi kartunya
+               tetap sama dan barisnya tidak bergerigi. -->
+          <span v-if="t.image_path" class="tut-media">
+            <img :src="`/storage/tutorials/${t.image_path}`" :alt="t.title" loading="lazy">
+          </span>
+          <span v-else class="icon-chip tone-sky tut-icon">
             <component :is="tutorialIcon(t.icon)" :size="20" />
           </span>
 
@@ -198,6 +228,13 @@ onMounted(load)
       <SkeletonRows v-if="detailLoading" :rows="4" :height="20" />
 
       <template v-else>
+        <img
+          v-if="detail?.image_path"
+          class="detail-img"
+          :src="`/storage/tutorials/${detail.image_path}`"
+          :alt="detail.title"
+        >
+
         <p v-if="detail?.excerpt" class="detail-lead">{{ detail.excerpt }}</p>
 
         <!-- Isi ditampilkan sebagai teks, bukan v-html: apa pun yang diketik
@@ -258,6 +295,46 @@ onMounted(load)
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
 }
 
+/* Tampilan daftar: satu kolom, gambar mengecil di sisi kiri. */
+.tut-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.tut-list-view .tut-open {
+  align-items: center;
+}
+.tut-list-view .tut-media {
+  width: 96px;
+  height: 64px;
+  aspect-ratio: auto;
+}
+.tut-list-view .tut-excerpt {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* Gambar kartu. aspect-ratio menjaga tinggi seragam berapa pun ukuran asli
+   berkasnya, jadi kartu dalam satu baris tidak saling menjulang. */
+.tut-media {
+  flex-shrink: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+.tut-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tut-icon {
+  flex-shrink: 0;
+}
+
 .tut {
   display: flex;
   flex-direction: column;
@@ -273,6 +350,10 @@ onMounted(load)
   padding: var(--sp-5);
   text-align: left;
   transition: background var(--dur) var(--ease);
+}
+/* Di grid, gambar duduk di atas teks; di daftar ia di sebelah kiri. */
+.grid.tut-grid .tut-open {
+  flex-direction: column;
 }
 .tut-open:hover {
   background: var(--bg-hover);
@@ -323,6 +404,15 @@ onMounted(load)
 }
 .link-more:hover {
   color: var(--brand-hover);
+}
+
+.detail-img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  margin-bottom: var(--sp-4);
 }
 
 .detail-lead {

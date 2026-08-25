@@ -234,12 +234,17 @@ class CommunityController
         if ($error) jsonResponse(['error' => $error], 400);
 
         try {
+            // Unggahan diproses SETELAH validasi lolos, supaya permintaan yang
+            // ditolak tidak meninggalkan berkas yatim di storage.
+            $imagePath = self::storeImage();
+
             $id = Tutorial::create([
                 'title' => $title,
                 'excerpt' => self::nullableText($input['excerpt'] ?? null),
                 'content' => self::nullableText($input['content'] ?? null),
                 'category' => self::nullableText($input['category'] ?? null),
                 'icon' => $input['icon'] ?? null,
+                'image_path' => $imagePath,
                 'external_url' => self::nullableText($input['external_url'] ?? null),
                 'is_published' => isset($input['is_published']) ? (int) (bool) $input['is_published'] : 1,
                 'sort_order' => (int) ($input['sort_order'] ?? 0),
@@ -269,6 +274,20 @@ class CommunityController
         if ($error) jsonResponse(['error' => $error], 400);
 
         try {
+            // Tiga kemungkinan pada gambar, dan ketiganya berbeda:
+            //   berkas baru diunggah → simpan, hapus yang lama
+            //   remove_image dikirim → hapus berkas, kosongkan kolom
+            //   tidak keduanya      → biarkan apa adanya
+            $imagePath = $tutorial->image_path;
+            $newImage = self::storeImage();
+            if ($newImage !== null) {
+                self::deleteImageFile($tutorial->image_path);
+                $imagePath = $newImage;
+            } elseif (!empty($input['remove_image'])) {
+                self::deleteImageFile($tutorial->image_path);
+                $imagePath = null;
+            }
+
             $tutorial->update([
                 'title' => $title,
                 'excerpt' => array_key_exists('excerpt', $input)
@@ -278,6 +297,7 @@ class CommunityController
                 'category' => array_key_exists('category', $input)
                     ? self::nullableText($input['category']) : $tutorial->category,
                 'icon' => $input['icon'] ?? $tutorial->icon,
+                'image_path' => $imagePath,
                 'external_url' => self::nullableText($url),
                 'is_published' => isset($input['is_published'])
                     ? (int) (bool) $input['is_published'] : (int) $tutorial->is_published,
@@ -302,6 +322,9 @@ class CommunityController
         if (!$tutorial) jsonResponse(['error' => 'Tutorial tidak ditemukan'], 404);
 
         try {
+            // Baris hilang tanpa berkasnya ikut hilang berarti storage terus
+            // tumbuh oleh gambar yang tidak lagi bisa dijangkau siapa pun.
+            self::deleteImageFile($tutorial->image_path);
             $tutorial->delete();
             jsonResponse(['message' => 'Tutorial berhasil dihapus']);
         } catch (Exception $e) {
@@ -322,6 +345,64 @@ class CommunityController
     {
         $json = getJsonInput();
         return $json ?: $_POST;
+    }
+
+    /**
+     * Menyimpan berkas dari field `image`, atau null bila tidak ada unggahan.
+     *
+     * Pemeriksaannya sama persis dengan thumbnail template yang sudah berjalan:
+     * ekstensi dari daftar tertutup, batas 2MB, dan MIME diperiksa dari isi
+     * berkas — bukan dari header yang dikirim klien, yang bisa ditulis apa saja.
+     * Nama berkas dibuat sendiri, tidak pernah memakai nama asli dari klien.
+     */
+    private static function storeImage(): ?string
+    {
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            jsonResponse(['error' => 'Gambar harus berformat JPG, PNG, GIF, atau WEBP'], 400);
+        }
+
+        if ($_FILES['image']['size'] > 2 * 1024 * 1024) {
+            jsonResponse(['error' => 'Ukuran gambar maksimal 2MB'], 400);
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $realMime = finfo_file($finfo, $_FILES['image']['tmp_name']);
+        finfo_close($finfo);
+        if (!str_starts_with((string) $realMime, 'image/')) {
+            jsonResponse(['error' => 'File bukan gambar yang valid'], 400);
+        }
+
+        $dir = PORTAL_ROOT . '/storage/tutorials/';
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            jsonResponse(['error' => 'Gagal menyiapkan folder penyimpanan'], 500);
+        }
+
+        $filename = 'tut_' . uniqid('', true) . '.' . $ext;
+        if (!move_uploaded_file($_FILES['image']['tmp_name'], $dir . $filename)) {
+            jsonResponse(['error' => 'Gagal menyimpan gambar'], 500);
+        }
+
+        return $filename;
+    }
+
+    /**
+     * Menghapus berkas gambar milik satu tutorial.
+     *
+     * basename() memastikan nilai dari database hanya pernah diperlakukan
+     * sebagai nama berkas. Tanpa itu, isi kolom seperti ../../config/app.php
+     * akan menghapus berkas di luar folder storage.
+     */
+    private static function deleteImageFile(?string $path): void
+    {
+        if (!$path) return;
+
+        $file = PORTAL_ROOT . '/storage/tutorials/' . basename($path);
+        if (is_file($file)) unlink($file);
     }
 
     /** String kosong disimpan sebagai NULL, bukan ''. */

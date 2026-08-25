@@ -167,6 +167,7 @@ $routes = [
     'GET:/admin/tutorials' => ['CommunityController', 'adminTutorials'],
     'POST:/admin/tutorials' => ['CommunityController', 'createTutorial'],
     'PUT:/admin/tutorials/{id}' => ['CommunityController', 'updateTutorial'],
+    'POST:/admin/tutorials/{id}/update' => ['CommunityController', 'updateTutorial'],
     'DELETE:/admin/tutorials/{id}' => ['CommunityController', 'deleteTutorial'],
 
     // Notifications (shared - works for both user and admin)

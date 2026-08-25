@@ -17,6 +17,8 @@ import {
   Youtube,
   RotateCcw,
   EyeOff,
+  ImagePlus,
+  X,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
@@ -38,6 +40,17 @@ const formError = ref('')
 const confirmOpen = ref(false)
 const deleting = ref(null)
 const removing = ref(false)
+
+/**
+ * Media tutorial. `imageFile` hanya terisi bila admin memilih berkas baru;
+ * `removeImage` menandai penghapusan gambar yang sudah tersimpan. Keduanya
+ * dibedakan karena tiga keadaan itu berbeda bagi backend: ganti, hapus, atau
+ * biarkan.
+ */
+const imageFile = ref(null)
+const imagePreview = ref('')
+const removeImage = ref(false)
+const dragging = ref(false)
 
 function blankForm() {
   return {
@@ -65,9 +78,20 @@ async function load() {
   }
 }
 
+function resetMedia() {
+  // Preview dari berkas lokal adalah object URL; melepasnya mencegah kebocoran
+  // memori saat form dibuka-tutup berkali-kali.
+  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = null
+  imagePreview.value = ''
+  removeImage.value = false
+  dragging.value = false
+}
+
 function openCreate() {
   editing.value = null
   form.value = blankForm()
+  resetMedia()
   formError.value = ''
   formOpen.value = true
 }
@@ -84,8 +108,46 @@ function openEdit(t) {
     is_published: !!Number(t.is_published),
     sort_order: Number(t.sort_order) || 0,
   }
+  resetMedia()
+  imagePreview.value = t.image_path ? `/storage/tutorials/${t.image_path}` : ''
   formError.value = ''
   formOpen.value = true
+}
+
+/** Batas dicerminkan dari backend; backend tetap penentu akhirnya. */
+function acceptFile(file) {
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    toast.error('Berkas harus berupa gambar')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error('Ukuran gambar maksimal 2MB')
+    return
+  }
+  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+  removeImage.value = false
+}
+
+function onPick(e) {
+  acceptFile(e.target.files?.[0])
+  // Kosongkan supaya memilih berkas yang sama dua kali tetap memicu change.
+  e.target.value = ''
+}
+
+function onDrop(e) {
+  dragging.value = false
+  acceptFile(e.dataTransfer?.files?.[0])
+}
+
+function clearImage() {
+  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = null
+  imagePreview.value = ''
+  // Hanya berarti "hapus di server" bila sebelumnya memang ada yang tersimpan.
+  removeImage.value = !!editing.value?.image_path
 }
 
 async function save() {
@@ -97,22 +159,26 @@ async function save() {
 
   saving.value = true
   try {
-    const payload = {
-      title: form.value.title.trim(),
-      excerpt: form.value.excerpt.trim(),
-      content: form.value.content.trim(),
-      category: form.value.category.trim(),
-      icon: form.value.icon,
-      external_url: form.value.external_url.trim(),
-      is_published: form.value.is_published ? 1 : 0,
-      sort_order: Number(form.value.sort_order) || 0,
-    }
+    // Multipart, bukan JSON, karena ada berkas gambar. Perubahan memakai POST
+    // ke /update — PHP tidak mengurai body multipart pada request PUT, jadi
+    // $_POST dan $_FILES akan kosong kalau dikirim lewat PUT.
+    const fd = new FormData()
+    fd.append('title', form.value.title.trim())
+    fd.append('excerpt', form.value.excerpt.trim())
+    fd.append('content', form.value.content.trim())
+    fd.append('category', form.value.category.trim())
+    fd.append('icon', form.value.icon)
+    fd.append('external_url', form.value.external_url.trim())
+    fd.append('is_published', form.value.is_published ? '1' : '0')
+    fd.append('sort_order', String(Number(form.value.sort_order) || 0))
+    if (imageFile.value) fd.append('image', imageFile.value)
+    if (removeImage.value) fd.append('remove_image', '1')
 
     if (editing.value) {
-      await api.put(`/admin/tutorials/${editing.value.id}`, payload)
+      await api.post(`/admin/tutorials/${editing.value.id}/update`, fd)
       toast.success('Panduan berhasil diperbarui')
     } else {
-      await api.post('/admin/tutorials', payload)
+      await api.post('/admin/tutorials', fd)
       toast.success('Panduan berhasil ditambahkan')
     }
 
@@ -209,7 +275,10 @@ onMounted(load)
             <tr v-for="t in tutorials" :key="t.id">
               <td>
                 <span class="tut-cell">
-                  <span class="icon-chip icon-chip-sm tone-sky">
+                  <span v-if="t.image_path" class="tut-thumb">
+                    <img :src="`/storage/tutorials/${t.image_path}`" :alt="t.title" loading="lazy">
+                  </span>
+                  <span v-else class="icon-chip icon-chip-sm tone-sky">
                     <component :is="tutorialIcon(t.icon)" :size="15" />
                   </span>
                   <span class="tut-text">
@@ -308,6 +377,46 @@ onMounted(load)
             <span class="label">Urutan</span>
             <input v-model.number="form.sort_order" class="input" type="number" min="0">
           </label>
+        </div>
+
+        <div class="field">
+          <span class="label">Gambar</span>
+
+          <!-- Area jatuh + klik. Input file-nya disembunyikan, bukan dihapus:
+               ia tetap yang menangani pemilihan berkas, termasuk lewat keyboard. -->
+          <div
+            class="media"
+            :class="{ dragging, filled: !!imagePreview }"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="onDrop"
+          >
+            <template v-if="imagePreview">
+              <img class="media-img" :src="imagePreview" alt="Pratinjau gambar">
+              <div class="media-actions">
+                <label class="btn btn-sm btn-secondary">
+                  <ImagePlus :size="14" />
+                  Ganti
+                  <input class="media-input" type="file" accept="image/*" @change="onPick">
+                </label>
+                <button class="btn btn-sm btn-danger btn-icon" type="button" aria-label="Hapus gambar" @click="clearImage">
+                  <X :size="14" />
+                </button>
+              </div>
+            </template>
+
+            <label v-else class="media-drop">
+              <span class="icon-chip tone-sky"><ImagePlus :size="20" /></span>
+              <span class="media-title">Tarik gambar ke sini, atau klik untuk memilih</span>
+              <span class="media-hint">JPG, PNG, GIF, atau WEBP · maksimal 2MB</span>
+              <input class="media-input" type="file" accept="image/*" @change="onPick">
+            </label>
+          </div>
+
+          <span class="hint">
+            Dipakai sebagai gambar kartu di halaman Panduan user. Bila kosong,
+            kartunya memakai ikon di bawah.
+          </span>
         </div>
 
         <div class="field">
@@ -457,6 +566,91 @@ onMounted(load)
 }
 .field-row .field:not(.field-grow) {
   flex: 0 0 120px;
+}
+
+/* ---------- Media ---------- */
+.tut-thumb {
+  flex-shrink: 0;
+  width: 40px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+.tut-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media {
+  position: relative;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r);
+  background: var(--bg-subtle);
+  overflow: hidden;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.media.dragging {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+/* Setelah terisi ia bukan lagi target jatuh yang kosong, jadi garis putus
+   diganti garis utuh seperti kontrol lain. */
+.media.filled {
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.media-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-5);
+  text-align: center;
+  cursor: pointer;
+}
+.media-title {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+.media-hint {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* Disembunyikan dari mata, tetap ada untuk keyboard dan pembaca layar. */
+.media-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.media-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.media-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.media-actions .btn {
+  cursor: pointer;
 }
 
 /* Pemilih ikon: kisi tombol, bukan kotak teks bebas. Daftarnya tertutup di
