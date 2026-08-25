@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Package,
   UserPlus,
+  Zap,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -35,6 +36,12 @@ const recent = ref([])
 /** Daftar anggota — data nyata dari GET /admin/users (halaman pertama). */
 const members = ref([])
 const membersLoading = ref(true)
+/**
+ * Total anggota sebenarnya, dari pagination.total. Endpoint mengirim 15 per
+ * halaman, jadi members.length BUKAN jumlah anggota — menampilkannya sebagai
+ * jumlah akan menyesatkan begitu anggota lebih dari 15.
+ */
+const membersTotal = ref(0)
 
 const admin = computed(() => authState.user)
 
@@ -67,8 +74,10 @@ async function loadMembers() {
   try {
     const { data } = await api.get('/admin/users')
     members.value = data.users || []
+    membersTotal.value = Number(data.pagination?.total) || members.value.length
   } catch {
     members.value = []
+    membersTotal.value = 0
   } finally {
     membersLoading.value = false
   }
@@ -207,29 +216,35 @@ onMounted(() => {
             </h3>
           </header>
 
+          <!-- Empat angka dalam kisi 2×2, bukan empat baris bertumpuk. Isinya
+               sama persis, tingginya turun dari 279px ke sekitar 195px — kolom
+               kanan jadi tidak menjulang jauh melewati kolom utama. -->
           <div class="card-body catalog">
-            <div class="catalog-row">
-              <span>Total template</span>
+            <div class="catalog-cell">
+              <span class="catalog-label">Total template</span>
               <strong>{{ Number(stats?.total_templates) || 0 }}</strong>
             </div>
-            <div class="catalog-row">
-              <span>Standard</span>
+            <div class="catalog-cell">
+              <span class="catalog-label">Total user</span>
+              <strong>{{ Number(stats?.total_users) || 0 }}</strong>
+            </div>
+            <div class="catalog-cell">
+              <span class="catalog-label">Standard</span>
               <strong>{{ Number(stats?.standard_templates) || 0 }}</strong>
             </div>
-            <div class="catalog-row">
-              <span>Premium</span>
+            <div class="catalog-cell">
+              <span class="catalog-label">Premium</span>
               <strong>{{ Number(stats?.premium_templates) || 0 }}</strong>
-            </div>
-            <div class="catalog-row">
-              <span>Total user</span>
-              <strong>{{ Number(stats?.total_users) || 0 }}</strong>
             </div>
           </div>
         </section>
 
         <section class="card">
           <header class="card-header">
-            <h3>Pintasan</h3>
+            <h3>
+              <span class="icon-chip icon-chip-sm tone-neutral"><Zap :size="16" /></span>
+              Pintasan
+            </h3>
           </header>
 
           <div class="card-body shortcuts">
@@ -254,9 +269,13 @@ onMounted(() => {
         </section>
 
         <!-- Anggota — seluruhnya data nyata dari GET /admin/users -->
-        <section class="card">
+        <section class="card members-card">
           <header class="card-header">
-            <h2>Anggota</h2>
+            <h3>
+              <span class="icon-chip icon-chip-sm tone-neutral"><Users :size="16" /></span>
+              Anggota
+              <span v-if="membersTotal" class="badge tone-neutral">{{ membersTotal }}</span>
+            </h3>
             <RouterLink to="/admin/users" class="link-more">
               Kelola <ArrowRight :size="14" />
             </RouterLink>
@@ -264,25 +283,34 @@ onMounted(() => {
 
           <SkeletonRows v-if="membersLoading" :rows="3" :height="40" />
 
-          <ul v-else-if="members.length" class="members">
-            <li v-for="m in members" :key="m.id" class="member">
-              <span class="avatar avatar-sm">{{ initials(m.name) }}</span>
+          <template v-else-if="members.length">
+            <ul class="members scroll-area">
+              <li v-for="m in members" :key="m.id" class="member">
+                <span class="avatar avatar-sm">{{ initials(m.name) }}</span>
 
-              <span class="member-text">
-                <span class="member-name">{{ m.name }}</span>
-                <span class="member-mail">{{ m.email }}</span>
-              </span>
+                <span class="member-text">
+                  <span class="member-name">{{ m.name }}</span>
+                  <span class="member-mail">{{ m.email }}</span>
+                </span>
 
-              <span class="member-tags">
-                <span v-if="m.role === 'admin'" class="badge tone-brand">Admin</span>
-                <span
-                  class="status-dot"
-                  :class="{ 'is-on': Number(m.is_active) }"
-                  :title="Number(m.is_active) ? 'Aktif' : 'Nonaktif'"
-                />
-              </span>
-            </li>
-          </ul>
+                <span class="member-tags">
+                  <span v-if="m.role === 'admin'" class="badge tone-brand">Admin</span>
+                  <span
+                    class="status-dot"
+                    :class="{ 'is-on': Number(m.is_active) }"
+                    :title="Number(m.is_active) ? 'Aktif' : 'Nonaktif'"
+                  />
+                </span>
+              </li>
+            </ul>
+
+            <!-- Endpoint hanya mengirim halaman pertama (15 baris). Mengatakannya
+                 terus terang lebih baik daripada membiarkan daftar yang terpotong
+                 terlihat seperti daftar lengkap. -->
+            <p v-if="members.length < membersTotal" class="members-note">
+              {{ members.length }} teratas dari {{ membersTotal }} anggota
+            </p>
+          </template>
 
           <EmptyState
             v-else
@@ -398,26 +426,24 @@ onMounted(() => {
 
 /* ---------- Katalog ---------- */
 .catalog {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-5) var(--sp-4);
+}
+.catalog-cell {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: 2px;
+  min-width: 0;
 }
-.catalog-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--fs-label);
-  color: var(--text-body);
+.catalog-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
 }
-.catalog-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-.catalog-row strong {
-  font-size: var(--fs-body-lg);
+.catalog-cell strong {
+  font-size: var(--fs-h2);
   font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
   color: var(--text-heading);
 }
 
@@ -469,9 +495,33 @@ onMounted(() => {
 }
 
 /* ---------- Anggota ---------- */
+
+/* Daftar bergulir punya sudut siku; tanpa ini baris pertama dan terakhir
+   menyembul keluar dari sudut membulat kartu. */
+.members-card {
+  overflow: hidden;
+}
+
+/* GET /admin/users mengirim 15 baris. Dibiarkan apa adanya, kartu ini setinggi
+   15 × 61px = 915px dan kolom kanan menjulur jauh melewati kolom utama —
+   persis keluhan "anggota kebawah semua".
+
+   Batasnya 4,5 baris: baris kelima terpotong separuh, yang membuat jelas
+   daftar masih bisa digulir tanpa perlu bayangan atau panah tambahan.
+   61px adalah tinggi baris terukur (avatar 28px, dua baris teks, padding 12px
+   atas-bawah, border 1px). */
 .members {
   display: flex;
   flex-direction: column;
+  max-height: calc(61px * 4.5);
+  overscroll-behavior: contain;
+}
+
+.members-note {
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
 }
 
 .member {

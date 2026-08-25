@@ -38,6 +38,15 @@ const TX = [
   { id: 40, user_id: 9, user_name: 'Bagus Herlambang', user_email: 'bagus@example.com', status: 'approved', document_path: 'doc_9_1.jpg', document_original_name: 'transfer-bca.jpg', admin_notes: null, created_at: '2026-08-21 11:02:00', approved_at: '2026-08-21 12:30:00', rejected_at: null },
   { id: 39, user_id: 12, user_name: 'Ayu Lestari', user_email: 'ayu@example.com', status: 'rejected', document_path: 'doc_12_1.pdf', document_original_name: 'struk.pdf', admin_notes: 'Nominal tidak sesuai, mohon unggah bukti yang benar.', created_at: '2026-08-20 08:45:00', approved_at: null, rejected_at: '2026-08-20 10:10:00' },
   { id: 38, user_id: 15, user_name: 'Dimas Anggara', user_email: 'dimas@example.com', status: 'pending_license', document_path: 'doc_15_1.png', document_original_name: 'bukti.png', admin_notes: null, created_at: '2026-08-19 15:20:00', approved_at: '2026-08-19 16:00:00', rejected_at: null },
+  // Transaction::findRecent(10) — dashboard admin memang menerima 10 baris.
+  // Mock ikut mengisi 10 supaya tinggi kolom utama yang diperiksa sama dengan
+  // yang dilihat admin di produksi.
+  { id: 37, user_id: 18, user_name: 'Haritsa Tri Maulana', user_email: 'haritsa.majid@example.com', status: 'waiting_verification', document_path: 'doc_18_1.jpg', document_original_name: 'bukti-mandiri.jpg', admin_notes: null, created_at: '2026-08-18 07:05:00', approved_at: null, rejected_at: null },
+  { id: 36, user_id: 21, user_name: 'Iradigit Official', user_email: 'officialiradigit@example.com', status: 'approved', document_path: 'doc_21_1.png', document_original_name: 'transfer.png', admin_notes: null, created_at: '2026-08-17 18:30:00', approved_at: '2026-08-17 19:15:00', rejected_at: null },
+  { id: 35, user_id: 24, user_name: 'Babali', user_email: 'solusiparafrase@example.com', status: 'waiting_verification', document_path: 'doc_24_1.pdf', document_original_name: 'bukti-pembayaran.pdf', admin_notes: null, created_at: '2026-08-16 10:45:00', approved_at: null, rejected_at: null },
+  { id: 34, user_id: 30, user_name: 'Muhamad Fauzi Ramadhan', user_email: 'fauzi.imaji@example.com', status: 'approved', document_path: 'doc_30_1.jpg', document_original_name: 'bukti-bri.jpg', admin_notes: null, created_at: '2026-08-15 06:20:00', approved_at: '2026-08-15 08:00:00', rejected_at: null },
+  { id: 33, user_id: 33, user_name: 'Adian Syahsidiq Pratama', user_email: 'adiansyahshidiqpratama@example.com', status: 'rejected', document_path: 'doc_33_1.png', document_original_name: 'screenshot.png', admin_notes: 'Tangkapan layar terpotong, nominal tidak terlihat.', created_at: '2026-08-14 15:55:00', approved_at: null, rejected_at: '2026-08-14 17:30:00' },
+  { id: 32, user_id: 36, user_name: 'Ilham Maulana', user_email: 'borneaninvitation@example.com', status: 'approved', document_path: 'doc_36_1.jpg', document_original_name: 'transfer-bni.jpg', admin_notes: null, created_at: '2026-08-13 09:40:00', approved_at: '2026-08-13 10:25:00', rejected_at: null },
 ]
 
 const USERS = [
@@ -46,6 +55,20 @@ const USERS = [
   { id: 9, username: 'bagus_h', name: 'Bagus Herlambang', email: 'bagus@example.com', role: 'user', is_active: 1, created_at: '2026-05-01 04:15:00', last_login_at: '2026-08-22 09:00:00' },
   { id: 12, username: null, name: 'Ayu Lestari', email: 'ayu@example.com', role: 'user', is_active: 0, created_at: '2026-06-20 02:45:00', last_login_at: null },
   { id: 15, username: 'dimas', name: 'Dimas Anggara', email: 'dimas@example.com', role: 'user', is_active: 1, created_at: '2026-07-11 06:00:00', last_login_at: '2026-08-19 14:50:00' },
+  // Halaman /admin/users berisi 15 baris. Mock ikut mengisi 15 supaya kartu
+  // Anggota di dashboard diuji pada volume yang sebenarnya, bukan pada lima
+  // baris yang selalu muat. Beberapa nama dan email sengaja panjang untuk
+  // memastikan pemotongan teks bekerja.
+  { id: 18, username: 'haritsa', name: 'Haritsa Tri Maulana', email: 'haritsa.majid@example.com', role: 'user', is_active: 1, created_at: '2026-07-14 03:10:00', last_login_at: '2026-08-18 08:05:00' },
+  { id: 21, username: 'iradigit', name: 'Iradigit Official', email: 'officialiradigit@example.com', role: 'user', is_active: 1, created_at: '2026-07-16 09:25:00', last_login_at: '2026-08-17 19:40:00' },
+  { id: 24, username: 'babali', name: 'Babali', email: 'solusiparafrase@example.com', role: 'user', is_active: 1, created_at: '2026-07-19 01:55:00', last_login_at: '2026-08-16 11:15:00' },
+  { id: 27, username: 'arika', name: 'Arika', email: 'duniatanpahulufr@example.com', role: 'user', is_active: 0, created_at: '2026-07-22 05:40:00', last_login_at: null },
+  { id: 30, username: 'fauzi', name: 'Muhamad Fauzi Ramadhan', email: 'fauzi.imaji@example.com', role: 'user', is_active: 1, created_at: '2026-07-25 12:00:00', last_login_at: '2026-08-15 07:30:00' },
+  { id: 33, username: 'adian', name: 'Adian Syahsidiq Pratama', email: 'adiansyahshidiqpratama@example.com', role: 'user', is_active: 1, created_at: '2026-07-28 04:20:00', last_login_at: '2026-08-14 16:45:00' },
+  { id: 36, username: 'ilham', name: 'Ilham Maulana', email: 'borneaninvitation@example.com', role: 'user', is_active: 1, created_at: '2026-08-01 08:10:00', last_login_at: '2026-08-13 10:00:00' },
+  { id: 39, username: 'nadia', name: 'Nadia Rahmawati', email: 'nadia@example.com', role: 'user', is_active: 1, created_at: '2026-08-04 02:35:00', last_login_at: '2026-08-12 21:25:00' },
+  { id: 42, username: 'yoga', name: 'Yoga Prasetyo', email: 'yoga@example.com', role: 'user', is_active: 1, created_at: '2026-08-07 06:50:00', last_login_at: '2026-08-11 13:05:00' },
+  { id: 45, username: null, name: 'Putri Handayani', email: 'putri@example.com', role: 'user', is_active: 0, created_at: '2026-08-10 11:05:00', last_login_at: null },
 ]
 
 const NOTIFS = [

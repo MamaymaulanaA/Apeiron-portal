@@ -87,9 +87,11 @@ onBeforeUnmount(() => {
       @click="toggle"
     >
       <Bell :size="19" :stroke-width="2" />
-      <span v-if="notifState.unread > 0" class="notif-count">
-        {{ notifState.unread > 9 ? '9+' : notifState.unread }}
-      </span>
+      <span
+        v-if="notifState.unread > 0"
+        class="notif-count"
+        :class="{ 'is-wide': notifState.unread > 9 }"
+      >{{ notifState.unread > 9 ? '9+' : notifState.unread }}</span>
     </button>
 
     <Transition name="pop">
@@ -162,21 +164,47 @@ onBeforeUnmount(() => {
   color: var(--brand);
 }
 
+/* Lingkaran hitung. Tiga hal yang membuatnya meleset — semuanya terukur di
+   browser, bukan dikira-kira:
+
+   1. Bukan lingkaran. `padding: 0 5px` menambah 10px pada lebar sementara
+      tinggi tetap 18px, jadi badge terukur 20,83 × 18 — elips. Satu digit
+      tidak butuh padding sama sekali: min-width sudah menahan lebar di 18px.
+
+   2. Angka jatuh 3,1px di bawah pusat. line-height 1.6 warisan body membuat
+      kotak baris 19,2px, lebih tinggi dari kotak isi 14px (18px dikurangi
+      border 2px atas dan bawah). Grid tidak bisa memusatkan item yang lebih
+      besar dari wadahnya, jadi Chrome menjepitnya ke tepi atas dan sisa
+      5,2px menggantung ke bawah. line-height: 1 membuat kotak baris muat.
+
+   3. Sisa 0,5px. Angka tidak punya tinta di bawah garis dasar, jadi
+      memusatkan kotak baris selalu meninggalkan tinta setengah descender
+      (2px ÷ 2 ÷ 2) terlalu rendah. padding-bottom 1px menaikkan pusat kotak
+      isi tepat 0,5px — tanpa mengubah lebar, jadi lingkaran tetap bulat. */
 .notif-count {
   position: absolute;
   top: -3px;
   right: -3px;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
+  padding: 0 0 1px;
   display: grid;
   place-items: center;
   border-radius: var(--r-pill);
   background: var(--err);
   color: #fff;
   font-size: var(--fs-micro);
+  line-height: 1;
   font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
   border: 2px solid var(--bg-surface);
+}
+
+/* '9+' selebar 13,6px — mepet ke cincin bila dipaksa masuk kotak isi 14px.
+   Untuk dua karakter bentuk pil memang yang benar, jadi di sinilah padding
+   mendatar dipasang, bukan pada kasus satu digit yang seharusnya bulat. */
+.notif-count.is-wide {
+  padding: 0 4px 1px;
 }
 
 /* ---- Panel ---- */
