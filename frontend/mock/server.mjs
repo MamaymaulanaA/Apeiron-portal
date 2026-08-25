@@ -75,6 +75,11 @@ const NOTIFS = [
   { id: 5, user_id: 7, type: 'plugin_update', title: 'Update Plugin Tersedia!', message: 'Plugin Apeiron Kit versi 2.4.1 telah tersedia. Silakan download versi terbaru dari dashboard Anda.', reference_id: 3, is_read: 0, created_at: '2026-08-23 23:40:00' },
   { id: 4, user_id: 7, type: 'transaction_uploaded', title: 'Bukti Transaksi Baru', message: 'Sinta Dewi telah mengupload bukti transaksi dan menunggu verifikasi.', reference_id: 41, is_read: 0, created_at: '2026-08-23 02:16:00' },
   { id: 3, user_id: 7, type: 'transaction_approved', title: 'Transaksi Disetujui', message: 'Bukti transaksi Anda telah disetujui dan lisensi sudah diterbitkan.', reference_id: 40, is_read: 1, created_at: '2026-08-21 12:31:00' },
+  // Lebih dari tiga, supaya batas tinggi dan gulir pada kartu Aktivitas benar
+  // benar teruji — dengan tepat tiga baris capnya tidak pernah kena.
+  { id: 2, user_id: 7, type: 'transaction_uploaded', title: 'Bukti Transaksi Baru', message: 'Haritsa Tri Maulana telah mengupload bukti transaksi dan menunggu verifikasi.', reference_id: 37, is_read: 1, created_at: '2026-08-18 07:06:00' },
+  { id: 1, user_id: 7, type: 'transaction_rejected', title: 'Transaksi Ditolak', message: 'Bukti transaksi Adian Syahsidiq Pratama ditolak: tangkapan layar terpotong, nominal tidak terlihat.', reference_id: 33, is_read: 1, created_at: '2026-08-14 17:31:00' },
+  { id: 6, user_id: 7, type: 'transaction_approved', title: 'Transaksi Disetujui', message: 'Bukti transaksi Ilham Maulana telah disetujui dan lisensi sudah diterbitkan.', reference_id: 32, is_read: 1, created_at: '2026-08-13 10:26:00' },
 ]
 
 const LICENSE = {

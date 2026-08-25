@@ -20,6 +20,7 @@ import {
   UserPlus,
   Zap,
   Activity,
+  MessagesSquare,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -61,11 +62,12 @@ const queueLabel = computed(() =>
 )
 
 /**
- * Aktivitas untuk kolom utama. Sumbernya GET /notifications — endpoint yang
- * sama dengan lonceng di topbar, jadi tidak ada permintaan tambahan ke server
- * yang belum ada. Dipotong 6 supaya kartunya tetap terbaca sekali pandang.
+ * Aktivitas untuk kolom kanan. Sumbernya GET /notifications — endpoint yang
+ * sama dengan lonceng di topbar, jadi tidak ada permintaan tambahan ke server.
+ * Tidak dipotong di sini: kartunya menampilkan tiga baris lalu digulir, jadi
+ * memotong daftar hanya akan menyembunyikan sisanya tanpa alasan.
  */
-const recentActivity = computed(() => notifState.items.slice(0, 6))
+const recentActivity = computed(() => notifState.items)
 
 async function load() {
   loading.value = true
@@ -195,9 +197,9 @@ onMounted(() => {
         <SkeletonRows v-if="membersLoading" :rows="1" :height="104" />
 
         <template v-else-if="members.length">
-          <ul class="strip scroll-area">
+          <ul class="strip">
             <li v-for="m in members" :key="m.id" class="strip-item">
-              <span class="strip-face">
+              <span class="strip-face" :class="{ 'is-on': Number(m.is_active) }">
                 <span class="avatar avatar-lg">{{ initials(m.name) }}</span>
                 <span
                   class="strip-dot"
@@ -231,7 +233,7 @@ onMounted(() => {
       </section>
 
       <!-- ---------- Transaksi terbaru ---------- -->
-      <section class="card">
+      <section class="card tx-card">
         <header class="card-header">
           <h3>
             <span class="icon-chip icon-chip-sm tone-brand"><Receipt :size="16" /></span>
@@ -282,6 +284,27 @@ onMounted(() => {
 
     <!-- ---------- Kolom kanan ---------- -->
     <aside class="dash-rail">
+      <!-- Forum — sama seperti di dashboard user: backend belum punya tabel
+           maupun endpoint forum, jadi yang tampil empty state yang jujur,
+           bukan daftar contoh. -->
+      <section class="card">
+        <header class="card-header">
+          <h3>
+            <span class="icon-chip icon-chip-sm tone-sky"><MessagesSquare :size="16" /></span>
+            Forum
+          </h3>
+        </header>
+
+        <!-- inline, sama seperti di dashboard user: kartu yang backend-nya
+             memang belum ada tidak perlu memakan tinggi kolom kanan. -->
+        <EmptyState
+          :icon="MessagesSquare"
+          title="Belum ada forum"
+          description="Fitur forum belum tersedia di server."
+          inline
+        />
+      </section>
+
       <!-- Aktivitas — GET /notifications, endpoint yang sama dengan lonceng di
            topbar, jadi tidak ada permintaan baru ke server. Tempatnya di kolom
            kanan, sejajar dengan Aktivitas di dashboard user. -->
@@ -295,7 +318,7 @@ onMounted(() => {
 
         <SkeletonRows v-if="notifState.loading && !recentActivity.length" :rows="3" :height="40" />
 
-        <ul v-else-if="recentActivity.length" class="feed">
+        <ul v-else-if="recentActivity.length" class="feed scroll-area">
           <li v-for="n in recentActivity" :key="n.id" class="feed-item">
             <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
             <span class="feed-text">
@@ -394,7 +417,6 @@ onMounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-4);
-  align-items: start;
 }
 
 .dash-main,
@@ -415,6 +437,49 @@ onMounted(() => {
    lebih sempit — 180px sama dengan ambang di dashboard user. */
 .stats {
   grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+
+/* ---------- Kaki kedua kolom ----------
+   Kartu terakhir kolom utama menyerap sisa tinggi baris, jadi kakinya berhenti
+   tepat di garis yang sama dengan kolom kanan tanpa perlu memberi ruang kosong
+   di dalam kartu kanan mana pun.
+
+   flex-basis 0 pada isi tabel penting: dengan basis auto, tinggi sepuluh baris
+   ikut dihitung sebagai tinggi alami kolom utama, dan kolom utama justru
+   menjadi yang terpanjang — persis kebalikan dari yang diminta. Dengan basis 0
+   tabel hanya memakan sisa ruang, dan lantai tiga baris menjaga kartunya tetap
+   berguna kalau kolom kanan kebetulan pendek.
+
+   Hanya berlaku pada lebar dua kolom. Di bawah 1280px tidak ada kolom kanan
+   untuk disejajari, jadi memaksa tabel menggulir di dalam kartu hanya akan
+   memampatkannya jadi tiga baris tanpa alasan — di sana tabel dibiarkan
+   setinggi isinya. */
+@media (min-width: 1280px) {
+  .tx-card {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .tx-card .card-header {
+    flex-shrink: 0;
+  }
+  .tx-card .table-wrap {
+    flex: 1 1 0;
+    min-height: calc(57px * 3);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Kepala tabel ikut menempel saat isinya digulir; tanpa ini kolom User/Status/
+   Diajukan hilang begitu baris pertama lewat. */
+.tx-card .table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-surface);
 }
 
 /* ---------- Sel user ---------- */
@@ -473,10 +538,16 @@ onMounted(() => {
   color: var(--text-heading);
 }
 
-/* ---------- Aktivitas ---------- */
+/* ---------- Aktivitas ----------
+   Tiga baris lalu digulir. Satu baris terukur 110px (padding 12px atas-bawah,
+   judul, pesan yang dipotong dua baris, dan waktu), jadi batasnya 330px.
+   Daftarnya sendiri tidak dipotong di JavaScript — menggulir memperlihatkan
+   sisanya, bukan menyembunyikannya. */
 .feed {
   display: flex;
   flex-direction: column;
+  max-height: calc(110px * 3);
+  overscroll-behavior: contain;
 }
 
 .feed-item {
@@ -574,10 +645,19 @@ onMounted(() => {
    masih berupa baris bertumpuk di kolom kanan. */
 .strip {
   display: flex;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
   padding: var(--sp-5);
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  /* Batang scrollbar mendatar memotong kaki kartu dan terbaca sebagai garis
+     nyasar. Avatar yang terpotong di tepi kanan sudah cukup memberi tahu
+     bahwa daftarnya masih berlanjut. Menggulir tetap bisa — dengan roda,
+     usap, maupun keyboard. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.strip::-webkit-scrollbar {
+  display: none;
 }
 
 .strip-item {
@@ -591,15 +671,27 @@ onMounted(() => {
   text-align: center;
 }
 
+/* Cincin ala story: border 2px dengan jarak 3px ke avatar. Dibuat dari border
+   pada pembungkus, bukan box-shadow, supaya tetap satu bahasa dengan kontrol
+   lain yang membedakan state lewat border 1–2px dan tidak pernah lewat
+   bayangan.
+
+   Warnanya bukan hiasan — cincin brand berarti anggota aktif, cincin netral
+   berarti nonaktif. Itu keadaan nyata dari kolom is_active, sama dengan yang
+   dinyatakan titik di sudut avatar. */
 .strip-face {
   position: relative;
   display: block;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--border-strong);
+  transition: border-color var(--dur) var(--ease);
 }
-
-/* Cincin netral tipis, bukan bayangan — sama seperti pembeda state pada
-   field. Warna hanya dipakai titik statusnya. */
-.strip-face .avatar {
-  border: 1px solid var(--border-strong);
+.strip-face.is-on {
+  border-color: var(--brand-border);
+}
+.strip-item:hover .strip-face.is-on {
+  border-color: var(--brand);
 }
 
 .strip-dot {
