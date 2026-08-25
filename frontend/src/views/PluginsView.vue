@@ -132,7 +132,7 @@ onMounted(load)
           <header class="lic-head">
             <span class="row">
               <span class="icon-chip icon-chip-sm tone-ok"><KeyRound :size="15" /></span>
-              <span>
+              <span class="lic-title">
                 <span class="lic-product">{{ l.product_id || 'Apeiron Kit' }}</span>
                 <span class="text-caption">
                   Diterbitkan {{ formatDate(l.assigned_at, false) }}
@@ -390,7 +390,12 @@ onMounted(load)
   flex-wrap: wrap;
   margin-bottom: var(--sp-4);
 }
-.lic-head span span {
+/* Dulu selektornya `.lic-head span span`, yang ikut mengenai .icon-chip —
+   chip itu juga sebuah <span> di dalam <span class="row">. Specificity-nya
+   (0,1,2) mengalahkan .icon-chip (0,1,0), jadi `display: grid; place-items:
+   center` milik chip tertimpa flex-column tanpa perataan dan ikon kuncinya
+   naik ke sudut. Sekarang hanya pembungkus teks yang disasar. */
+.lic-title {
   display: flex;
   flex-direction: column;
   line-height: 1.3;
