@@ -34,6 +34,7 @@ import {
   UsersRound,
   Users,
   Lock,
+  Gift,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -43,7 +44,14 @@ import PaginationBar from '@/components/ui/PaginationBar.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import PlatformIcon from '@/components/ui/PlatformIcon.vue'
-import { tutorialIcon, platformLabel, platformTone, GROUP_ACCESS_COPY } from '@/lib/community'
+import {
+  tutorialIcon,
+  platformLabel,
+  platformTone,
+  bonusHref,
+  formatFileSize,
+  GROUP_ACCESS_COPY,
+} from '@/lib/community'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -58,6 +66,11 @@ const copied = ref('')
 const activeCount = ref(0)
 const activeMembers = ref([])
 const activeLoading = ref(true)
+
+/** Bonus member — tiga teratas; selebihnya lewat "Lihat semua". */
+const bonuses = ref([])
+const bonusesLoading = ref(true)
+const bonusesError = ref('')
 
 /**
  * Forum (panduan) dan Group. Keduanya dari endpoint yang menyajikan data
@@ -208,6 +221,19 @@ async function load() {
   }
 }
 
+async function loadBonuses() {
+  bonusesLoading.value = true
+  bonusesError.value = ''
+  try {
+    const { data } = await api.get('/user/bonuses')
+    bonuses.value = data.bonuses || []
+  } catch (e) {
+    bonusesError.value = errorMessage(e, 'Gagal memuat bonus')
+  } finally {
+    bonusesLoading.value = false
+  }
+}
+
 async function loadActiveMembers() {
   activeLoading.value = true
   try {
@@ -271,6 +297,7 @@ async function copyText(value, key) {
 onMounted(() => {
   load()
   loadActiveMembers()
+  loadBonuses()
   loadTutorials()
   loadGroups()
   fetchNotifications()
@@ -581,51 +608,53 @@ onMounted(() => {
         </div>
       </RailCard>
 
-      <!-- Lisensi — data nyata -->
-      <RailCard title="Lisensi Anda" :icon="KeyRound" tone="tone-mint">
-        <template v-if="license">
-          <div class="field">
-            <span class="text-overline">License key</span>
-            <div class="key-row">
-              <code class="key">{{ license.license_key }}</code>
-              <button
-                class="btn btn-sm btn-secondary btn-icon"
-                type="button"
-                aria-label="Salin license key"
-                @click="copyText(license.license_key, 'lic')"
-              >
-                <component :is="copied === 'lic' ? Check : Copy" :size="14" />
-              </button>
-            </div>
-          </div>
+      <!-- Bonus Member — GET /user/bonuses, hanya yang aktif.
+           Menggantikan kartu Lisensi Anda; license key dan API key tetap ada
+           di halaman Plugin, jadi tidak ada akses yang hilang. -->
+      <RailCard title="Bonus Member" :icon="Gift" tone="tone-peach" to="/bonuses" flush>
+        <SkeletonRows v-if="bonusesLoading" :rows="2" :height="44" />
 
-          <div v-if="license.api_key" class="field">
-            <span class="text-overline">API key</span>
-            <div class="key-row">
-              <code class="key">{{ license.api_key }}</code>
-              <button
-                class="btn btn-sm btn-secondary btn-icon"
-                type="button"
-                aria-label="Salin API key"
-                @click="copyText(license.api_key, 'api')"
-              >
-                <component :is="copied === 'api' ? Check : Copy" :size="14" />
-              </button>
-            </div>
-          </div>
+        <EmptyState
+          v-else-if="bonusesError"
+          :icon="Gift"
+          title="Gagal memuat bonus"
+          :description="bonusesError"
+          inline
+        />
 
-          <a class="btn btn-secondary btn-block" href="/api/user/download-invoice">
-            <Receipt :size="15" />
-            Unduh invoice
-          </a>
-        </template>
+        <ul v-else-if="bonuses.length" class="bonus-list">
+          <li v-for="b in bonuses.slice(0, 3)" :key="b.id">
+            <a
+              class="bonus-row"
+              :href="bonusHref(b)"
+              :target="b.source_type === 'file' ? '_self' : '_blank'"
+              rel="noopener noreferrer"
+            >
+              <span v-if="b.thumbnail_path" class="bonus-thumb">
+                <img
+                  :src="`/storage/bonuses/thumbnails/${b.thumbnail_path}`"
+                  :alt="b.name"
+                  loading="lazy"
+                >
+              </span>
+              <span v-else class="icon-chip icon-chip-sm tone-peach"><Gift :size="15" /></span>
+
+              <span class="bonus-text">
+                <span class="bonus-name">{{ b.name }}</span>
+                <span class="bonus-meta">{{ b.category || (b.source_type === 'file' ? formatFileSize(b.file_size) : 'Tautan') }}</span>
+              </span>
+
+              <Download class="bonus-arrow" :size="15" />
+            </a>
+          </li>
+        </ul>
 
         <EmptyState
           v-else
-          :icon="KeyRound"
-          title="Lisensi belum terbit"
-          description="Muncul otomatis setelah bukti transaksi disetujui."
-          compact
+          :icon="Gift"
+          title="Belum ada bonus"
+          description="Bonus member akan tampil di sini."
+          inline
         />
       </RailCard>
 
@@ -1104,6 +1133,69 @@ onMounted(() => {
   gap: 3px;
   margin-top: 2px;
   font-size: var(--fs-micro);
+  color: var(--text-faint);
+}
+
+/* ============ Bonus member ============ */
+.bonus-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.bonus-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--dur) var(--ease);
+}
+.bonus-list li:last-child .bonus-row {
+  border-bottom: none;
+}
+.bonus-row:hover {
+  background: var(--bg-hover);
+}
+
+.bonus-thumb {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+.bonus-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bonus-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.bonus-name {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bonus-meta {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.bonus-arrow {
+  flex-shrink: 0;
   color: var(--text-faint);
 }
 

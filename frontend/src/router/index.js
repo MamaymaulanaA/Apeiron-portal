@@ -47,6 +47,12 @@ const routes = [
     meta: { auth: true, title: 'Panduan' },
   },
   {
+    path: '/bonuses',
+    name: 'bonuses',
+    component: () => import('@/views/BonusesView.vue'),
+    meta: { auth: true, title: 'Bonus' },
+  },
+  {
     path: '/plugins',
     name: 'plugins',
     component: () => import('@/views/PluginsView.vue'),
@@ -99,6 +105,12 @@ const routes = [
     name: 'admin-tutorials',
     component: () => import('@/views/admin/AdminTutorialsView.vue'),
     meta: { auth: true, admin: true, title: 'Kelola Panduan' },
+  },
+  {
+    path: '/admin/bonuses',
+    name: 'admin-bonuses',
+    component: () => import('@/views/admin/AdminBonusesView.vue'),
+    meta: { auth: true, admin: true, title: 'Kelola Bonus' },
   },
   {
     path: '/admin/groups',

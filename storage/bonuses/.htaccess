@@ -1,0 +1,13 @@
+# Berkas bonus hanya boleh keluar lewat /api/user/bonuses/{id}/download,
+# yang memeriksa login dan status aktif lebih dulu. Nama berkasnya dibuat acak,
+# tetapi mengandalkan tebakan bukan kontrol akses.
+#
+# Lapis kedua; lapis pertama ada di .htaccess root. Aturan di sana dibungkus
+# <IfModule mod_rewrite.c> dan akan terlewat diam-diam bila modulnya mati.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

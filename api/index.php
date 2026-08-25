@@ -85,6 +85,7 @@ require_once PORTAL_ROOT . '/src/Models/Notification.php';
 require_once PORTAL_ROOT . '/src/Models/CommunityGroup.php';
 require_once PORTAL_ROOT . '/src/Models/Tutorial.php';
 require_once PORTAL_ROOT . '/src/Models/TutorialStep.php';
+require_once PORTAL_ROOT . '/src/Models/Bonus.php';
 
 // Load Services
 require_once PORTAL_ROOT . '/src/Services/ServerApiService.php';
@@ -97,6 +98,7 @@ require_once API_ROOT . '/controllers/UserController.php';
 require_once API_ROOT . '/controllers/AdminController.php';
 require_once API_ROOT . '/controllers/CommunityController.php';
 require_once API_ROOT . '/controllers/DocumentController.php';
+require_once API_ROOT . '/controllers/BonusController.php';
 
 // Get request info
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -160,6 +162,8 @@ $routes = [
     // Group & Forum - user
     'GET:/user/groups' => ['CommunityController', 'userGroups'],
     'GET:/user/active-members' => ['CommunityController', 'activeMembers'],
+    'GET:/user/bonuses' => ['BonusController', 'userBonuses'],
+    'GET:/user/bonuses/{id}/download' => ['BonusController', 'downloadBonus'],
     'GET:/user/tutorials' => ['CommunityController', 'userTutorials'],
     'GET:/user/tutorials/{id}' => ['CommunityController', 'userTutorialDetail'],
 
@@ -168,6 +172,12 @@ $routes = [
     'POST:/admin/groups' => ['CommunityController', 'createGroup'],
     'PUT:/admin/groups/{id}' => ['CommunityController', 'updateGroup'],
     'DELETE:/admin/groups/{id}' => ['CommunityController', 'deleteGroup'],
+    'GET:/admin/bonuses' => ['BonusController', 'adminBonuses'],
+    'POST:/admin/bonuses' => ['BonusController', 'createBonus'],
+    // Multipart lewat POST, bukan PUT — PHP tidak mengurai body multipart pada
+    // PUT, jadi $_POST dan $_FILES akan sampai kosong.
+    'POST:/admin/bonuses/{id}/update' => ['BonusController', 'updateBonus'],
+    'DELETE:/admin/bonuses/{id}' => ['BonusController', 'deleteBonus'],
     'GET:/admin/tutorials' => ['CommunityController', 'adminTutorials'],
     'POST:/admin/tutorials' => ['CommunityController', 'createTutorial'],
     'PUT:/admin/tutorials/{id}' => ['CommunityController', 'updateTutorial'],

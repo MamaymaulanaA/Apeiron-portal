@@ -118,3 +118,34 @@ export function renderEmphasis(text) {
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>')
 }
+
+/**
+ * Tujuan tombol Unduh sebuah bonus.
+ *
+ * Dua sumber, satu tombol. Berkas dilayani endpoint yang memeriksa login dan
+ * status aktif lebih dulu — nama berkasnya di storage tidak pernah dikirim ke
+ * klien. Tautan langsung memakai URL-nya; skemanya sudah dibatasi http/https
+ * saat disimpan, jadi href ini tidak bisa berisi javascript:.
+ */
+export function bonusHref(bonus) {
+  if (!bonus) return '#'
+  return bonus.source_type === 'file'
+    ? `/api/user/bonuses/${bonus.id}/download`
+    : bonus.external_url || '#'
+}
+
+/** Ukuran berkas dalam satuan yang terbaca. Null = ukurannya tidak diketahui. */
+export function formatFileSize(bytes) {
+  const n = Number(bytes)
+  if (!n || n < 0) return 'Berkas'
+
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = n
+  let i = 0
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024
+    i += 1
+  }
+  // Satu desimal mulai dari MB; byte dan KB tidak perlu pecahan.
+  return `${i >= 2 ? value.toFixed(1) : Math.round(value)} ${units[i]}`
+}

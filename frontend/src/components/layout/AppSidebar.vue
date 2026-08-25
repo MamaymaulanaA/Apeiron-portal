@@ -17,6 +17,7 @@ import {
   User,
   BookOpen,
   UsersRound,
+  Gift,
   LogOut,
   X,
   Infinity as InfinityIcon,
@@ -38,6 +39,7 @@ const adminMenu = [
   { to: '/admin/templates', label: 'Template', icon: LayoutTemplate },
   { to: '/admin/tutorials', label: 'Panduan', icon: BookOpen },
   { to: '/admin/groups', label: 'Group', icon: UsersRound },
+  { to: '/admin/bonuses', label: 'Bonus', icon: Gift },
 ]
 
 const userMenu = [
@@ -46,6 +48,7 @@ const userMenu = [
   { to: '/transactions', label: 'Transaksi', icon: CreditCard },
   { to: '/templates', label: 'Template', icon: LayoutTemplate },
   { to: '/tutorials', label: 'Panduan', icon: BookOpen },
+  { to: '/bonuses', label: 'Bonus', icon: Gift },
   { to: '/profile', label: 'Profil', icon: User },
 ]
 

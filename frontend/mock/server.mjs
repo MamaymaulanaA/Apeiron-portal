@@ -138,6 +138,13 @@ const toCard = (t) => ({
   sort_order: t.sort_order, created_at: t.created_at, updated_at: t.updated_at,
 })
 
+const BONUSES = [
+  { id: 1, name: 'Pack Ikon Undangan', category: 'Aset', description: '120 ikon SVG siap pakai untuk undangan digital.', thumbnail_path: null, source_type: 'file', file_original_name: 'ikon-undangan.zip', file_size: 5242880, external_url: null, is_active: 1, sort_order: 1, created_at: '2026-08-10 09:00:00', updated_at: '2026-08-10 09:00:00' },
+  { id: 2, name: 'Preset Warna Apeiron', category: 'Aset', description: 'Palet warna siap pakai untuk seri template Apeiron.', thumbnail_path: null, source_type: 'link', file_original_name: null, file_size: null, external_url: 'https://drive.google.com/drive/folders/contoh', is_active: 1, sort_order: 2, created_at: '2026-08-11 09:00:00', updated_at: '2026-08-11 09:00:00' },
+  { id: 3, name: 'Checklist Persiapan Acara', category: 'Panduan', description: null, thumbnail_path: null, source_type: 'file', file_original_name: 'checklist.pdf', file_size: 384000, external_url: null, is_active: 1, sort_order: 3, created_at: '2026-08-12 09:00:00', updated_at: '2026-08-12 09:00:00' },
+  { id: 4, name: 'Font Bundle (nonaktif)', category: 'Aset', description: 'Sedang ditinjau lisensinya.', thumbnail_path: null, source_type: 'link', file_original_name: null, file_size: null, external_url: 'https://example.com/font', is_active: 0, sort_order: 4, created_at: '2026-08-13 09:00:00', updated_at: '2026-08-13 09:00:00' },
+]
+
 const NOTIFS = [
   { id: 5, user_id: 7, type: 'plugin_update', title: 'Update Plugin Tersedia!', message: 'Plugin Apeiron Kit versi 2.4.1 telah tersedia. Silakan download versi terbaru dari dashboard Anda.', reference_id: 3, is_read: 0, created_at: '2026-08-23 23:40:00' },
   { id: 4, user_id: 7, type: 'transaction_uploaded', title: 'Bukti Transaksi Baru', message: 'Sinta Dewi telah mengupload bukti transaksi dan menunggu verifikasi.', reference_id: 41, is_read: 0, created_at: '2026-08-23 02:16:00' },
@@ -242,6 +249,12 @@ const routes = {
       members: others.map((u) => ({ name: u.name, seed: `seed-${u.id}` })),
     }
   },
+  'GET /user/bonuses': () => {
+    const active = BONUSES.filter((b) => b.is_active)
+    return { bonuses: active, categories: [...new Set(active.map((b) => b.category).filter(Boolean))] }
+  },
+  'GET /admin/bonuses': () => ({ bonuses: BONUSES }),
+
   'GET /user/groups': () => ({
     access: ACCESS,
     transaction_status: { none: null, pending: 'waiting_verification', rejected: 'rejected', granted: 'approved' }[ACCESS],
