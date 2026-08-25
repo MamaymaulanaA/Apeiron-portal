@@ -35,6 +35,14 @@ const TEMPLATES = [
   { id: 3, name: 'Sales Page Apeiron.ID', description: 'Sales page Apeiron.ID dirancang khusus buat kamu yang ingin jualan lebih rapi.', thumbnail_path: null, checkout_url: 'https://example.com/c', is_standard: 0, is_recommended: 0 },
   { id: 4, name: 'Apeiron V1 Templora', description: 'Isi Paket: 6 Template Undangan Digital Format terbaru siap pakai.', thumbnail_path: null, checkout_url: 'https://example.com/d', is_standard: 0, is_recommended: 0 },
   { id: 5, name: 'Apeiron V3 Sakura Series', description: 'Apeiron V3 adalah seri ketiga dari template Apeiron, dibuat dengan nuansa lembut.', thumbnail_path: null, checkout_url: 'https://example.com/e', is_standard: 0, is_recommended: 0 },
+  // Lebih dari delapan supaya paginasi katalog benar-benar teruji — dengan
+  // lima saja tombol halamannya tidak pernah muncul.
+  { id: 6, name: 'Apeiron V4 Monokrom', description: 'Seri hitam-putih dengan tipografi tegas.', thumbnail_path: null, checkout_url: 'https://example.com/f', is_standard: 1, is_recommended: 0 },
+  { id: 7, name: 'Undangan Adat Jawa', description: 'Motif batik dan gunungan, lengkap dengan denah lokasi.', thumbnail_path: null, checkout_url: 'https://example.com/g', is_standard: 0, is_recommended: 0 },
+  { id: 8, name: 'Undangan Adat Minang', description: 'Ornamen rumah gadang dengan palet merah emas.', thumbnail_path: null, checkout_url: 'https://example.com/h', is_standard: 0, is_recommended: 0 },
+  { id: 9, name: 'Aqiqah & Tasyakuran', description: 'Template untuk acara aqiqah, tasyakuran, dan syukuran rumah.', thumbnail_path: null, checkout_url: 'https://example.com/i', is_standard: 1, is_recommended: 0 },
+  { id: 10, name: 'Khitanan Ceria', description: 'Nuansa cerah dengan ilustrasi ringan untuk acara khitanan.', thumbnail_path: null, checkout_url: 'https://example.com/j', is_standard: 1, is_recommended: 0 },
+  { id: 11, name: 'Ulang Tahun Anak', description: 'Warna pastel, ruang foto besar, dan hitung mundur acara.', thumbnail_path: null, checkout_url: 'https://example.com/k', is_standard: 1, is_recommended: 0 },
 ]
 
 const PLUGINS = [

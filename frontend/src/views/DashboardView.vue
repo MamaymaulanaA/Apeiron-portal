@@ -13,7 +13,7 @@
  * punya tabel maupun endpoint untuk keduanya. Selama itu belum ada, keduanya
  * menampilkan empty state — bukan data contoh.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   Download,
   KeyRound,
@@ -39,6 +39,7 @@ import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
+import PaginationBar from '@/components/ui/PaginationBar.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import PlatformIcon from '@/components/ui/PlatformIcon.vue'
@@ -75,6 +76,18 @@ const groupsError = ref('')
 const search = ref('')
 const kind = ref('all')
 const view = ref('grid')
+
+/**
+ * Katalog template dipotong per halaman.
+ *
+ * Delapan per halaman bukan angka bebas: kisinya empat kolom di layar lebar,
+ * jadi delapan mengisi tepat dua baris penuh. Kolom utama karenanya punya
+ * tinggi yang tetap berapa pun jumlah template — yang membuat kaki kedua kolom
+ * bisa disejajarkan sama sekali. Tanpa batas ini tingginya berubah tiap kali
+ * admin menambah satu template.
+ */
+const TEMPLATES_PER_PAGE = 8
+const templatePage = ref(1)
 
 const user = computed(() => authState.user)
 
@@ -151,6 +164,26 @@ const filteredTemplates = computed(() => {
     )
   }
   return list
+})
+
+/** Halaman yang sedang tampil. */
+const pagedTemplates = computed(() => {
+  const start = (templatePage.value - 1) * TEMPLATES_PER_PAGE
+  return filteredTemplates.value.slice(start, start + TEMPLATES_PER_PAGE)
+})
+
+const templatePagination = computed(() => ({
+  current_page: templatePage.value,
+  per_page: TEMPLATES_PER_PAGE,
+  total: filteredTemplates.value.length,
+  total_pages: Math.max(1, Math.ceil(filteredTemplates.value.length / TEMPLATES_PER_PAGE)),
+}))
+
+/* Menyaring atau mencari mengubah isi daftar, jadi halaman harus kembali ke
+   satu — kalau tidak, hasil yang cuma satu halaman bisa tampil kosong karena
+   posisinya masih di halaman tiga. */
+watch([search, kind], () => {
+  templatePage.value = 1
 })
 
 
@@ -381,7 +414,7 @@ onMounted(() => {
           class="tpl-wrap"
           :class="view === 'grid' ? 'tpl-grid' : 'tpl-list'"
         >
-          <article v-for="t in filteredTemplates" :key="t.id" class="tpl">
+          <article v-for="t in pagedTemplates" :key="t.id" class="tpl">
             <div class="tpl-thumb">
               <img
                 v-if="t.thumbnail_path"
@@ -418,6 +451,12 @@ onMounted(() => {
             </div>
           </article>
         </div>
+
+        <PaginationBar
+          v-if="templatePagination.total_pages > 1"
+          :pagination="templatePagination"
+          @change="templatePage = $event"
+        />
 
         <EmptyState
           v-else
@@ -1072,7 +1111,7 @@ onMounted(() => {
    roda, usap, maupun keyboard. */
 .active-strip {
   display: flex;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   padding: var(--sp-4) var(--sp-5);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -1088,9 +1127,12 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--sp-2);
-  /* Lebar tetap supaya jaraknya rata berapa pun panjang namanya. 84px karena
-     pada 72px dua nama tiga-kata terukur terpotong. */
-  width: 84px;
+  /* Lebar tetap supaya jaraknya rata berapa pun panjang namanya.
+     64px adalah kompromi: makin sempit makin banyak wajah terlihat sekaligus,
+     tapi nama butuh ruang. Tujuh wajah sekaligus hanya mungkin bila namanya
+     dibuang — di kolom selebar 312px, tujuh orang berarti sekitar 31px per
+     orang, dan tidak ada nama yang muat di situ. */
+  width: 64px;
   flex-shrink: 0;
   text-align: center;
 }
@@ -1100,28 +1142,60 @@ onMounted(() => {
   display: block;
 }
 .active-face .avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border-strong);
 }
 
 /* Semua yang tampil di sini memang berstatus aktif, jadi titiknya menegaskan
    itu — bukan membedakan satu dari yang lain. */
+/* Titik status berdenyut pelan — tanda "sedang aktif", bukan sekadar warna.
+   Cincin yang mengembang adalah pseudo-element terpisah supaya titiknya
+   sendiri tidak ikut berubah ukuran dan tata letaknya tetap diam. */
 .active-dot {
   position: absolute;
   right: -1px;
   bottom: -1px;
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border-radius: var(--r-pill);
   background: var(--ok);
   border: 2px solid var(--bg-surface);
+}
+.active-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  animation: active-pulse 2.4s var(--ease) infinite;
+}
+
+@keyframes active-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* Denyut adalah hiasan; yang tidak ingin melihat gerakan tidak kehilangan
+   informasi apa pun karena warnanya sudah menyatakan hal yang sama. */
+@media (prefers-reduced-motion: reduce) {
+  .active-dot::after {
+    animation: none;
+    display: none;
+  }
 }
 
 /* Dua baris lalu dipotong; nama panjang tidak boleh menggeser kolomnya. */
 .active-name {
   max-width: 100%;
-  font-size: var(--fs-micro);
+  font-size: 11px;
   line-height: var(--lh-snug);
   color: var(--text-body);
   display: -webkit-box;
