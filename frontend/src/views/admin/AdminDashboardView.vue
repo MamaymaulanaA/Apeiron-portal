@@ -30,7 +30,7 @@ import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
-import { authState } from '@/stores/auth'
+import { authState, isAdmin } from '@/stores/auth'
 import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
 
@@ -57,10 +57,19 @@ const needsAction = computed(
     (Number(stats.value?.pending_license) || 0)
 )
 
-/** Pil banner. Sejajar dengan pil kemajuan lisensi di dashboard user. */
-const queueLabel = computed(() =>
-  needsAction.value > 0 ? `${needsAction.value} antrean verifikasi` : 'Antrean bersih'
-)
+/**
+ * Pil banner. Menyatakan peran, bukan keadaan antrean.
+ *
+ * Hero yang lama punya eyebrow "PANEL ADMIN"; penanda itu hilang waktu banner
+ * diseragamkan dengan dashboard user, sehingga halaman ini hanya menyapa nama
+ * dan tidak lagi terlihat sebagai panel admin. Antrean tidak perlu diulang di
+ * pil — kalimat di bawah judul sudah menyebutnya, jadi pil yang berisi antrean
+ * hanya mengatakan hal yang sama dua kali.
+ *
+ * Kata "Administrator" diambil dari logika yang sama dengan label peran di
+ * topbar supaya satu peran tidak punya dua sebutan.
+ */
+const roleLabel = computed(() => (isAdmin.value ? 'Administrator' : 'Member'))
 
 /**
  * Aktivitas untuk kolom kanan. Sumbernya GET /notifications — endpoint yang
@@ -128,7 +137,7 @@ onMounted(() => {
   <div class="dash">
     <div class="dash-main">
     <!-- ---------- Banner sambutan (komponen yang sama dengan dashboard user) -->
-    <WelcomeBanner :pill="queueLabel">
+    <WelcomeBanner :pill="roleLabel">
       <template #title>
         Halo,<br>
         <span>{{ admin?.name }}</span>
