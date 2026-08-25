@@ -19,14 +19,17 @@ import {
   Package,
   UserPlus,
   Zap,
+  Activity,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
+import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import { api, errorMessage } from '@/lib/api'
-import { formatDate, initials } from '@/lib/format'
+import { formatDate, formatRelative, initials } from '@/lib/format'
 import { authState } from '@/stores/auth'
+import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
 
 const loading = ref(true)
@@ -45,12 +48,24 @@ const membersTotal = ref(0)
 
 const admin = computed(() => authState.user)
 
-/** Jumlah yang butuh tindakan admin — dipakai di hero. */
+/** Jumlah yang butuh tindakan admin — dipakai di banner. */
 const needsAction = computed(
   () =>
     (Number(stats.value?.waiting_verification) || 0) +
     (Number(stats.value?.pending_license) || 0)
 )
+
+/** Pil banner. Sejajar dengan pil kemajuan lisensi di dashboard user. */
+const queueLabel = computed(() =>
+  needsAction.value > 0 ? `${needsAction.value} antrean verifikasi` : 'Antrean bersih'
+)
+
+/**
+ * Aktivitas untuk kolom utama. Sumbernya GET /notifications — endpoint yang
+ * sama dengan lonceng di topbar, jadi tidak ada permintaan tambahan ke server
+ * yang belum ada. Dipotong 6 supaya kartunya tetap terbaca sekali pandang.
+ */
+const recentActivity = computed(() => notifState.items.slice(0, 6))
 
 async function load() {
   loading.value = true
@@ -86,37 +101,39 @@ async function loadMembers() {
 onMounted(() => {
   load()
   loadMembers()
+  fetchNotifications()
 })
 </script>
 
 <template>
   <div class="page">
-    <!-- ---------- Hero ---------- -->
-    <section class="hero">
-      <div class="hero-text">
-        <p class="hero-eyebrow">Panel Admin</p>
-        <h1 class="hero-title">Halo, <span>{{ admin?.name }}</span></h1>
-        <p class="hero-sub">
-          <template v-if="needsAction > 0">
-            Ada <strong>{{ needsAction }}</strong> transaksi yang menunggu tindakan Anda.
-          </template>
-          <template v-else>
-            Semua transaksi sudah tertangani. Tidak ada antrean verifikasi.
-          </template>
-        </p>
+    <!-- ---------- Banner sambutan (komponen yang sama dengan dashboard user) -->
+    <WelcomeBanner :pill="queueLabel">
+      <template #title>
+        Halo,<br>
+        <span>{{ admin?.name }}</span>
+      </template>
 
-        <div class="hero-actions">
-          <RouterLink to="/admin/transactions" class="btn btn-primary">
-            <Receipt :size="17" />
-            Verifikasi Transaksi
-          </RouterLink>
-          <RouterLink to="/admin/users" class="btn btn-secondary">
-            <Users :size="16" />
-            Kelola User
-          </RouterLink>
-        </div>
-      </div>
-    </section>
+      <template #sub>
+        <template v-if="needsAction > 0">
+          Ada <strong>{{ needsAction }}</strong> transaksi yang menunggu tindakan Anda.
+        </template>
+        <template v-else>
+          Semua transaksi sudah tertangani. Tidak ada antrean verifikasi.
+        </template>
+      </template>
+
+      <template #actions>
+        <RouterLink to="/admin/transactions" class="btn btn-primary">
+          <Receipt :size="17" />
+          Verifikasi Transaksi
+        </RouterLink>
+        <RouterLink to="/admin/users" class="btn btn-secondary">
+          <Users :size="16" />
+          Kelola User
+        </RouterLink>
+      </template>
+    </WelcomeBanner>
 
     <!-- ---------- Statistik transaksi ---------- -->
     <section class="grid stats">
@@ -156,6 +173,7 @@ onMounted(() => {
 
     <!-- ---------- Transaksi terbaru + rail ---------- -->
     <div class="split">
+      <div class="stack main-col">
       <section class="card">
         <header class="card-header">
           <h3>
@@ -203,6 +221,43 @@ onMounted(() => {
           description="Pengajuan dari user akan tampil di sini."
         />
       </section>
+
+        <!-- Aktivitas — GET /notifications, endpoint yang sama dengan lonceng
+             di topbar. Kartu kedua di kolom utama ini juga yang membuat kaki
+             kedua kolom bertemu di garis yang sama. -->
+        <section class="card">
+          <header class="card-header">
+            <h3>
+              <span class="icon-chip icon-chip-sm tone-lilac"><Activity :size="16" /></span>
+              Aktivitas
+            </h3>
+          </header>
+
+          <SkeletonRows v-if="notifState.loading && !recentActivity.length" :rows="3" :height="40" />
+
+          <ul v-else-if="recentActivity.length" class="feed">
+            <li v-for="n in recentActivity" :key="n.id" class="feed-item">
+              <span class="feed-dot" :class="{ unread: Number(n.is_read) === 0 }" />
+              <span class="feed-text">
+                <span class="feed-title">{{ n.title }}</span>
+                <span class="feed-msg">{{ n.message }}</span>
+                <span class="feed-time">
+                  <Clock :size="11" />
+                  {{ formatRelative(n.created_at) }}
+                </span>
+              </span>
+            </li>
+          </ul>
+
+          <EmptyState
+            v-else
+            :icon="Activity"
+            title="Belum ada aktivitas"
+            description="Pemberitahuan akan muncul di sini."
+            compact
+          />
+        </section>
+      </div>
 
       <!-- Rail: ringkasan katalog + pintasan -->
       <aside class="stack rail">
@@ -326,56 +381,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* ---------- Hero ---------- */
-.hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-5);
-  padding: var(--sp-5);
-  border-radius: var(--r);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--sh-card);
-}
-
-.hero-text {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-}
-.hero-eyebrow {
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: var(--sp-2);
-}
-.hero-title {
-  font-size: var(--fs-h1);
-  margin-bottom: var(--sp-1);
-}
-.hero-title span {
-  color: var(--brand);
-}
-.hero-sub {
-  color: var(--text-body);
-  max-width: 52ch;
-}
-.hero-sub strong {
-  color: var(--brand);
-  font-weight: var(--fw-bold);
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-top: var(--sp-4);
-}
-
-
 /* ---------- Grid ---------- */
 .stats {
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
@@ -384,17 +389,24 @@ onMounted(() => {
 /* minmax(0, 1fr) — bukan 1fr — supaya kolom boleh menyusut lebih kecil dari
    konten terlebarnya. Tanpa ini tabel dengan min-width memaksa grid melebar
    dan seluruh halaman ikut scroll horizontal di layar kecil. */
+/* align-items dibiarkan pada nilai bawaan (stretch), bukan start. Dengan
+   stretch kedua kolom mendapat tinggi baris yang sama, sehingga kartu terakhir
+   di kolom kanan bisa memanjang mengisi sisa ruang dan kaki kedua kolom
+   bertemu di garis yang sama. */
 .split {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-6);
-  align-items: start;
 }
 @media (min-width: 1200px) {
   .split {
     grid-template-columns: minmax(0, 1fr) var(--rail-w);
   }
 }
+
+/* Keduanya sudah .stack (flex kolom); yang perlu ditambah hanya izin menyusut
+   di bawah lebar konten terlebarnya. */
+.main-col,
 .rail {
   min-width: 0;
 }
@@ -428,13 +440,21 @@ onMounted(() => {
 .catalog {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-5) var(--sp-4);
+  gap: var(--sp-3);
 }
+
+/* Tiap angka duduk di kotaknya sendiri, radius dan border 1px yang sama dengan
+   kontrol lain. Sebelumnya empat angka mengambang tanpa batas dan terbaca
+   seperti daftar yang belum selesai ditata. */
 .catalog-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-subtle);
 }
 .catalog-label {
   font-size: var(--fs-micro);
@@ -445,6 +465,67 @@ onMounted(() => {
   font-weight: var(--fw-bold);
   line-height: var(--lh-tight);
   color: var(--text-heading);
+}
+
+/* ---------- Aktivitas ---------- */
+.feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.feed-item {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.feed-item:last-child {
+  border-bottom: none;
+}
+
+.feed-dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  background: var(--n-300);
+}
+.feed-dot.unread {
+  background: var(--brand);
+}
+
+.feed-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feed-title {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+
+.feed-msg {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feed-time {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: var(--fs-micro);
+  color: var(--text-faint);
 }
 
 /* ---------- Pintasan ---------- */
@@ -474,46 +555,49 @@ onMounted(() => {
 }
 
 /* ---------- Responsif ---------- */
-@media (max-width: 900px) {
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
 @media (max-width: 640px) {
-  .hero,
   .card-body {
     padding: var(--sp-4);
-  }
-  .hero-actions {
-    width: 100%;
-  }
-  .hero-actions .btn {
-    flex: 1;
   }
 }
 
 /* ---------- Anggota ---------- */
 
-/* Daftar bergulir punya sudut siku; tanpa ini baris pertama dan terakhir
-   menyembul keluar dari sudut membulat kartu. */
+/* Kartu terakhir di kolom kanan. flex: 1 membuatnya memakan sisa tinggi kolom,
+   yang di layar lebar berarti kakinya berhenti tepat sejajar dengan kolom
+   utama. overflow: hidden menahan sudut daftar agar tidak menyembul keluar
+   sudut membulat kartu. */
 .members-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
+}
+.members-card .card-header,
+.members-note {
+  flex-shrink: 0;
 }
 
 /* GET /admin/users mengirim 15 baris. Dibiarkan apa adanya, kartu ini setinggi
    15 × 61px = 915px dan kolom kanan menjulur jauh melewati kolom utama —
    persis keluhan "anggota kebawah semua".
 
-   Batasnya 4,5 baris: baris kelima terpotong separuh, yang membuat jelas
-   daftar masih bisa digulir tanpa perlu bayangan atau panah tambahan.
-   61px adalah tinggi baris terukur (avatar 28px, dua baris teks, padding 12px
-   atas-bawah, border 1px). */
+   Sekarang daftarnya tumbuh mengikuti sisa tinggi kolom, dengan lantai 4,5
+   baris supaya tetap terbaca kalau kolom utama kebetulan pendek. Angka 61px
+   adalah tinggi baris terukur (avatar 28px, dua baris teks, padding 12px
+   atas-bawah, border 1px); setengah baris membuat baris berikutnya terpotong,
+   isyarat bahwa daftar masih bisa digulir.
+
+   flex-basis 0 — bukan auto — supaya tinggi 15 baris TIDAK ikut dihitung
+   sebagai tinggi alami kolom. Dengan basis auto daftar ini menyeret kolom
+   kanan kembali ke 1029px dan seluruh halaman ikut memanjang; dengan basis 0
+   daftar hanya memakan sisa ruang yang benar-benar tersedia. */
 .members {
   display: flex;
   flex-direction: column;
-  max-height: calc(61px * 4.5);
+  flex: 1 1 0;
+  min-height: calc(61px * 4.5);
   overscroll-behavior: contain;
 }
 

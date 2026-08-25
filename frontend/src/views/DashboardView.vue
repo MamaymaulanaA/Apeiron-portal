@@ -38,8 +38,7 @@ import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
-import BannerArt from '@/components/ui/BannerArt.vue'
-import BannerBackdrop from '@/components/ui/BannerBackdrop.vue'
+import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative, initials } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
@@ -204,38 +203,32 @@ onMounted(() => {
     <!-- ================= Kolom utama ================= -->
     <div class="dash-main">
       <!-- ---------- Banner sambutan ---------- -->
-      <section class="banner">
-        <BannerBackdrop />
+      <WelcomeBanner :pill="`${progress}% proses lisensi`">
+        <template #title>
+          Selamat datang,<br>
+          <span>{{ user?.name }}</span>
+        </template>
 
-        <div class="banner-text">
-          <span class="banner-pill">{{ progress }}% proses lisensi</span>
-          <h1 class="banner-title">
-            Selamat datang,<br>
-            <span>{{ user?.name }}</span>
-          </h1>
-          <p class="banner-sub">{{ guidance }}</p>
+        <template #sub>{{ guidance }}</template>
 
-          <!-- Pengajuan bukti transaksi hidup di halaman Transaksi, jadi di
-               sini cukup mengarahkan ke sana selama lisensi belum aktif. -->
-          <div class="banner-actions">
-            <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
-              <Download :size="16" />
-              Unduh Plugin
-            </a>
-            <RouterLink v-else-if="!hasAccess" to="/transactions" class="btn btn-primary">
-              <Receipt :size="16" />
-              {{ transaction ? 'Lihat Status Pengajuan' : 'Unggah Bukti Transaksi' }}
-              <ArrowRight :size="15" />
-            </RouterLink>
-            <RouterLink v-else to="/plugins" class="btn btn-secondary">
-              Lihat Lisensi
-              <ArrowRight :size="15" />
-            </RouterLink>
-          </div>
-        </div>
-
-        <BannerArt class="banner-art" />
-      </section>
+        <!-- Pengajuan bukti transaksi hidup di halaman Transaksi, jadi di
+             sini cukup mengarahkan ke sana selama lisensi belum aktif. -->
+        <template #actions>
+          <a v-if="canDownload" class="btn btn-primary" href="/api/user/download-plugin">
+            <Download :size="16" />
+            Unduh Plugin
+          </a>
+          <RouterLink v-else-if="!hasAccess" to="/transactions" class="btn btn-primary">
+            <Receipt :size="16" />
+            {{ transaction ? 'Lihat Status Pengajuan' : 'Unggah Bukti Transaksi' }}
+            <ArrowRight :size="15" />
+          </RouterLink>
+          <RouterLink v-else to="/plugins" class="btn btn-secondary">
+            Lihat Lisensi
+            <ArrowRight :size="15" />
+          </RouterLink>
+        </template>
+      </WelcomeBanner>
 
       <!-- ---------- Kartu ringkasan (semuanya data nyata) ---------- -->
       <section class="grid stats">
@@ -569,86 +562,6 @@ onMounted(() => {
 @media (min-width: 1280px) {
   .dash {
     grid-template-columns: minmax(0, 1fr) var(--rail-w);
-  }
-}
-
-/* ============ Banner ============ */
-.banner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-5);
-  padding: var(--sp-6) var(--sp-7);
-  border-radius: var(--r);
-  background: linear-gradient(105deg, #dbe8ff 0%, #eaf1ff 52%, #dde9ff 100%);
-  border: 1px solid #c7dbff;
-  overflow: hidden;
-}
-
-.banner-text {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  flex: 1;
-}
-
-.banner-title {
-  text-wrap: balance;
-}
-
-.banner-pill {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 var(--sp-3);
-  border-radius: var(--r-pill);
-  background: var(--bg-surface);
-  color: var(--brand);
-  font-size: var(--fs-caption);
-  font-weight: var(--fw-medium);
-}
-
-.banner-title {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-bold);
-  line-height: 1.25;
-  margin-top: var(--sp-3);
-  margin-bottom: var(--sp-2);
-}
-.banner-title span {
-  color: var(--brand);
-}
-
-.banner-sub {
-  color: var(--text-body);
-  max-width: 60ch;
-  line-height: var(--lh-snug);
-}
-
-.banner-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-top: var(--sp-4);
-}
-
-/* Ilustrasi hanya muncul saat ada ruang lebih; di layar sempit ia
-   disembunyikan agar tidak menekan teks. */
-.banner-art {
-  display: none;
-  position: relative;
-  z-index: 1;
-  width: 320px;
-  flex-shrink: 0;
-  align-self: flex-end;
-  /* Hanya sisi bawah dan kanan yang ditarik keluar padding; sisi atas
-     dibiarkan agar ayunan tidak memotong rambut karakter. */
-  margin: 0 calc(var(--sp-7) * -1) calc(var(--sp-6) * -1) 0;
-}
-
-@media (min-width: 1060px) {
-  .banner-art {
-    display: block;
   }
 }
 
@@ -1071,16 +984,6 @@ onMounted(() => {
 }
 
 /* ============ Responsif ============ */
-@media (max-width: 900px) {
-  .banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .banner-title {
-    font-size: var(--fs-h1);
-  }
-}
-
 @media (max-width: 640px) {
   .toolbar,
   .tpl-wrap,
@@ -1101,10 +1004,6 @@ onMounted(() => {
   }
   .segmented-item {
     flex: 1;
-  }
-  .banner-actions,
-  .banner-actions .btn {
-    width: 100%;
   }
   .tpl-list .tpl {
     flex-direction: column;
