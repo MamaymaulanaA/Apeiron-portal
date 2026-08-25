@@ -617,16 +617,19 @@ onMounted(() => {
             <span>user aktif</span>
           </p>
 
-          <ul v-if="activeMembers.length" class="active-strip">
-            <li v-for="(m, i) in activeMembers.slice(0, 8)" :key="m.seed || i" class="active-face">
-              <span class="avatar avatar-sm" :title="m.name">
-                <UserAvatar :name="m.name" :seed="m.seed" />
+          <ul v-if="activeMembers.length" class="active-grid">
+            <li v-for="(m, i) in activeMembers.slice(0, 6)" :key="m.seed || i" class="active-item">
+              <span class="active-face">
+                <span class="avatar"><UserAvatar :name="m.name" :seed="m.seed" /></span>
+                <span class="active-dot" aria-hidden="true" />
               </span>
-            </li>
-            <li v-if="activeCount > activeMembers.slice(0, 8).length" class="active-more">
-              +{{ activeCount - activeMembers.slice(0, 8).length }}
+              <span class="active-name" :title="m.name">{{ m.name }}</span>
             </li>
           </ul>
+
+          <p v-if="activeCount > activeMembers.slice(0, 6).length" class="active-rest">
+            +{{ activeCount - activeMembers.slice(0, 6).length }} anggota lainnya
+          </p>
         </template>
 
         <EmptyState
@@ -1061,7 +1064,6 @@ onMounted(() => {
   display: flex;
   align-items: baseline;
   gap: var(--sp-2);
-  padding: var(--sp-4) var(--sp-5) 0;
 }
 .active-count strong {
   font-size: var(--fs-display);
@@ -1074,33 +1076,68 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
-/* Avatar bertumpuk: satu deret padat, bukan daftar bernama. Yang disampaikan
-   kartu ini adalah "komunitasnya hidup", bukan siapa saja anggotanya. */
-.active-strip {
-  display: flex;
-  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+/* Kisi profil, bukan deretan avatar bertumpuk.
+   Versi bertumpuk memang padat, tapi wajahnya jadi 28px tanpa nama — yang
+   tersampaikan cuma "ada beberapa orang", dan sisa kartunya terlihat kosong.
+   Wajah 40px dengan nama di bawahnya membuat kartu ini benar-benar
+   memperlihatkan orang, bukan sekadar angka. */
+.active-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4) var(--sp-2);
 }
-.active-face + .active-face {
-  margin-left: -10px;
+
+.active-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  text-align: center;
+}
+
+.active-face {
+  position: relative;
+  display: block;
 }
 .active-face .avatar {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+}
+
+/* Semua yang tampil di sini memang berstatus aktif, jadi titiknya menegaskan
+   itu — bukan membedakan satu dari yang lain. */
+.active-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--r-pill);
+  background: var(--ok);
   border: 2px solid var(--bg-surface);
 }
 
-.active-more {
-  display: grid;
-  place-items: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 var(--sp-2);
-  margin-left: -10px;
-  border-radius: var(--r-pill);
-  background: var(--bg-hover);
-  border: 2px solid var(--bg-surface);
+/* Dua baris lalu dipotong; nama panjang tidak boleh menggeser kolomnya. */
+.active-name {
+  max-width: 100%;
   font-size: var(--fs-micro);
-  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+  color: var(--text-body);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.active-rest {
+  font-size: var(--fs-caption);
   color: var(--text-muted);
 }
+
 
 /* ============ Forum (panduan) ============ */
 .tut-list,
