@@ -613,35 +613,24 @@ onMounted(() => {
            penuh tetap admin-only. Emailnya tidak ikut dikirim; benih avatar
            berupa hash, jadi wajah tiap orang tetap sama tanpa alamat siapa pun
            bocor ke sesama user. -->
-      <RailCard title="Anggota Aktif" :icon="Users" tone="tone-sky">
+      <RailCard title="Anggota Aktif" :icon="Users" tone="tone-sky" :badge="activeCount || null" flush>
         <SkeletonRows v-if="activeLoading" :rows="1" :height="72" />
 
-        <template v-else-if="activeCount">
-          <p class="active-count">
-            <strong>{{ activeCount }}</strong>
-            <span>user aktif</span>
-          </p>
-
-          <ul v-if="activeMembers.length" class="active-strip">
-            <li v-for="(m, i) in activeMembers" :key="m.seed || i" class="active-item">
-              <span class="active-face">
-                <span class="avatar"><UserAvatar :name="m.name" :seed="m.seed" /></span>
-                <span class="active-dot" aria-hidden="true" />
-              </span>
-              <span class="active-name" :title="m.name">{{ m.name }}</span>
-            </li>
-          </ul>
-
-          <p v-if="activeCount > activeMembers.length" class="active-rest">
-            +{{ activeCount - activeMembers.length }} anggota lainnya
-          </p>
-        </template>
+        <ul v-else-if="activeMembers.length" class="active-strip">
+          <li v-for="(m, i) in activeMembers" :key="m.seed || i" class="active-item">
+            <span class="active-face">
+              <span class="avatar"><UserAvatar :name="m.name" :seed="m.seed" /></span>
+              <span class="active-dot" aria-hidden="true" />
+            </span>
+            <span class="active-name" :title="m.name">{{ m.name }}</span>
+          </li>
+        </ul>
 
         <EmptyState
           v-else
           :icon="Users"
-          title="Belum ada user aktif"
-          description="Jumlah anggota aktif akan tampil di sini."
+          title="Belum ada anggota lain"
+          description="Anggota yang baru bergabung akan tampil di sini."
           inline
         />
       </RailCard>
@@ -1073,22 +1062,6 @@ onMounted(() => {
 }
 
 /* ============ Anggota aktif ============ */
-.active-count {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-}
-.active-count strong {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-bold);
-  line-height: 1;
-  color: var(--text-heading);
-}
-.active-count span {
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-}
-
 /* Satu baris yang digulir ke samping, bukan kisi dua baris.
    Kartunya jadi setinggi satu baris berapa pun jumlah anggotanya, sehingga
    kaki kolom kanan tidak bergeser tiap kali komunitasnya bertambah.
@@ -1100,6 +1073,7 @@ onMounted(() => {
 .active-strip {
   display: flex;
   gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -1157,12 +1131,6 @@ onMounted(() => {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
-
-.active-rest {
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-}
-
 
 /* ============ Forum (panduan) ============ */
 .tut-list,

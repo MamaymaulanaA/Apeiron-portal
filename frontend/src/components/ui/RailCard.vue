@@ -8,6 +8,12 @@ defineProps({
   icon: { type: [Object, Function], default: null },
   tone: { type: String, default: 'tone-sky' },
   to: { type: String, default: '' },
+  /**
+   * Angka kecil di sebelah judul. Tempatnya di header supaya badan kartu bisa
+   * berisi satu hal saja — daftar, deretan avatar — tanpa baris angka yang
+   * ikut memakan tinggi.
+   */
+  badge: { type: [String, Number], default: null },
   tabs: { type: Array, default: () => [] },
   activeTab: { type: String, default: '' },
   /**
@@ -28,6 +34,7 @@ defineEmits(['tab'])
           <component :is="icon" :size="15" />
         </span>
         {{ title }}
+        <span v-if="badge !== null && badge !== ''" class="badge tone-neutral">{{ badge }}</span>
       </h2>
 
       <RouterLink v-if="to" :to="to" class="rail-more">Lihat semua</RouterLink>

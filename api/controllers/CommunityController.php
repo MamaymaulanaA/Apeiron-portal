@@ -80,8 +80,8 @@ class CommunityController
     /**
      * GET /user/active-members
      *
-     * Jumlah anggota aktif lain, dan yang terbaru di antaranya untuk deretan
-     * avatar. Admin dan pemanggilnya sendiri tidak termasuk.
+     * Jumlah user aktif di portal, dan anggota yang paling baru bergabung
+     * untuk deretan avatarnya.
      * BUKAN direktori anggota: /admin/users dilindungi requireAdmin() dan tetap
      * begitu — kalau user biasa perlu melihat daftar penuh, itu keputusan
      * tersendiri, bukan efek samping dari sebuah kartu di dashboard.
@@ -96,32 +96,34 @@ class CommunityController
         $me = currentUser();
 
         /*
-         * Admin dan diri sendiri dikecualikan — pada hitungan MAUPUN daftarnya.
+         * Hitungan dan daftar sengaja memakai saringan yang BERBEDA, karena
+         * keduanya menjawab pertanyaan yang berbeda:
          *
-         * Kalau hanya daftarnya yang disaring, angkanya jadi berbohong: kartu
-         * menyebut 42 lalu memperlihatkan orang-orang yang tidak berjumlah 42,
-         * dan "+N anggota lainnya" ikut salah. Keduanya harus memakai saringan
-         * yang sama.
+         *   active_count — berapa user aktif di portal ini. Semuanya, termasuk
+         *                  admin dan pemanggilnya sendiri. Ini angka komunitas,
+         *                  bukan angka relatif terhadap satu orang.
          *
-         * Admin bukan sesama anggota komunitas, dan diri sendiri bukan "anggota
-         * lain" — jadi keduanya memang bukan bagian dari yang dihitung.
+         *   members      — siapa yang baru bergabung. Di sini admin dan diri
+         *                  sendiri tidak relevan: admin bukan sesama anggota,
+         *                  dan tidak ada gunanya seseorang melihat wajahnya
+         *                  sendiri di deretan "anggota aktif".
+         *
+         * Karena saringannya berbeda, jumlah members TIDAK boleh dikurangkan
+         * dari active_count untuk menghasilkan "sisanya" — selisihnya bukan
+         * angka yang berarti. Frontend memang tidak lagi melakukannya.
          */
-        $where = "is_active = 1 AND role = 'user' AND id <> ?";
-        $params = [(int) ($me->id ?? 0)];
-
         $total = (int) (Database::fetchOne(
-            "SELECT COUNT(*) as count FROM users WHERE {$where}",
-            $params
+            "SELECT COUNT(*) as count FROM users WHERE is_active = 1"
         )['count'] ?? 0);
 
         // Yang terbaru mendaftar lebih dulu. Bukan last_login_at: yang diminta
         // adalah anggota baru, bukan yang kebetulan paling sering membuka.
         $rows = Database::fetchAll(
             "SELECT name, email FROM users
-             WHERE {$where}
+             WHERE is_active = 1 AND role = 'user' AND id <> ?
              ORDER BY created_at DESC, id DESC
              LIMIT 20",
-            $params
+            [(int) ($me->id ?? 0)]
         );
 
         $members = array_map(static fn(array $r) => [

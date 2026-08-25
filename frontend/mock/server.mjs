@@ -226,8 +226,9 @@ const routes = {
     // Saringan yang sama dengan backend: aktif, bukan admin, bukan diri sendiri.
     const others = USERS.filter((u) => u.is_active && u.role !== 'admin' && u.id !== USER.id)
     return {
-      // +8 hanya untuk memunculkan baris "+N anggota lainnya" di lokal.
-      active_count: others.length + 8,
+      // Hitungan memakai saringan berbeda dari daftarnya: semua user aktif,
+      // termasuk admin dan diri sendiri. Sama seperti backend.
+      active_count: USERS.filter((u) => u.is_active).length,
       // Backend mengirim hash email, bukan emailnya. Mock ikut begitu supaya
       // bentuk datanya sama.
       members: others.map((u) => ({ name: u.name, seed: `seed-${u.id}` })),
