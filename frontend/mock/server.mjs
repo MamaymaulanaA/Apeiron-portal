@@ -162,7 +162,64 @@ const LICENSE = {
   api_key: '63c25c7c003fdf26a5324e73e95ba4c32c20a1094fd8b1e7',
   product_id: 'apeiron-kit',
   assigned_at: '2026-08-21 12:30:00',
+  // Bentuknya meniru data yang dikembalikan portal_license.php di License
+  // Server. Portal tidak pernah menghitung sendiri isi objek ini.
+  status: {
+    status: 'active',
+    is_lifetime: false,
+    duration_label: '1 Tahun',
+    issued_at: '2026-08-21 12:30:00',
+    activated_at: '2026-08-22 09:15:00',
+    expires_at: '2027-08-21 12:30:00',
+    days_remaining: 327,
+    activations_used: 1,
+    activation_limit: 1,
+  },
+  status_stale: false,
+  status_checked_at: '2026-08-25 10:00:00',
 }
+
+/**
+ * Keempat keadaan yang harus tampil berbeda, untuk memeriksa tampilannya
+ * tanpa menunggu lisensi sungguhan berubah:
+ *   LICENSE=lifetime|expired|unknown|stale node mock/server.mjs
+ */
+const LICENSE_VARIANTS = {
+  lifetime: {
+    ...LICENSE,
+    status: {
+      status: 'active',
+      is_lifetime: true,
+      duration_label: 'Lifetime',
+      issued_at: '2026-08-21 12:30:00',
+      activated_at: '2026-08-22 09:15:00',
+      expires_at: null,
+      days_remaining: null,
+      activations_used: 1,
+      activation_limit: 1,
+    },
+  },
+  expired: {
+    ...LICENSE,
+    status: {
+      status: 'expired',
+      is_lifetime: false,
+      duration_label: '1 Tahun',
+      issued_at: '2025-08-21 12:30:00',
+      activated_at: '2025-08-22 09:15:00',
+      expires_at: '2026-08-21 12:30:00',
+      days_remaining: 0,
+      activations_used: 1,
+      activation_limit: 1,
+    },
+  },
+  // Server belum pernah terbaca. Tampilan harus mengakui tidak tahu.
+  unknown: { ...LICENSE, status: null, status_stale: false, status_checked_at: null },
+  // Server sedang diam; yang tampil keadaan terakhir, ditandai jelas.
+  stale: { ...LICENSE, status_stale: true },
+}
+
+const ACTIVE_LICENSE = LICENSE_VARIANTS[process.env.LICENSE] || LICENSE
 
 /** Dashboard user berubah mengikuti transaksi milik USER. */
 const myTx = TX.find((t) => t.user_id === USER.id) || null
@@ -199,7 +256,7 @@ const routes = {
   }),
   'PUT /user/profile': () => ({ message: 'Profil berhasil diupdate' }),
   'GET /user/licenses': () => ({
-    licenses: [LICENSE],
+    licenses: [ACTIVE_LICENSE],
     latest_plugin: { version: PLUGINS[0].version, filename: PLUGINS[0].filename, changelog: PLUGINS[0].changelog },
   }),
   'GET /user/transactions': () => ({

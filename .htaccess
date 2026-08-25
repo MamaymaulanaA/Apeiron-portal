@@ -22,6 +22,11 @@
     #    ada pengecualian bersarang di dalam folder yang ditolak.
     RewriteRule ^storage/(documents|proofs|plugins|logs|cache|bonuses)(/|$) - [F,L]
 
+    #    server-patch berisi kode untuk License Server, bukan untuk portal.
+    #    Ia ikut ter-deploy karena berada di repo yang sama, jadi harus
+    #    ditolak di sini juga — jangan bergantung pada .htaccess di dalamnya.
+    RewriteRule ^server-patch(/|$) - [F,L]
+
     # 3. File yang ada (assets, gambar, dll) -> langsung disajikan
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]

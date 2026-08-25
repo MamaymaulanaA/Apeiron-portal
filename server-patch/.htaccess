@@ -1,0 +1,13 @@
+# Folder ini berisi kode untuk License Server, BUKAN untuk portal.
+#
+# portal_license.php me-require ../config.php milik server — berkas yang tidak
+# ada di sini. Kalau sampai bisa diakses lewat web, yang terjadi paling ringan
+# fatal error yang membocorkan jalur folder. Ia tidak pernah dimaksudkan
+# dijalankan di portal, jadi ditolak seluruhnya.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

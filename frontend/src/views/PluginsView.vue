@@ -11,13 +11,23 @@ import {
   Download,
   Copy,
   Check,
+  Circle,
   CircleAlert,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
   Receipt,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/format'
+import {
+  licenseStatusMeta,
+  licenseSummary,
+  licenseDuration,
+  isLicenseActive,
+} from '@/lib/license'
 import { toast } from '@/stores/toast'
 
 const loading = ref(true)
@@ -26,6 +36,23 @@ const plugin = ref(null)
 const copied = ref('')
 
 const hasLicense = computed(() => licenses.value.length > 0)
+
+/**
+ * Jumlah lisensi yang AKTIF menurut server.
+ *
+ * Sebelumnya angka ini diambil dari licenses.length dan diberi label "aktif" —
+ * yang berarti lisensi kedaluwarsa pun tetap dihitung aktif. Adanya baris di
+ * database portal hanya membuktikan lisensi pernah diterbitkan.
+ */
+const activeCount = computed(
+  () => licenses.value.filter((l) => isLicenseActive(l.status)).length,
+)
+
+const STATUS_ICONS = { Circle, CircleAlert, CircleCheck, CircleHelp, CircleX }
+
+function statusIcon(l) {
+  return STATUS_ICONS[licenseStatusMeta(l.status?.status).icon] || Circle
+}
 
 async function load() {
   loading.value = true
@@ -93,8 +120,8 @@ onMounted(load)
           <span class="icon-chip icon-chip-sm tone-ok"><KeyRound :size="16" /></span>
           Lisensi Saya
         </h3>
-        <span v-if="hasLicense" class="badge tone-ok">
-          {{ licenses.length }} aktif
+        <span v-if="activeCount" class="badge tone-ok">
+          {{ activeCount }} aktif
         </span>
       </header>
 
@@ -117,6 +144,68 @@ onMounted(load)
               Invoice
             </a>
           </header>
+
+          <!-- Keadaan lisensi menurut License Server.
+               Tidak ada satu pun angka di bawah yang dihitung di sini. -->
+          <div class="lic-state">
+            <span class="badge" :class="licenseStatusMeta(l.status?.status).tone">
+              <component :is="statusIcon(l)" :size="13" :stroke-width="2.4" />
+              {{ licenseSummary(l.status) }}
+            </span>
+
+            <span v-if="licenseDuration(l.status)" class="badge tone-neutral">
+              {{ licenseDuration(l.status) }}
+            </span>
+
+            <!-- Ditampilkan hanya saat server tidak terjangkau DAN masih ada
+                 data lama. Lebih jujur daripada menyajikannya sebagai baru. -->
+            <span v-if="l.status_stale" class="lic-stale">
+              <CircleAlert :size="13" />
+              Data tersimpan {{ formatDate(l.status_checked_at) }}
+            </span>
+          </div>
+
+          <dl v-if="l.status" class="lic-facts">
+            <div class="fact">
+              <dt>Tanggal aktivasi</dt>
+              <dd>
+                {{ l.status.activated_at
+                  ? formatDate(l.status.activated_at, false)
+                  : 'Belum diaktifkan' }}
+              </dd>
+            </div>
+
+            <div class="fact">
+              <dt>{{ l.status.status === 'expired' ? 'Berakhir' : 'Berlaku hingga' }}</dt>
+              <dd>
+                {{ l.status.is_lifetime
+                  ? 'Selamanya'
+                  : formatDate(l.status.expires_at, false) }}
+              </dd>
+            </div>
+
+            <!-- Lifetime tidak punya hitung mundur, dan lisensi yang sudah
+                 habis tidak perlu diberi tahu sisa nol hari. -->
+            <div
+              v-if="!l.status.is_lifetime
+                && l.status.status !== 'expired'
+                && l.status.days_remaining !== null"
+              class="fact"
+            >
+              <dt>Sisa waktu</dt>
+              <dd>{{ l.status.days_remaining }} hari</dd>
+            </div>
+
+            <div v-if="l.status.activation_limit" class="fact">
+              <dt>Pemakaian</dt>
+              <dd>{{ l.status.activations_used }} / {{ l.status.activation_limit }} situs</dd>
+            </div>
+          </dl>
+
+          <p v-else class="lic-unknown">
+            <CircleHelp :size="14" />
+            Status lisensi belum bisa dibaca dari server. Coba muat ulang beberapa saat lagi.
+          </p>
 
           <div class="lic-keys">
             <div class="field">
@@ -169,6 +258,61 @@ onMounted(load)
 </template>
 
 <style scoped>
+/* ---- Keadaan lisensi ---- */
+.lic-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.lic-stale {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* auto-fit + minmax: jumlah kolomnya ikut berapa fakta yang benar-benar ada,
+   karena Lifetime dan Expired sengaja menampilkan lebih sedikit. Kisi tetap
+   akan menyisakan kolom kosong. */
+.lic-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.fact dt {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.fact dd {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+
+.lic-unknown {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
 /* ---- Rilis ---- */
 .release {
   display: flex;

@@ -23,8 +23,18 @@ class UserLicense
     public string $assigned_at;
     public string $created_at;
 
-    // Cached license status from License Server
+    /**
+     * Jawaban terakhir License Server, apa adanya.
+     *
+     * Ini SALINAN, bukan sumber kebenaran. Status, masa berlaku, dan sisa hari
+     * ditentukan server; portal tidak pernah menghitung ulang atau menebak
+     * nilainya. null berarti belum pernah berhasil dibaca — bukan berarti
+     * lisensinya tidak aktif.
+     */
     public ?array $license_status = null;
+
+    /** Kapan salinan di atas diambil (UTC). null = belum pernah. */
+    public ?string $license_checked_at = null;
 
     /**
      * Find by ID
@@ -315,6 +325,45 @@ class UserLicense
     }
 
     /**
+     * Simpan jawaban server sebagai cache.
+     *
+     * Dipanggil hanya setelah pembacaan BERHASIL. Kegagalan membaca tidak
+     * boleh menimpa cache — kalau ditimpa, satu gangguan jaringan sesaat akan
+     * menghapus keadaan terakhir yang diketahui dan user melihat halaman
+     * kosong alih-alih data lama yang masih berguna.
+     */
+    public function cacheStatus(array $data): void
+    {
+        $now = gmdate('Y-m-d H:i:s');
+
+        Database::update('user_licenses', [
+            'license_status_json' => json_encode($data),
+            'license_checked_at' => $now,
+        ], 'id = ?', [$this->id]);
+
+        $this->license_status = $data;
+        $this->license_checked_at = $now;
+    }
+
+    /**
+     * Apakah cache-nya sudah waktunya disegarkan?
+     *
+     * Membatasi seberapa sering portal memanggil server: tanpa ini, setiap
+     * kali user menyegarkan halaman akan menjadi satu permintaan keluar, dan
+     * server punya rate limit.
+     */
+    public function needsRefresh(int $ttlSeconds = 600): bool
+    {
+        if ($this->license_status === null || $this->license_checked_at === null) {
+            return true;
+        }
+
+        $checked = strtotime($this->license_checked_at . ' UTC');
+
+        return $checked === false || (time() - $checked) > $ttlSeconds;
+    }
+
+    /**
      * Create from array
      */
     public static function fromArray(array $row): self
@@ -328,6 +377,17 @@ class UserLicense
         $ul->product_id = $row['product_id'];
         $ul->assigned_at = $row['assigned_at'];
         $ul->created_at = $row['created_at'];
+
+        // Kolom cache baru; dibaca dengan ?? supaya baris lama yang belum
+        // pernah tersentuh migration tetap terbaca tanpa error.
+        $ul->license_checked_at = $row['license_checked_at'] ?? null;
+
+        if (!empty($row['license_status_json'])) {
+            $decoded = json_decode($row['license_status_json'], true);
+            // JSON rusak diperlakukan sama dengan belum pernah dibaca —
+            // menampilkan setengah data lebih buruk daripada mengakui kosong.
+            $ul->license_status = is_array($decoded) ? $decoded : null;
+        }
 
         return $ul;
     }

@@ -2,7 +2,7 @@
 -- Panduan, Group, dan Bonus — seluruh perubahan database dalam satu berkas
 -- =============================================================================
 --
--- Gabungan dari empat migration di folder ini, disusun berurutan. Jalankan
+-- Gabungan dari lima migration di folder ini, disusun berurutan. Jalankan
 -- berkas INI saja; tidak perlu menjalankan keempatnya satu per satu.
 --
 -- Aman dijalankan berulang. Setiap pernyataan memakai IF NOT EXISTS, jadi
@@ -116,3 +116,22 @@ CREATE TABLE IF NOT EXISTS `bonuses` (
   PRIMARY KEY (`id`),
   KEY `idx_active_order` (`is_active`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- -----------------------------------------------------------------------------
+-- 6. Cache status lisensi dari License Server
+-- -----------------------------------------------------------------------------
+-- INI CACHE, BUKAN SUMBER KEBENARAN. Status, masa berlaku, dan sisa hari tetap
+-- ditentukan License Server; dua kolom ini hanya menyimpan jawaban terakhirnya
+-- supaya halaman Plugin tidak menggantung menunggu server, dan supaya saat
+-- server tidak terjangkau user masih melihat keadaan terakhir yang diketahui —
+-- ditandai jelas sebagai data tersimpan.
+--
+-- Satu kolom teks, bukan sepuluh kolom: isinya tidak pernah dicari atau
+-- diurutkan lewat SQL, hanya diambil utuh lalu dikirim ke tampilan.
+
+ALTER TABLE `user_licenses`
+  ADD COLUMN IF NOT EXISTS `license_status_json` text DEFAULT NULL AFTER `assigned_at`;
+
+ALTER TABLE `user_licenses`
+  ADD COLUMN IF NOT EXISTS `license_checked_at` timestamp NULL DEFAULT NULL AFTER `license_status_json`;

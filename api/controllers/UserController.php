@@ -241,6 +241,54 @@ class UserController
     /**
      * Get all user licenses
      */
+    /**
+     * Susun satu baris lisensi beserta keadaannya menurut License Server.
+     *
+     * Portal TIDAK menghitung status, masa berlaku, maupun sisa hari. Semua
+     * angka itu datang apa adanya dari server; di sini hanya diteruskan.
+     *
+     * Tiga keadaan yang mungkin, dan ketiganya dibedakan dengan jujur:
+     *   - terbaca        → status dari server, status_stale = false
+     *   - server diam    → status dari cache terakhir, status_stale = true
+     *   - belum pernah   → status = null, tampilan menyebutnya belum diketahui
+     *
+     * Yang sengaja TIDAK dilakukan: menyimpulkan "aktif" hanya karena barisnya
+     * ada di database portal. Adanya baris berarti lisensi pernah diterbitkan,
+     * bukan bahwa ia masih berlaku hari ini.
+     */
+    private static function licensePayload(UserLicense $l): array
+    {
+        $status = $l->license_status;
+        $stale = false;
+
+        if ($l->needsRefresh()) {
+            $fresh = ServerApiService::fetchLicenseStatus($l->license_key, $l->product_id);
+
+            if ($fresh !== null) {
+                $l->cacheStatus($fresh);
+                $status = $fresh;
+            } else {
+                // Gagal membaca. Cache lama dipertahankan apa adanya dan
+                // ditandai basi — menimpanya dengan null akan mengubah
+                // gangguan jaringan sesaat menjadi kehilangan data.
+                $stale = $status !== null;
+            }
+        }
+
+        return [
+            'id' => $l->id,
+            'license_key' => $l->license_key,
+            'api_key' => $l->api_key ?? null,
+            'product_id' => $l->product_id,
+            'assigned_at' => $l->assigned_at,
+
+            // null = keadaannya belum diketahui, BUKAN tidak aktif.
+            'status' => $status,
+            'status_stale' => $stale,
+            'status_checked_at' => $l->license_checked_at,
+        ];
+    }
+
     public function licenses(): void
     {
         requireAuth();
@@ -251,15 +299,7 @@ class UserController
         $latestPlugin = Plugin::getLatest();
         
         jsonResponse([
-            'licenses' => array_map(function($l) {
-                return [
-                    'id' => $l->id,
-                    'license_key' => $l->license_key,
-                    'api_key' => $l->api_key ?? null,
-                    'product_id' => $l->product_id,
-                    'assigned_at' => $l->assigned_at
-                ];
-            }, $licenses),
+            'licenses' => array_map([self::class, 'licensePayload'], $licenses),
             'latest_plugin' => $latestPlugin ? [
                 'version' => $latestPlugin->version,
                 'filename' => $latestPlugin->filename,
