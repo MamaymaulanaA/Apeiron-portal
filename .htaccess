@@ -17,10 +17,9 @@
     #
     #    storage/templates dan storage/tutorials sengaja TIDAK ikut ditolak —
     #    keduanya berisi gambar yang memang dipasang di halaman lewat <img>.
-    #    Berkas bonus ikut ditolak, KECUALI thumbnail-nya: gambar sampul
-    #    memang dipasang di halaman lewat <img>, sedangkan berkas bonusnya
-    #    hanya boleh keluar lewat endpoint yang memeriksa login.
-    RewriteRule ^storage/bonuses/thumbnails/ - [L]
+    #    Berkas bonus ikut ditolak. Thumbnail bonus TIDAK ada di dalam folder
+    #    ini melainkan di storage/bonus-thumbnails, justru supaya tidak perlu
+    #    ada pengecualian bersarang di dalam folder yang ditolak.
     RewriteRule ^storage/(documents|proofs|plugins|logs|cache|bonuses)(/|$) - [F,L]
 
     # 3. File yang ada (assets, gambar, dll) -> langsung disajikan

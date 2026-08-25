@@ -294,7 +294,7 @@ onMounted(load)
                 <span class="bonus-cell">
                   <span v-if="b.thumbnail_path" class="bonus-thumb">
                     <img
-                      :src="`/storage/bonuses/thumbnails/${b.thumbnail_path}`"
+                      :src="`/storage/bonus-thumbnails/${b.thumbnail_path}`"
                       :alt="b.name"
                       loading="lazy"
                     >

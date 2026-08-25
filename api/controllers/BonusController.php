@@ -315,7 +315,12 @@ class BonusController
             jsonResponse(['error' => 'Thumbnail bukan gambar yang valid'], 400);
         }
 
-        $dir = PORTAL_ROOT . '/storage/bonuses/thumbnails/';
+        // Folder terpisah, BUKAN subfolder storage/bonuses. Folder itu
+        // ditolak seluruhnya, dan mengizinkan kembali satu subfolder di
+        // dalamnya menuntut berkas aturan yang justru tidak bisa ikut
+        // ter-commit — git tidak dapat memasukkan kembali isi direktori
+        // yang sudah dikecualikan .gitignore.
+        $dir = PORTAL_ROOT . '/storage/bonus-thumbnails/';
         self::ensureDir($dir);
 
         $filename = 'bonus_thumb_' . uniqid('', true) . '.' . $ext;
@@ -365,12 +370,18 @@ class BonusController
         }
     }
 
-    /** Menghapus berkas milik bonus. $sub kosong = folder bonuses itu sendiri. */
+    /**
+     * Menghapus berkas milik bonus.
+     *
+     * $sub 'thumbnails' menunjuk storage/bonus-thumbnails, bukan subfolder di
+     * dalam storage/bonuses — keduanya sengaja terpisah karena yang satu
+     * ditolak akses langsung dan yang lain justru harus terbaca <img>.
+     */
     private static function deleteFile(string $sub, ?string $path): void
     {
         if (!$path) return;
 
-        $dir = PORTAL_ROOT . '/storage/bonuses/' . ($sub ? $sub . '/' : '');
+        $dir = PORTAL_ROOT . ($sub === 'thumbnails' ? '/storage/bonus-thumbnails/' : '/storage/bonuses/');
         $file = $dir . basename($path);
         if (is_file($file)) unlink($file);
     }

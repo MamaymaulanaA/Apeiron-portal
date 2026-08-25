@@ -151,7 +151,7 @@ onMounted(load)
         <div class="bonus-main">
           <span v-if="b.thumbnail_path" class="bonus-media">
             <img
-              :src="`/storage/bonuses/thumbnails/${b.thumbnail_path}`"
+              :src="`/storage/bonus-thumbnails/${b.thumbnail_path}`"
               :alt="b.name"
               loading="lazy"
             >
