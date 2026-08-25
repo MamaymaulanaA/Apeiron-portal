@@ -39,10 +39,16 @@ const props = defineProps({
  * bagian dari sistem desain — sama seperti gelombang di BannerBackdrop yang
  * juga digambar dengan nilai tetap.
  */
-const BG = ['#e8effb', '#eaf6ef', '#fdf1e7', '#f3eefb', '#e9f4f8', '#fbeef3']
+// Palet sengaja tetap beragam: avatar dibangkitkan dari email supaya tiap
+// anggota bisa dibedakan sekilas, dan itu hilang kalau semuanya satu warna.
+// Yang dibuang hanya hijaunya — diganti abu kebiruan yang tetap berbeda dari
+// lima warna lain.
+const BG = ['#e8effb', '#eef1f6', '#fdf1e7', '#f3eefb', '#e9f4f8', '#fbeef3']
 const SKIN = ['#f7e0cb', '#f2d3b8', '#e0b596', '#c98d64', '#a06840', '#7d4f33']
 const HAIR = ['#2b2724', '#4b3621', '#8a5a2b', '#c9873f', '#6f6f76', '#1f2a44']
-const CLOTHES = ['#4b7bec', '#22a06b', '#e08a3c', '#8b6bd4', '#5a6b7a', '#d4547e']
+// #22a06b (hijau) diganti biru-teal: cukup jauh dari #4b7bec supaya dua orang
+// tidak tampak berbaju sama, dan tidak lagi terbaca hijau.
+const CLOTHES = ['#4b7bec', '#2f8fb0', '#e08a3c', '#8b6bd4', '#5a6b7a', '#d4547e']
 const STYLES = ['flat', 'round', 'side', 'curly', 'bun', 'buzz']
 const INK = '#2f2b3a'
 

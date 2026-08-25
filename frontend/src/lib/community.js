@@ -24,12 +24,16 @@ import {
  * tidak ada warna merek asli di sini, supaya kartu grup tetap sewarna dengan
  * kartu lain dan tidak berubah jadi papan logo.
  */
+// WhatsApp dan LINE dulu memakai tone-mint yang hijau; nada itu sudah dihapus
+// bersama hijau lainnya. Keduanya pindah ke biru. Beberapa platform kini
+// senada, dan itu tidak menghilangkan informasi apa pun: nama platformnya
+// tertulis di badge, jadi warna tidak pernah jadi satu-satunya penanda.
 const PLATFORMS = {
-  whatsapp: { label: 'WhatsApp', tone: 'tone-mint' },
+  whatsapp: { label: 'WhatsApp', tone: 'tone-sky' },
   telegram: { label: 'Telegram', tone: 'tone-sky' },
   discord: { label: 'Discord', tone: 'tone-lilac' },
   facebook: { label: 'Facebook', tone: 'tone-sky' },
-  line: { label: 'LINE', tone: 'tone-mint' },
+  line: { label: 'LINE', tone: 'tone-sky' },
   slack: { label: 'Slack', tone: 'tone-peach' },
 }
 

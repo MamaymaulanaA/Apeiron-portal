@@ -46,9 +46,16 @@
      Status — HANYA untuk keadaan yang bermakna
      (status transaksi, aktif/nonaktif, hasil aksi)
      --------------------------------------------------------------- */
-  --ok: #067647;
-  --ok-soft: #ecfdf3;
-  --ok-border: #abefc6;
+  /* Peran "ok" memakai biru utama, bukan hijau.
+     Namanya tetap --ok karena ia peran (berhasil / aktif / disetujui), bukan
+     nama warna; yang berubah warnanya, bukan artinya. Ditulis sebagai var()
+     ke --brand supaya ikut berubah sendiri kalau warna utama diganti — bukan
+     nilai hex yang disalin dan diam-diam melenceng.
+     Merah dan kuning di bawah sengaja dibiarkan: yang perlu paling cepat
+     terbaca adalah beda antara disetujui dan ditolak. */
+  --ok: var(--brand);
+  --ok-soft: var(--brand-soft);
+  --ok-border: var(--brand-border);
 
   --warn: #b54708;
   --warn-soft: #fffaeb;
@@ -235,11 +242,6 @@
   --tone-fg: #2f6ac4;
   --tone-bg: #f5f8fd;
   --tone-border: #dfe8f6;
-}
-.tone-mint {
-  --tone-fg: #24785a;
-  --tone-bg: #f4faf7;
-  --tone-border: #d9ece3;
 }
 .tone-lilac {
   --tone-fg: #6a53b8;

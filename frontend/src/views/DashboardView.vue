@@ -368,7 +368,7 @@ onMounted(() => {
           label="Versi plugin"
           :value="plugin ? `v${plugin.version}` : '—'"
           :icon="Package"
-          tone="tone-mint"
+          tone="tone-sky"
           :hint="plugin ? 'Rilis terbaru' : 'Belum ada rilis'"
           to="/plugins"
         />
@@ -549,7 +549,7 @@ onMounted(() => {
            Gerbangnya di server: ketika akses belum terbuka, respons memang
            tidak memuat link sama sekali, jadi tidak ada yang bisa didapat
            dengan mengutak-atik tampilan. -->
-      <RailCard title="Group" :icon="UsersRound" tone="tone-mint" flush>
+      <RailCard title="Group" :icon="UsersRound" tone="tone-sky" flush>
         <SkeletonRows v-if="groupsLoading" :rows="2" :height="44" />
 
         <EmptyState
