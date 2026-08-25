@@ -96,6 +96,7 @@ require_once API_ROOT . '/controllers/AuthController.php';
 require_once API_ROOT . '/controllers/UserController.php';
 require_once API_ROOT . '/controllers/AdminController.php';
 require_once API_ROOT . '/controllers/CommunityController.php';
+require_once API_ROOT . '/controllers/DocumentController.php';
 
 // Get request info
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -132,6 +133,7 @@ $routes = [
     'GET:/admin/dashboard' => ['AdminController', 'dashboard'],
     'GET:/admin/transactions' => ['AdminController', 'transactions'],
     'GET:/admin/transactions/{id}' => ['AdminController', 'transactionDetail'],
+    'GET:/admin/transactions/{id}/document' => ['DocumentController', 'adminTransactionDocument'],
     'POST:/admin/transactions/{id}/approve' => ['AdminController', 'approve'],
     'POST:/admin/transactions/{id}/reject' => ['AdminController', 'reject'],
     'POST:/admin/transactions/{id}/retry-license' => ['AdminController', 'retryLicense'],

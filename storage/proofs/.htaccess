@@ -1,0 +1,14 @@
+# Folder ini berisi berkas milik orang lain — bukti pembayaran, arsip plugin,
+# log. Tidak ada satu pun yang boleh diambil lewat URL.
+#
+# Ini lapis kedua. Lapis pertama ada di .htaccess root, tetapi aturannya
+# dibungkus <IfModule mod_rewrite.c>; bila modul itu mati, seluruh blok
+# terlewat diam-diam dan berkas di sini kembali terbuka. Aturan di bawah tidak
+# bergantung pada mod_rewrite.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

@@ -269,7 +269,7 @@ createServer((req, res) => {
     res.writeHead(200)
     return res.end(
       JSON.stringify({
-        transaction: { ...t, document_url: `/storage/documents/${t.document_path}` },
+        transaction: { ...t, document_url: `/api/admin/transactions/${t.id}/document` },
       })
     )
   }

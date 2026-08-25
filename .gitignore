@@ -10,6 +10,10 @@ storage/*
 !storage/*/
 storage/*/*
 !storage/**/.gitkeep
+# Aturan penolakan akses harus ikut ter-deploy; tanpa baris ini berkasnya
+# tertangkap "storage/*/*" di atas dan folder sensitif kembali terbuka di
+# server.
+!storage/**/.htaccess
 
 # Frontend: dependency dan hasil build antara.
 # Hasil build yang dipakai server disalin ke root (index.html + assets/) lewat

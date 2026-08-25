@@ -81,7 +81,9 @@ class AdminController
         $documentUrl = null;
         $documentPath = $transaction['document_path'] ?? null;
         if ($transaction['document_path']) {
-            $documentUrl = '/storage/documents/' . $transaction['document_path'];
+            // Lewat endpoint ber-auth, bukan berkas statis: /storage/documents
+            // disajikan .htaccess tanpa memeriksa siapa yang meminta.
+            $documentUrl = '/api/admin/transactions/' . $transaction['id'] . '/document';
         }
         
         jsonResponse([

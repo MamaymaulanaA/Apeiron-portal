@@ -8,15 +8,26 @@
     # 1. API requests -> api/index.php
     RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-    # 2. File yang ada (assets, gambar, dll) -> langsung disajikan
+    # 2. Berkas sensitif di storage TIDAK PERNAH disajikan langsung.
+    #    Harus di atas aturan berikutnya: aturan itu menyajikan berkas apa pun
+    #    yang ada tanpa bertanya siapa yang meminta, dan bukti pembayaran punya
+    #    nama berpola (doc_<user_id>_<n>.<ext>) yang mudah ditebak.
+    #    Bukti transaksi keluar lewat /api/admin/transactions/{id}/document,
+    #    yang memeriksa izin lebih dulu.
+    #
+    #    storage/templates dan storage/tutorials sengaja TIDAK ikut ditolak —
+    #    keduanya berisi gambar yang memang dipasang di halaman lewat <img>.
+    RewriteRule ^storage/(documents|proofs|plugins|logs|cache)(/|$) - [F,L]
+
+    # 3. File yang ada (assets, gambar, dll) -> langsung disajikan
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
 
-    # 3. Direktori yang ada -> langsung disajikan
+    # 4. Direktori yang ada -> langsung disajikan
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # 4. Semua sisanya -> index.html (Vue SPA fallback)
+    # 5. Semua sisanya -> index.html (Vue SPA fallback)
     #    Menangani route Vue seperti /dashboard, /admin/users, /profile dll.
     RewriteRule ^(.*)$ index.html [L]
 </IfModule>
