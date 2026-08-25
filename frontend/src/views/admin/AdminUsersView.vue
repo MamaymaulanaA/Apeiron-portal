@@ -23,8 +23,9 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import ModalDialog from '@/components/ui/ModalDialog.vue'
 import PaginationBar from '@/components/ui/PaginationBar.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { api, errorMessage } from '@/lib/api'
-import { formatDate, initials } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import { toast } from '@/stores/toast'
 
 const loading = ref(true)
@@ -210,7 +211,7 @@ onMounted(load)
               <tr v-for="u in items" :key="u.id">
                 <td>
                   <span class="user-cell">
-                    <span class="avatar avatar-sm">{{ initials(u.name) }}</span>
+                    <span class="avatar avatar-sm"><UserAvatar :name="u.name" :seed="u.email" /></span>
                     <span class="user-cell-text">
                       <span class="cell-strong">{{ u.name }}</span>
                       <span class="text-caption">{{ u.email }}</span>

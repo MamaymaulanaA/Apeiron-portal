@@ -21,8 +21,9 @@ import {
   CalendarDays,
 } from 'lucide-vue-next'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { api, errorMessage } from '@/lib/api'
-import { formatDate, initials } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import profileArt from '@/assets/profile-illustration.webp'
 import { patchUser } from '@/stores/auth'
 import { toast } from '@/stores/toast'
@@ -132,7 +133,7 @@ onMounted(load)
             >
           </div>
 
-          <span class="avatar avatar-lg identity-avatar">{{ initials(profile?.name) }}</span>
+          <span class="avatar avatar-lg identity-avatar"><UserAvatar :name="profile?.name" :seed="profile?.email" /></span>
           <h2 class="identity-name">{{ profile?.name }}</h2>
           <p class="text-caption">{{ profile?.email }}</p>
 

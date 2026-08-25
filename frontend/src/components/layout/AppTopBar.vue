@@ -11,8 +11,8 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Menu, ChevronDown, User, LogOut } from 'lucide-vue-next'
 import { authState, isAdmin } from '@/stores/auth'
-import { initials } from '@/lib/format'
 import NotificationDropdown from './NotificationDropdown.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 const emit = defineEmits(['toggle-sidebar', 'logout'])
 
@@ -61,7 +61,7 @@ onBeforeUnmount(() => {
           aria-haspopup="true"
           @click="menuOpen = !menuOpen"
         >
-          <span class="avatar avatar-sm">{{ initials(user?.name) }}</span>
+          <span class="avatar avatar-sm"><UserAvatar :name="user?.name" :seed="user?.email" /></span>
           <span class="user-meta">
             <span class="user-name">{{ user?.name }}</span>
             <span class="user-role">{{ roleLabel }}</span>
@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
         <Transition name="pop">
           <div v-if="menuOpen" class="user-panel">
             <div class="user-panel-head">
-              <span class="avatar">{{ initials(user?.name) }}</span>
+              <span class="avatar"><UserAvatar :name="user?.name" :seed="user?.email" /></span>
               <span class="user-panel-id">
                 <strong>{{ user?.name }}</strong>
                 <small>{{ user?.email }}</small>

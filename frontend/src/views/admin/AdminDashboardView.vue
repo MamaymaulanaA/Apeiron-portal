@@ -27,8 +27,9 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { api, errorMessage } from '@/lib/api'
-import { formatDate, formatRelative, initials } from '@/lib/format'
+import { formatDate, formatRelative } from '@/lib/format'
 import { authState } from '@/stores/auth'
 import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
@@ -68,6 +69,19 @@ const queueLabel = computed(() =>
  * memotong daftar hanya akan menyembunyikan sisanya tanpa alasan.
  */
 const recentActivity = computed(() => notifState.items)
+
+/**
+ * Transaksi yang ditampilkan. Endpoint mengirim sepuluh baris; kartunya hanya
+ * memuat lima supaya tidak perlu digulir di dalam kartu.
+ *
+ * Lima adalah tinggi yang membuat kaki kolom utama jatuh paling dekat dengan
+ * kolom kanan pada susunan sekarang. Selisihnya tidak nol, dan tidak bisa nol
+ * tanpa menggulir — Forum masih empty state setinggi 138px, dan begitu backend
+ * punya tabel forum kartu itu akan tumbuh dan menutup sisanya sendiri.
+ * Sepuluh baris penuh tetap bisa dilihat di halaman Transaksi.
+ */
+const VISIBLE_TX = 5
+const visibleRecent = computed(() => recent.value.slice(0, VISIBLE_TX))
 
 async function load() {
   loading.value = true
@@ -200,7 +214,7 @@ onMounted(() => {
           <ul class="strip">
             <li v-for="m in members" :key="m.id" class="strip-item">
               <span class="strip-face" :class="{ 'is-on': Number(m.is_active) }">
-                <span class="avatar avatar-lg">{{ initials(m.name) }}</span>
+                <span class="avatar avatar-lg"><UserAvatar :name="m.name" :seed="m.email" /></span>
                 <span
                   class="strip-dot"
                   :class="{ 'is-on': Number(m.is_active) }"
@@ -233,7 +247,7 @@ onMounted(() => {
       </section>
 
       <!-- ---------- Transaksi terbaru ---------- -->
-      <section class="card tx-card">
+      <section class="card">
         <header class="card-header">
           <h3>
             <span class="icon-chip icon-chip-sm tone-brand"><Receipt :size="16" /></span>
@@ -246,7 +260,7 @@ onMounted(() => {
 
         <SkeletonRows v-if="loading" :rows="5" />
 
-        <div v-else-if="recent.length" class="table-wrap">
+        <div v-else-if="visibleRecent.length" class="table-wrap">
           <table class="table">
             <thead>
               <tr>
@@ -256,10 +270,10 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="t in recent" :key="t.id">
+              <tr v-for="t in visibleRecent" :key="t.id">
                 <td>
                   <span class="user-cell">
-                    <span class="avatar avatar-sm">{{ initials(t.user_name) }}</span>
+                    <span class="avatar avatar-sm"><UserAvatar :name="t.user_name" :seed="t.user_email" /></span>
                     <span class="user-cell-text">
                       <span class="cell-strong">{{ t.user_name || 'User dihapus' }}</span>
                       <span class="text-caption">{{ t.user_email || '—' }}</span>
@@ -439,49 +453,6 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
 }
 
-/* ---------- Kaki kedua kolom ----------
-   Kartu terakhir kolom utama menyerap sisa tinggi baris, jadi kakinya berhenti
-   tepat di garis yang sama dengan kolom kanan tanpa perlu memberi ruang kosong
-   di dalam kartu kanan mana pun.
-
-   flex-basis 0 pada isi tabel penting: dengan basis auto, tinggi sepuluh baris
-   ikut dihitung sebagai tinggi alami kolom utama, dan kolom utama justru
-   menjadi yang terpanjang — persis kebalikan dari yang diminta. Dengan basis 0
-   tabel hanya memakan sisa ruang, dan lantai tiga baris menjaga kartunya tetap
-   berguna kalau kolom kanan kebetulan pendek.
-
-   Hanya berlaku pada lebar dua kolom. Di bawah 1280px tidak ada kolom kanan
-   untuk disejajari, jadi memaksa tabel menggulir di dalam kartu hanya akan
-   memampatkannya jadi tiga baris tanpa alasan — di sana tabel dibiarkan
-   setinggi isinya. */
-@media (min-width: 1280px) {
-  .tx-card {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .tx-card .card-header {
-    flex-shrink: 0;
-  }
-  .tx-card .table-wrap {
-    flex: 1 1 0;
-    min-height: calc(57px * 3);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-}
-
-/* Kepala tabel ikut menempel saat isinya digulir; tanpa ini kolom User/Status/
-   Diajukan hilang begitu baris pertama lewat. */
-.tx-card .table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--bg-surface);
-}
-
 /* ---------- Sel user ---------- */
 .user-cell {
   display: flex;
@@ -645,8 +616,8 @@ onMounted(() => {
    masih berupa baris bertumpuk di kolom kanan. */
 .strip {
   display: flex;
-  gap: var(--sp-4);
-  padding: var(--sp-5);
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   /* Batang scrollbar mendatar memotong kaki kartu dan terbaca sebagai garis
@@ -666,7 +637,7 @@ onMounted(() => {
   align-items: center;
   gap: var(--sp-2);
   /* Lebar tetap supaya jarak antar-avatar rata berapa pun panjang namanya. */
-  width: 104px;
+  width: 96px;
   flex-shrink: 0;
   text-align: center;
 }

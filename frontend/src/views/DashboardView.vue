@@ -39,8 +39,9 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { api, errorMessage } from '@/lib/api'
-import { formatDate, formatRelative, initials } from '@/lib/format'
+import { formatDate, formatRelative } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
 import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
@@ -423,7 +424,7 @@ onMounted(() => {
 
         <ul v-else-if="visibleMembers.length" class="member-list">
           <li v-for="m in visibleMembers.slice(0, 6)" :key="m.id" class="member-row">
-            <span class="avatar avatar-sm">{{ initials(m.name) }}</span>
+            <span class="avatar avatar-sm"><UserAvatar :name="m.name" :seed="m.email" /></span>
             <span class="member-text">
               <span class="member-name">{{ m.name }}</span>
               <span class="member-mail">{{ m.email }}</span>
