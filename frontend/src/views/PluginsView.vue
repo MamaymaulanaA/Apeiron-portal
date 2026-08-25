@@ -163,6 +163,14 @@ onMounted(load)
               <CircleAlert :size="13" />
               Data tersimpan {{ formatDate(l.status_checked_at) }}
             </span>
+
+            <!-- Ada saat statusnya terbaca tapi tidak bisa disimpan — mis.
+                 migration cache belum dijalankan. Hilang sendiri begitu
+                 penyebabnya diperbaiki. -->
+            <span v-if="l.status_error" class="lic-stale">
+              <CircleAlert :size="13" />
+              {{ l.status_error }}
+            </span>
           </div>
 
           <dl v-if="l.status" class="lic-facts">

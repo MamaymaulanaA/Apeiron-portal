@@ -260,13 +260,33 @@ class UserController
     {
         $status = $l->license_status;
         $stale = false;
+        $checkedAt = $l->license_checked_at;
+        $error = null;
 
         if ($l->needsRefresh()) {
             $fresh = ServerApiService::fetchLicenseStatus($l->license_key, $l->product_id);
 
             if ($fresh !== null) {
-                $l->cacheStatus($fresh);
                 $status = $fresh;
+
+                // Menyimpan cache TIDAK BOLEH menjatuhkan halaman.
+                //
+                // Cache hanyalah percepatan; lisensinya sendiri sudah terbaca
+                // dengan benar di baris atas. Membiarkan kegagalan menulis
+                // naik ke router berarti satu kolom yang belum ada — atau satu
+                // gangguan database sesaat — mematikan seluruh halaman Plugin
+                // beserta license key yang sebenarnya sudah di tangan. Persis
+                // itu yang terjadi sebelum penjagaan ini ada.
+                try {
+                    $l->cacheStatus($fresh);
+                    $checkedAt = $l->license_checked_at;
+                } catch (Throwable $e) {
+                    error_log('[PORTAL][LICENSE] Gagal menyimpan cache status: ' . $e->getMessage());
+                    $error = self::cacheErrorHint($e);
+                    // Statusnya baru saja dibaca dari server, jadi waktunya
+                    // sekarang — meski tidak berhasil tersimpan.
+                    $checkedAt = gmdate('Y-m-d H:i:s');
+                }
             } else {
                 // Gagal membaca. Cache lama dipertahankan apa adanya dan
                 // ditandai basi — menimpanya dengan null akan mengubah
@@ -285,8 +305,33 @@ class UserController
             // null = keadaannya belum diketahui, BUKAN tidak aktif.
             'status' => $status,
             'status_stale' => $stale,
-            'status_checked_at' => $l->license_checked_at,
+            'status_checked_at' => $checkedAt,
+            // Diisi hanya bila ada yang perlu dikerjakan admin, mis. migration
+            // yang belum dijalankan. null pada keadaan normal.
+            'status_error' => $error,
         ];
+    }
+
+    /**
+     * Terjemahkan kegagalan menulis cache jadi petunjuk yang bisa dikerjakan.
+     *
+     * Kolom yang belum ada adalah satu-satunya penyebab yang benar-benar
+     * mungkin di sini, dan penyebabnya selalu sama: migration belum
+     * dijalankan. Menyebut nama berkasnya jauh lebih berguna daripada
+     * "terjadi kesalahan".
+     */
+    private static function cacheErrorHint(Throwable $e): string
+    {
+        $msg = $e->getMessage();
+        $missingColumn = str_contains($msg, '42S22')
+            || stripos($msg, 'no such column') !== false
+            || stripos($msg, 'Unknown column') !== false;
+
+        if ($missingColumn) {
+            return 'Kolom cache status belum ada. Jalankan database/migrations/2026_08_25_all.sql.';
+        }
+
+        return 'Status terbaca dari server, tetapi gagal disimpan sebagai cache.';
     }
 
     public function licenses(): void
