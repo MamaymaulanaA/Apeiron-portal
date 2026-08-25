@@ -258,6 +258,38 @@ class UserController
      */
     private static function licensePayload(UserLicense $l): array
     {
+        $state = self::licenseStatusFor($l);
+
+        return [
+            'id' => $l->id,
+            'license_key' => $l->license_key,
+            'api_key' => $l->api_key ?? null,
+            'product_id' => $l->product_id,
+            'assigned_at' => $l->assigned_at,
+
+            // null = keadaannya belum diketahui, BUKAN tidak aktif.
+            'status' => $state['status'],
+            'status_stale' => $state['stale'],
+            'status_checked_at' => $state['checked_at'],
+            // Diisi hanya bila ada yang perlu dikerjakan admin, mis. migration
+            // yang belum dijalankan. null pada keadaan normal.
+            'status_error' => $state['error'],
+        ];
+    }
+
+    /**
+     * Baca keadaan satu lisensi: dari server bila perlu disegarkan, kalau
+     * tidak dari cache.
+     *
+     * Dipakai bersama oleh halaman Plugin dan invoice. Sengaja satu jalur:
+     * kalau keduanya membaca sendiri-sendiri, invoice bisa menyebut status
+     * yang berbeda dari yang dilihat user di layar — dan yang mana yang benar
+     * jadi tidak bisa dipastikan.
+     *
+     * @return array{status: ?array, stale: bool, checked_at: ?string, error: ?string}
+     */
+    private static function licenseStatusFor(UserLicense $l): array
+    {
         $status = $l->license_status;
         $stale = false;
         $checkedAt = $l->license_checked_at;
@@ -295,21 +327,7 @@ class UserController
             }
         }
 
-        return [
-            'id' => $l->id,
-            'license_key' => $l->license_key,
-            'api_key' => $l->api_key ?? null,
-            'product_id' => $l->product_id,
-            'assigned_at' => $l->assigned_at,
-
-            // null = keadaannya belum diketahui, BUKAN tidak aktif.
-            'status' => $status,
-            'status_stale' => $stale,
-            'status_checked_at' => $checkedAt,
-            // Diisi hanya bila ada yang perlu dikerjakan admin, mis. migration
-            // yang belum dijalankan. null pada keadaan normal.
-            'status_error' => $error,
-        ];
+        return ['status' => $status, 'stale' => $stale, 'checked_at' => $checkedAt, 'error' => $error];
     }
 
     /**
@@ -448,8 +466,11 @@ class UserController
     }
 
     /**
-     * Download Invoice
-     * Generates a simple HTML invoice for the approved transaction
+     * GET /user/download-invoice
+     *
+     * Invoice dibuat dari data yang benar-benar tersimpan: nominal transaksi,
+     * tanggal persetujuan, license key, dan keadaan lisensi menurut License
+     * Server. Tidak ada nilai contoh di dalamnya.
      */
     public function downloadInvoice(): void
     {
@@ -463,122 +484,370 @@ class UserController
             die('Access denied: No approved transaction found');
         }
 
-        // Get license info
         $license = UserLicense::findByTransaction($transaction->id);
 
-        // Generate invoice ID
-        $invoiceId = 'INV-' . str_pad($transaction->id, 6, '0', STR_PAD_LEFT);
+        // Keadaan lisensi dibaca lewat jalur yang sama dengan halaman Plugin,
+        // supaya invoice tidak pernah menyebut status yang berbeda dari yang
+        // dilihat user di layar.
+        $status = $license ? (self::licenseStatusFor($license)['status'] ?? null) : null;
 
-        // Generate HTML invoice
-        $html = self::generateInvoiceHtml($invoiceId, $user, $transaction, $license);
+        $invoiceId = 'INV-' . str_pad((string) $transaction->id, 6, '0', STR_PAD_LEFT);
 
-        // Set headers for download
+        $html = self::generateInvoiceHtml($invoiceId, $user, $transaction, $license, $status);
+
         $filename = 'invoice_' . $invoiceId . '.html';
         header('Content-Type: text/html; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Length: ' . strlen($html));
-        header('Cache-Control: no-cache');
+        header('Cache-Control: private, no-store');
 
         echo $html;
         exit;
     }
 
+    /** Label status lisensi, mencerminkan LICENSE_STATUS di lib/license.js. */
+    private const LICENSE_LABELS = [
+        'active' => 'Aktif',
+        'expired' => 'Expired',
+        'suspended' => 'Ditangguhkan',
+        'expired_replaced' => 'Digantikan',
+        'inactive' => 'Belum Diaktifkan',
+    ];
+
     /**
-     * Generate HTML invoice
+     * Ringkasan keadaan lisensi, mis. "Aktif • 327 hari lagi".
+     *
+     * Sama persis dengan aturan di layar: Lifetime dan Expired tidak pernah
+     * mendapat hitung mundur, dan sisa 0 hari tetap ditampilkan karena 0
+     * adalah angka yang sah — habis hari ini.
      */
-    private static function generateInvoiceHtml(string $invoiceId, $user, $transaction, $license): string
+    private static function licenseSummary(?array $s): string
     {
-        $approvedDate = date('d M Y H:i', strtotime($transaction->approved_at));
+        if (!$s) return 'Belum diketahui';
+
+        $label = self::LICENSE_LABELS[$s['status'] ?? ''] ?? ($s['status'] ?? 'Belum diketahui');
+
+        if (!empty($s['is_lifetime'])) return $label;
+        if (($s['status'] ?? '') === 'expired') return $label;
+        if (!isset($s['days_remaining'])) return $label;
+
+        return $label . ' • ' . (int) $s['days_remaining'] . ' hari lagi';
+    }
+
+    /** Tanggal untuk invoice; '-' bila datanya memang tidak ada. */
+    private static function invoiceDate(?string $value, bool $withTime = false): string
+    {
+        if (!$value) return '-';
+        $ts = strtotime($value);
+        if ($ts === false) return '-';
+
+        return date($withTime ? 'd M Y, H:i' : 'd M Y', $ts) . ($withTime ? ' WIB' : '');
+    }
+
+    /**
+     * Susun invoice sebagai satu berkas HTML utuh.
+     *
+     * Versi sebelumnya membangun HTML-nya dengan `return` lalu menambahkan
+     * sisanya dengan `$html .=` di bawahnya — kode yang tidak pernah berjalan.
+     * Akibatnya berkas yang terunduh terpotong tepat setelah tabel: tanpa
+     * license key, tanpa footer, dan tanpa penutup </html>. Di sini seluruh
+     * dokumen disusun dalam satu rangkaian, jadi bentuk itu tidak bisa
+     * terulang.
+     */
+    private static function generateInvoiceHtml(
+        string $invoiceId,
+        $user,
+        $transaction,
+        $license,
+        ?array $status
+    ): string {
+        $e = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+
+        $app = $e(APP_NAME);
+        $amount = $e(format_currency((float) ($transaction->amount ?? 0)));
+        $product = $e($transaction->product_id ?? 'apeiron-kit');
+
+        // Periode diambil dari server. Tidak lagi ditulis "Lifetime" begitu
+        // saja — sebelumnya invoice selalu mengklaim Lifetime padahal server
+        // menerbitkan lisensi satu tahun.
+        $period = $status
+            ? $e($status['duration_label'] ?? ($status['is_lifetime'] ?? false ? 'Lifetime' : 'Berjangka'))
+            : '-';
+
+        $rows = '';
+        if ($license) {
+            $facts = [
+                ['Status lisensi', $e(self::licenseSummary($status))],
+                ['Tipe lisensi', $period],
+                ['Tanggal aktivasi', $e(self::invoiceDate($status['activated_at'] ?? null))],
+            ];
+
+            // Lifetime tidak punya tanggal berakhir, jadi barisnya berbunyi
+            // "Selamanya" alih-alih tanggal kosong.
+            if ($status) {
+                $facts[] = !empty($status['is_lifetime'])
+                    ? ['Berlaku hingga', 'Selamanya']
+                    : [
+                        ($status['status'] ?? '') === 'expired' ? 'Berakhir' : 'Berlaku hingga',
+                        $e(self::invoiceDate($status['expires_at'] ?? null)),
+                    ];
+
+                if (
+                    empty($status['is_lifetime'])
+                    && ($status['status'] ?? '') !== 'expired'
+                    && isset($status['days_remaining'])
+                ) {
+                    $facts[] = ['Sisa waktu', (int) $status['days_remaining'] . ' hari'];
+                }
+            }
+
+            foreach ($facts as [$k, $v]) {
+                $rows .= '<div class="fact"><dt>' . $k . '</dt><dd>' . $v . '</dd></div>';
+            }
+        }
+
+        $licenseBlock = '';
+        if ($license) {
+            $licenseBlock = '
+      <section class="panel">
+        <h2>Lisensi</h2>
+
+        <div class="keys">
+          <div class="key">
+            <span class="key-label">License Key</span>
+            <code>' . $e($license->license_key) . '</code>
+          </div>' .
+          ($license->api_key ? '
+          <div class="key">
+            <span class="key-label">API Key</span>
+            <code>' . $e($license->api_key) . '</code>
+          </div>' : '') . '
+        </div>
+
+        <dl class="facts">' . $rows . '</dl>' .
+        ($status ? '' : '
+        <p class="note">Status lisensi belum bisa dibaca dari server saat invoice ini dibuat.</p>') . '
+      </section>';
+        }
 
         return '<!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice ' . htmlspecialchars($invoiceId) . ' - ' . htmlspecialchars(APP_NAME) . '</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .invoice { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { border-bottom: 3px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-        .header h1 { margin: 0; color: #333; }
-        .header p { margin: 5px 0 0; color: #666; }
-        .info { display: flex; justify-content: space-between; margin-bottom: 30px; }
-        .info-section { flex: 1; }
-        .info-section h3 { margin: 0 0 10px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-        .info-section p { margin: 5px 0; color: #555; }
-        .items { margin: 30px 0; }
-        .items table { width: 100%; border-collapse: collapse; }
-        .items th, .items td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        .items th { background: #f8f8f8; font-weight: bold; color: #333; }
-        .items .total { font-size: 1.2em; font-weight: bold; color: #2ecc71; }
-        .license-box { background: #f8f8f8; padding: 20px; margin: 30px 0; border-left: 4px solid #3498db; }
-        .license-box h4 { margin: 0 0 10px; color: #2980b9; }
-        .license-box pre { background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #888; font-size: 12px; }
-        @media print { body { background: white; } .invoice { box-shadow: none; padding: 0; } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice ' . $e($invoiceId) . ' — ' . $app . '</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* Warna dan ukuran mengikuti token portal supaya invoice terlihat satu
+     keluarga dengan aplikasinya. Ditulis sebagai nilai tetap, bukan var(),
+     karena berkas ini berdiri sendiri tanpa CSS portal. */
+  :root {
+    --brand: #2563eb;
+    --brand-soft: #eff4ff;
+    --brand-border: #b9d0fd;
+    --ink: #101828;
+    --text: #344054;
+    --muted: #667085;
+    --line: #e4e7ec;
+    --subtle: #f9fafb;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Ubuntu didahulukan; sisanya cadangan agar invoice tetap terbaca wajar
+     ketika dibuka tanpa internet dan font Google tidak termuat. */
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--subtle);
+    font-family: "Ubuntu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 780px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 28px 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { font-size: 20px; font-weight: 500; color: var(--ink); }
+  .brand span { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }
+  .doc { text-align: right; }
+  .doc-no { font-size: 20px; font-weight: 500; color: var(--ink); font-family: "Ubuntu Mono", monospace; }
+  .doc-date { font-size: 13px; color: var(--muted); }
+
+  .paid {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--brand);
+    background: var(--brand-soft);
+    border: 1px solid var(--brand-border);
+  }
+
+  .parties {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  .party { flex: 1 1 220px; min-width: 0; }
+  .party h2 { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .party p { margin: 0 0 2px; }
+  .party strong { color: var(--ink); font-weight: 500; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 10px 32px;
+    font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); text-align: left; background: var(--subtle);
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td { padding: 16px 32px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  .item-name { color: var(--ink); font-weight: 500; }
+  .item-sub { font-size: 13px; color: var(--muted); }
+
+  tfoot td { padding: 16px 32px; }
+  .total-label { text-align: right; color: var(--muted); }
+  .total-value { text-align: right; font-size: 18px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+
+  .panel { padding: 24px 32px; border-top: 1px solid var(--line); }
+  .panel h2 { margin: 0 0 14px; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+  .keys { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .key-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .key code {
+    display: block;
+    padding: 9px 12px;
+    background: var(--subtle);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: "Ubuntu Mono", ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    color: var(--ink);
+    /* Kunci lisensi panjang dan tidak punya spasi; tanpa ini ia melebar
+       keluar halaman dan terpotong saat dicetak. */
+    word-break: break-all;
+  }
+
+  /* auto-fit: jumlah kolom mengikuti berapa baris yang benar-benar ada,
+     karena Lifetime dan Expired sengaja menampilkan lebih sedikit. */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px 20px;
+    margin: 0;
+    padding: 16px;
+    background: var(--subtle);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .fact dt { font-size: 12px; color: var(--muted); }
+  .fact dd { margin: 2px 0 0; font-weight: 500; color: var(--ink); }
+
+  .note { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+
+  .foot { padding: 22px 32px; text-align: center; font-size: 12px; color: var(--muted); background: var(--subtle); border-top: 1px solid var(--line); }
+  .foot p { margin: 0 0 4px; }
+
+  @media print {
+    body { padding: 0; background: #fff; }
+    .sheet { border: 0; border-radius: 0; max-width: none; }
+    .foot { background: #fff; }
+    /* Blok lisensi jangan terbelah dua halaman. */
+    .panel, .facts { break-inside: avoid; }
+  }
+
+  @media (max-width: 560px) {
+    .head, .parties, .panel, .foot { padding-left: 20px; padding-right: 20px; }
+    thead th, tbody td, tfoot td { padding-left: 20px; padding-right: 20px; }
+    .doc { text-align: left; }
+  }
+</style>
 </head>
 <body>
-    <div class="invoice">
-        <div class="header">
-            <h1>' . htmlspecialchars(APP_NAME) . '</h1>
-            <p>Tax Invoice / Bukti Pembayaran</p>
-        </div>
+  <main class="sheet">
+    <header class="head">
+      <div class="brand">
+        ' . $app . '
+        <span>Invoice pembelian lisensi</span>
+      </div>
+      <div class="doc">
+        <div class="doc-no">' . $e($invoiceId) . '</div>
+        <div class="doc-date">' . $e(self::invoiceDate($transaction->approved_at ?? null, true)) . '</div>
+        <span class="paid">LUNAS</span>
+      </div>
+    </header>
 
-        <div class="info">
-            <div class="info-section">
-                <h3>Invoice Details</h3>
-                <p><strong>Invoice No:</strong> ' . htmlspecialchars($invoiceId) . '</p>
-                <p><strong>Tanggal:</strong> ' . $approvedDate . '</p>
-                <p><strong>Status:</strong> <span style="color: green;">LUNAS</span></p>
-            </div>
-            <div class="info-section" style="text-align: right;">
-                <h3>Customer Details</h3>
-                <p><strong>Nama:</strong> ' . htmlspecialchars($user->name) . '</p>
-                <p><strong>Email:</strong> ' . htmlspecialchars($user->email) . '</p>
-                <p><strong>Customer ID:</strong> #' . str_pad($user->id, 5, '0', STR_PAD_LEFT) . '</p>
-            </div>
-        </div>
+    <section class="parties">
+      <div class="party">
+        <h2>Ditagihkan kepada</h2>
+        <p><strong>' . $e($user->name) . '</strong></p>
+        <p>' . $e($user->email) . '</p>
+        <p>ID Pelanggan #' . $e(str_pad((string) $user->id, 5, '0', STR_PAD_LEFT)) . '</p>
+      </div>
+      <div class="party">
+        <h2>Rincian transaksi</h2>
+        <p>No. Transaksi <strong>#' . $e($transaction->id) . '</strong></p>
+        <p>Diajukan ' . $e(self::invoiceDate($transaction->created_at ?? null)) . '</p>
+        <p>Disetujui ' . $e(self::invoiceDate($transaction->approved_at ?? null)) . '</p>
+      </div>
+    </section>
 
-        <div class="items">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Deskripsi</th>
-                        <th>Periode</th>
-                        <th style="text-align: right;">Jumlah</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Apeiron Kit License</strong><br>Lifetime access to premium plugin</td>
-                        <td>Lifetime</td>
-                        <td style="text-align: right;" class="total">1 License</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>';
-
-        if ($license) {
-            $html .= '
-        <div class="license-box">
-            <h4>Lisensi Anda</h4>
-            <p>Silakan simpan license key Anda dengan aman:</p>
-            <pre>' . htmlspecialchars($license->license_key) . '</pre>
-            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
-                <strong>Product:</strong> ' . htmlspecialchars($license->product_id) . '<br>
-                <strong>Assigned:</strong> ' . $approvedDate . '
-            </p>
-        </div>';
-        }
-
-        $html .= '
-        <div class="footer">
-            <p>Terima kasih atas kepercayaan Anda menggunakan ' . htmlspecialchars(APP_NAME) . '.</p>
-            <p>Invoice ini dibuat secara otomatis dan sah sebagai bukti pembayaran.</p>
-            <p style="margin-top: 15px;">&copy; ' . date('Y') . ' ' . htmlspecialchars(APP_NAME) . '. All rights reserved.</p>
-        </div>
-    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Deskripsi</th>
+          <th>Periode</th>
+          <th class="num">Jumlah</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="item-name">Lisensi ' . $product . '</div>
+            <div class="item-sub">1 lisensi untuk 1 situs</div>
+          </td>
+          <td>' . $period . '</td>
+          <td class="num">' . $amount . '</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" class="total-label">Total dibayar</td>
+          <td class="total-value">' . $amount . '</td>
+        </tr>
+      </tfoot>
+    </table>
+' . $licenseBlock . '
+    <footer class="foot">
+      <p>Terima kasih telah menggunakan ' . $app . '.</p>
+      <p>Invoice ini dibuat otomatis dan sah tanpa tanda tangan.</p>
+      <p>&copy; ' . date('Y') . ' ' . $app . '</p>
+    </footer>
+  </main>
 </body>
 </html>';
     }
