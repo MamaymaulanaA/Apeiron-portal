@@ -62,9 +62,6 @@ const confirmOpen = ref(false)
 const deleting = ref(null)
 const removing = ref(false)
 
-/** Gambar sampul — tampil di kartu, bukan di dalam isi panduan. */
-const cover = ref(blankMedia())
-
 /**
  * Langkah bergambar. Inilah yang membuat gambar berada DI DALAM isi panduan:
  * tiap langkah punya teksnya sendiri dan gambarnya sendiri, bukan satu gambar
@@ -125,7 +122,6 @@ async function load() {
 function openCreate() {
   editing.value = null
   form.value = blankForm()
-  cover.value = blankMedia()
   steps.value = []
   formError.value = ''
   formOpen.value = true
@@ -143,11 +139,22 @@ function openEdit(t) {
     is_published: !!Number(t.is_published),
     sort_order: Number(t.sort_order) || 0,
   }
-  cover.value = blankMedia(t.image_path || null)
   steps.value = (t.steps || []).map((st) => ({
     body: st.body || '',
     media: blankMedia(st.image_path || null),
   }))
+
+  /* Panduan lama menyimpan isinya di kolom `content` sebagai satu blok teks,
+     dari sebelum isi disusun per paragraf. Kalau baris itu masih punya content
+     dan belum punya paragraf, isinya dipecah jadi paragraf di sini supaya tidak
+     hilang begitu form disimpan — kolom content memang tidak lagi dikirim. */
+  if (!steps.value.length && (t.content || '').trim()) {
+    steps.value = t.content
+      .split(/\n\s*\n/)
+      .map((para) => para.trim())
+      .filter(Boolean)
+      .map((body) => ({ body, media: blankMedia() }))
+  }
   formError.value = ''
   formOpen.value = true
 }
@@ -167,17 +174,13 @@ async function save() {
     const fd = new FormData()
     fd.append('title', form.value.title.trim())
     fd.append('excerpt', form.value.excerpt.trim())
-    fd.append('content', form.value.content.trim())
+    // `content` tidak lagi diisi dari form: isinya kini hidup sebagai paragraf.
+    fd.append('content', '')
     fd.append('category', form.value.category.trim())
     fd.append('icon', form.value.icon)
     fd.append('external_url', form.value.external_url.trim())
     fd.append('is_published', form.value.is_published ? '1' : '0')
     fd.append('sort_order', String(Number(form.value.sort_order) || 0))
-    if (cover.value.action === 'replace' && cover.value.file) {
-      fd.append('image', cover.value.file)
-    }
-    if (cover.value.action === 'remove') fd.append('remove_image', '1')
-
     // Teks langkah dikirim sebagai JSON, gambarnya sebagai berkas terpisah
     // bernomor. Backend memasangkannya lewat indeks yang sama.
     fd.append(
@@ -399,21 +402,6 @@ onMounted(load)
           >
         </label>
 
-        <label class="field">
-          <span class="label">Pengantar</span>
-          <textarea
-            v-model="form.content"
-            class="input textarea"
-            rows="5"
-            placeholder="Penjelasan pembuka: untuk siapa panduan ini, dan apa yang perlu disiapkan."
-          />
-          <span class="hint">
-            Paragraf pembuka, tampil di atas langkah-langkah. Untuk instruksi
-            bergambar, pakai <strong>Langkah</strong> di bawah. Pisahkan
-            paragraf dengan satu baris kosong.
-          </span>
-        </label>
-
         <div class="field-row">
           <label class="field field-grow">
             <span class="label">Kategori</span>
@@ -424,15 +412,6 @@ onMounted(load)
             <span class="label">Urutan</span>
             <input v-model.number="form.sort_order" class="input" type="number" min="0">
           </label>
-        </div>
-
-        <div class="field">
-          <span class="label">Gambar sampul</span>
-          <MediaField v-model="cover" />
-          <span class="hint">
-            Tampil di kartu halaman Panduan. Bila kosong, kartunya memakai ikon
-            di bawah. Untuk gambar di dalam isi panduan, pakai Langkah.
-          </span>
         </div>
 
         <div class="field">
@@ -470,11 +449,12 @@ onMounted(load)
 
         <!-- Langkah bergambar: di sinilah gambar masuk ke dalam isi panduan -->
         <div class="field">
-          <span class="label">Langkah</span>
+          <span class="label">Isi panduan <span class="req">*</span></span>
           <span class="hint">
-            Instruksi bernomor, tiap langkah dengan gambarnya sendiri — di
-            sinilah tangkapan layar dimasukkan. Kosongkan bila panduannya cukup
-            berupa teks di Pengantar.
+            Isinya disusun per paragraf. Tiap paragraf boleh punya gambarnya
+            sendiri, jadi tangkapan layar duduk tepat di langkah yang
+            menjelaskannya. Untuk penekanan tulis <code>**tebal**</code> atau
+            <code>*miring*</code>.
           </span>
 
           <ol v-if="steps.length" class="steps">
@@ -485,7 +465,7 @@ onMounted(load)
                   <button
                     class="btn btn-sm btn-secondary btn-icon"
                     type="button"
-                    aria-label="Naikkan langkah"
+                    aria-label="Naikkan paragraf"
                     :disabled="i === 0"
                     @click="moveStep(i, -1)"
                   >
@@ -494,7 +474,7 @@ onMounted(load)
                   <button
                     class="btn btn-sm btn-secondary btn-icon"
                     type="button"
-                    aria-label="Turunkan langkah"
+                    aria-label="Turunkan paragraf"
                     :disabled="i === steps.length - 1"
                     @click="moveStep(i, 1)"
                   >
@@ -503,7 +483,7 @@ onMounted(load)
                   <button
                     class="btn btn-sm btn-danger btn-icon"
                     type="button"
-                    aria-label="Hapus langkah"
+                    aria-label="Hapus paragraf"
                     @click="removeStep(i)"
                   >
                     <Trash2 :size="14" />
@@ -515,21 +495,21 @@ onMounted(load)
                 v-model="st.body"
                 class="input textarea"
                 rows="3"
-                placeholder="Jelaskan langkah ini…"
+                placeholder="Tulis paragraf ini…"
               />
 
               <MediaField
                 v-model="st.media"
                 compact
                 :max-height="160"
-                label="Tambah gambar untuk langkah ini"
+                label="Tambah gambar untuk paragraf ini"
               />
             </li>
           </ol>
 
           <button class="btn btn-secondary step-add" type="button" @click="addStep">
             <PlusIcon :size="15" />
-            Tambah Langkah
+            Tambah Paragraf
           </button>
         </div>
 

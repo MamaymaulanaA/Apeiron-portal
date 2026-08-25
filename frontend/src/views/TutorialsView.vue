@@ -22,7 +22,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import ModalDialog from '@/components/ui/ModalDialog.vue'
 import { api, errorMessage } from '@/lib/api'
-import { tutorialIcon } from '@/lib/community'
+import { tutorialIcon, renderEmphasis } from '@/lib/community'
 import { toast } from '@/stores/toast'
 
 const loading = ref(true)
@@ -72,8 +72,12 @@ async function load() {
 async function openDetail(item) {
   detailOpen.value = true
   detail.value = item
-  if (!item.has_content) return
 
+  /* Selalu ambil detailnya. Dulu ini dilewati bila has_content false, dan itu
+     benar selama isi panduan tinggal di kolom `content`. Sekarang isinya hidup
+     sebagai paragraf di tabel terpisah — has_content tidak tahu apa-apa
+     tentangnya, jadi melewati permintaan ini berarti paragrafnya tidak pernah
+     termuat dan panduan tampak kosong. */
   detailLoading.value = true
   try {
     const { data } = await api.get(`/user/tutorials/${item.id}`)
@@ -249,7 +253,10 @@ onMounted(load)
           <li v-for="(st, i) in detail.steps" :key="st.id ?? i" class="step">
             <span class="step-no">{{ i + 1 }}</span>
             <div class="step-body">
-              <p v-if="st.body" class="step-text">{{ st.body }}</p>
+              <!-- v-html aman: renderEmphasis() meng-escape teksnya lebih dulu,
+                   jadi satu-satunya tag yang bisa keluar adalah <strong>/<em>
+                   yang ditulis fungsi itu sendiri. -->
+              <p v-if="st.body" class="step-text" v-html="renderEmphasis(st.body)" />
               <img
                 v-if="st.image_path"
                 class="step-img"

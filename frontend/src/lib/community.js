@@ -92,3 +92,29 @@ export const GROUP_ACCESS_COPY = {
       'Silakan unggah ulang bukti transaksi. Group akan tersedia setelah transaksi disetujui.',
   },
 }
+
+/**
+ * Penekanan sederhana pada teks paragraf panduan: **tebal** dan *miring*.
+ *
+ * AMAN DIPAKAI DENGAN v-html KARENA URUTANNYA: teksnya di-escape LEBIH DULU,
+ * baru penandanya diubah jadi tag. Setelah escape tidak ada lagi < atau & yang
+ * tersisa di masukan, jadi satu-satunya markup yang bisa keluar adalah <strong>
+ * dan <em> yang ditulis fungsi ini sendiri. Membalik urutannya — mengubah tanda
+ * dulu lalu escape — akan menghapus tag yang baru dibuat; melewatkan escape
+ * sama sekali membuat apa pun yang diketik admin berjalan sebagai HTML.
+ *
+ * Sengaja hanya dua penanda. Editor kaya penuh berarti menyimpan HTML, dan HTML
+ * yang tersimpan menuntut sanitasi pada setiap pembacaan — biaya yang tidak
+ * sebanding untuk teks tebal dan miring.
+ */
+export function renderEmphasis(text) {
+  const escaped = String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+
+  return escaped
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>')
+}
