@@ -10,7 +10,7 @@
  * Backend mengirim notifikasi ke semua user berlisensi saat plugin diperbarui —
  * itu tetap terjadi apa adanya di sisi server.
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   Package,
   Plus,
@@ -19,6 +19,7 @@ import {
   FileArchive,
   TriangleAlert,
   CircleCheck,
+  Search,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
@@ -29,6 +30,20 @@ import { toast } from '@/stores/toast'
 
 const loading = ref(true)
 const items = ref([])
+
+/* Daftar plugin dimuat utuh, jadi menyaring di klien menelusuri seluruh data. */
+const search = ref('')
+
+const visibleItems = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return items.value
+  return items.value.filter(
+    (p) =>
+      String(p.version || '').toLowerCase().includes(q) ||
+      String(p.filename || '').toLowerCase().includes(q) ||
+      String(p.changelog || '').toLowerCase().includes(q)
+  )
+})
 const acting = ref(false)
 
 const formOpen = ref(false)
@@ -144,6 +159,13 @@ onMounted(load)
       </button>
     </header>
 
+    <div v-if="!loading && items.length" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari versi atau catatan rilis…">
+      </div>
+    </div>
+
     <section class="card">
       <SkeletonRows v-if="loading" :rows="4" :height="64" />
 
@@ -162,7 +184,7 @@ onMounted(load)
       </EmptyState>
 
       <div v-else class="plugin-list">
-        <article v-for="p in items" :key="p.id" class="plugin">
+        <article v-for="p in visibleItems" :key="p.id" class="plugin">
           <span class="icon-chip tone-neutral plugin-icon">
             <FileArchive :size="20" />
           </span>
@@ -451,6 +473,27 @@ onMounted(load)
 @media (max-width: 640px) {
   .plugin-list {
     padding: var(--sp-4);
+  }
+}
+
+/* ---------- Toolbar ----------
+   Bentuknya sama dengan halaman Panduan di sisi user. .toolbar-select WAJIB
+   menimpa width: 100% milik .select — tanpa itu select memakan satu baris
+   penuh dan kontrolnya menumpuk ke bawah. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+.toolbar-select {
+  width: auto;
+  min-width: 150px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
 </style>

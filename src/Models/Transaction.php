@@ -215,19 +215,74 @@ class Transaction
     /**
      * Find all with pagination for admin
      */
-    public static function findAll(int $limit = 15, int $offset = 0, ?string $status = null): array
-    {
-        $where = $status ? "WHERE t.status = ?" : "";
-        $params = $status ? [$status, $limit, $offset] : [$limit, $offset];
-        
+    public static function findAll(
+        int $limit = 15,
+        int $offset = 0,
+        ?string $status = null,
+        ?string $search = null
+    ): array {
+        [$where, $params] = self::filterClause($status, $search);
+
+        $params[] = $limit;
+        $params[] = $offset;
+
         $sql = "SELECT t.*, u.name as user_name, u.email as user_email
                 FROM transactions t
                 LEFT JOIN users u ON t.user_id = u.id
                 {$where}
                 ORDER BY t.created_at DESC
                 LIMIT ? OFFSET ?";
-        
+
         return Database::fetchAll($sql, $params);
+    }
+
+    /**
+     * Jumlah baris yang cocok — dipakai paginasi.
+     *
+     * Memakai filterClause() yang sama dengan findAll() supaya jumlah halaman
+     * tidak pernah menyimpang dari isi halamannya.
+     */
+    public static function countMatching(?string $status = null, ?string $search = null): int
+    {
+        [$where, $params] = self::filterClause($status, $search);
+
+        $row = Database::fetchOne(
+            "SELECT COUNT(*) as count
+             FROM transactions t
+             LEFT JOIN users u ON t.user_id = u.id
+             {$where}",
+            $params
+        );
+        return (int) $row['count'];
+    }
+
+    /**
+     * Bagian WHERE untuk daftar transaksi admin.
+     *
+     * Pencariannya menelusuri nama dan email user, bukan kolom transaksi: yang
+     * dicari admin hampir selalu "transaksi milik siapa", bukan nomor
+     * dokumennya.
+     */
+    private static function filterClause(?string $status, ?string $search): array
+    {
+        $conditions = [];
+        $params = [];
+
+        if ($status) {
+            $conditions[] = 't.status = ?';
+            $params[] = $status;
+        }
+
+        if ($search !== null && $search !== '') {
+            // Wildcard LIKE dinetralkan; tanpa ini "%" mencocokkan semua baris.
+            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
+            $conditions[] = '(u.name LIKE ? OR u.email LIKE ?)';
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+        return [$where, $params];
     }
     
     /**

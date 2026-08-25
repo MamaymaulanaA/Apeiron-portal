@@ -11,6 +11,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   UsersRound,
+  Search,
   Plus,
   Pencil,
   Trash2,
@@ -29,6 +30,25 @@ import { toast } from '@/stores/toast'
 const loading = ref(true)
 const loadError = ref('')
 const groups = ref([])
+
+/* Daftar grup dimuat utuh dari server, jadi menyaringnya di klien menelusuri
+   seluruh data — bukan hanya sebagian yang kebetulan tampil. */
+const search = ref('')
+const statusFilter = ref('all')
+
+const visibleGroups = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return groups.value.filter((g) => {
+    if (statusFilter.value === 'active' && !Number(g.is_active)) return false
+    if (statusFilter.value === 'inactive' && Number(g.is_active)) return false
+    if (!q) return true
+    return (
+      g.name.toLowerCase().includes(q) ||
+      (g.description || '').toLowerCase().includes(q) ||
+      (g.platform || '').toLowerCase().includes(q)
+    )
+  })
+})
 
 const formOpen = ref(false)
 const saving = ref(false)
@@ -185,6 +205,19 @@ onMounted(load)
       </button>
     </header>
 
+    <div v-if="!loading && !loadError && groups.length" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari group…">
+      </div>
+
+      <select v-model="statusFilter" class="select toolbar-select">
+        <option value="all">Semua status</option>
+        <option value="active">Aktif</option>
+        <option value="inactive">Nonaktif</option>
+      </select>
+    </div>
+
     <SkeletonRows v-if="loading" :rows="3" :height="64" />
 
     <section v-else-if="loadError" class="card">
@@ -213,6 +246,14 @@ onMounted(load)
       </EmptyState>
     </section>
 
+    <section v-else-if="!visibleGroups.length" class="card">
+      <EmptyState
+        :icon="Search"
+        title="Tidak ada yang cocok"
+        description="Coba kata kunci lain atau ubah saringan status."
+      />
+    </section>
+
     <section v-else class="card">
       <div class="table-wrap">
         <table class="table">
@@ -226,7 +267,7 @@ onMounted(load)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="g in groups" :key="g.id">
+            <tr v-for="g in visibleGroups" :key="g.id">
               <td>
                 <span class="grp-cell">
                   <span class="icon-chip icon-chip-sm" :class="platformTone(g.platform)">
@@ -478,6 +519,27 @@ onMounted(load)
 @media (max-width: 640px) {
   .check {
     padding-top: 0;
+  }
+}
+
+/* ---------- Toolbar ----------
+   Bentuknya sama dengan halaman Panduan di sisi user: satu baris berisi kotak
+   cari lalu saringan. .toolbar-select WAJIB menimpa width: 100% milik .select —
+   tanpa itu select memakan satu baris penuh dan kontrolnya menumpuk ke bawah. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+.toolbar-select {
+  width: auto;
+  min-width: 150px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
 </style>

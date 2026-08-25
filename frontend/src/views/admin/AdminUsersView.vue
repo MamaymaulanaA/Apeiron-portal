@@ -9,7 +9,7 @@
  *   DELETE /admin/users/{id}             ← admin tidak bisa dihapus
  *   POST   /admin/users/{id}/toggle-status ← admin tidak bisa diubah statusnya
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   Users,
   UserPlus,
@@ -18,6 +18,7 @@ import {
   Power,
   ShieldCheck,
   TriangleAlert,
+  Search,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
@@ -32,6 +33,37 @@ const loading = ref(true)
 const items = ref([])
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, total_pages: 1 })
 const page = ref(1)
+
+/**
+ * Pencarian dikirim ke server, bukan disaring di klien.
+ *
+ * Daftar ini berpaginasi 15 baris; menyaring di klien hanya akan menelusuri
+ * baris yang kebetulan sedang tampil, sehingga mengetik nama yang ada di
+ * halaman tiga akan menghasilkan "tidak ditemukan". Endpoint /admin/users
+ * menerima ?search= dan menghitung ulang paginasinya dengan saringan yang sama.
+ */
+const search = ref('')
+const roleFilter = ref('all')
+let searchTimer = null
+
+/* Menunggu ketikan berhenti sejenak sebelum memanggil server — tanpa jeda,
+   satu kata delapan huruf berarti delapan permintaan. */
+watch(search, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    load()
+  }, 350)
+})
+
+/* Peran disaring di klien: nilainya hanya dua, dan menambah parameter server
+   untuk itu tidak sepadan. Konsekuensinya jujur — ia menyaring halaman yang
+   sedang tampil, dan labelnya menyebut "halaman ini". */
+const visibleUsers = computed(() =>
+  roleFilter.value === 'all'
+    ? items.value
+    : items.value.filter((u) => u.role === roleFilter.value)
+)
 const acting = ref(false)
 
 // Form tambah/edit
@@ -54,7 +86,7 @@ const isEdit = computed(() => editing.value !== null)
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/admin/users', { params: { page: page.value } })
+    const { data } = await api.get('/admin/users', { params: { page: page.value, search: search.value.trim() || undefined } })
     items.value = data.users || []
     pagination.value = data.pagination || pagination.value
   } catch (e) {
@@ -177,6 +209,19 @@ onMounted(load)
       </button>
     </header>
 
+    <div v-if="!loading" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari nama, email, atau username…">
+      </div>
+
+      <select v-model="roleFilter" class="select toolbar-select">
+        <option value="all">Semua peran</option>
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+
     <section class="card">
       <SkeletonRows v-if="loading" :rows="6" />
 
@@ -208,7 +253,7 @@ onMounted(load)
               </tr>
             </thead>
             <tbody>
-              <tr v-for="u in items" :key="u.id">
+              <tr v-for="u in visibleUsers" :key="u.id">
                 <td>
                   <span class="user-cell">
                     <span class="avatar avatar-sm"><UserAvatar :name="u.name" :seed="u.email" /></span>
@@ -461,5 +506,26 @@ onMounted(load)
 }
 .confirm strong {
   color: var(--text-heading);
+}
+
+/* ---------- Toolbar ----------
+   Bentuknya sama dengan halaman Panduan di sisi user. .toolbar-select WAJIB
+   menimpa width: 100% milik .select — tanpa itu select memakan satu baris
+   penuh dan kontrolnya menumpuk ke bawah. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+.toolbar-select {
+  width: auto;
+  min-width: 150px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
 }
 </style>

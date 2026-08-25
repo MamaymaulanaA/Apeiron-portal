@@ -229,14 +229,60 @@ class User
     /**
      * Find all users with pagination for API
      */
-    public static function findAll(int $limit = 15, int $offset = 0): array
+    public static function findAll(int $limit = 15, int $offset = 0, ?string $search = null): array
     {
-        $rows = Database::fetchAll(
-            "SELECT id, username, name, email, role, is_active, created_at, last_login_at 
-             FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            [$limit, $offset]
+        // Pencarian dijalankan di database, bukan di klien. Daftarnya
+        // berpaginasi 15 baris; menyaring di klien hanya akan menelusuri baris
+        // yang kebetulan sedang tampil, dan kotak cari yang melewatkan sebagian
+        // besar datanya lebih buruk daripada tidak ada kotak cari sama sekali.
+        $where = '';
+        $params = [];
+
+        if ($search !== null && $search !== '') {
+            $where = "WHERE name LIKE ? OR email LIKE ? OR username LIKE ?";
+            $like = '%' . self::escapeLike($search) . '%';
+            $params = [$like, $like, $like];
+        }
+
+        $params[] = $limit;
+        $params[] = $offset;
+
+        return Database::fetchAll(
+            "SELECT id, username, name, email, role, is_active, created_at, last_login_at
+             FROM users {$where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            $params
         );
-        return $rows;
+    }
+
+    /**
+     * Jumlah baris yang cocok dengan pencarian — dipakai paginasi.
+     *
+     * Harus memakai kondisi yang sama persis dengan findAll(); kalau berbeda,
+     * jumlah halaman tidak akan cocok dengan isinya.
+     */
+    public static function countMatching(?string $search = null): int
+    {
+        if ($search === null || $search === '') return self::count();
+
+        $like = '%' . self::escapeLike($search) . '%';
+        $row = Database::fetchOne(
+            "SELECT COUNT(*) as count FROM users
+             WHERE name LIKE ? OR email LIKE ? OR username LIKE ?",
+            [$like, $like, $like]
+        );
+        return (int) $row['count'];
+    }
+
+    /**
+     * Menetralkan wildcard LIKE.
+     *
+     * Tanpa ini, mengetik "%" mencocokkan seluruh baris dan "_" mencocokkan
+     * karakter apa pun — pencarian berperilaku aneh tanpa sebab yang terlihat
+     * oleh yang mengetiknya.
+     */
+    private static function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
     
     /**

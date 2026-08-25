@@ -49,8 +49,12 @@ class AdminController
         $page = (int)($_GET['page'] ?? 1);
         $perPage = 15;
         
-        $transactions = Transaction::findAll($perPage, ($page - 1) * $perPage, $status);
-        $total = Transaction::countByStatus($status);
+        $search = trim((string) ($_GET['search'] ?? ''));
+
+        $transactions = Transaction::findAll($perPage, ($page - 1) * $perPage, $status, $search);
+        // countMatching(), bukan countByStatus(): jumlah halaman harus dihitung
+        // dengan saringan yang sama dengan isinya, termasuk kata pencarian.
+        $total = Transaction::countMatching($status, $search);
         
         jsonResponse([
             'transactions' => $transactions,
@@ -582,8 +586,10 @@ class AdminController
         $page = (int)($_GET['page'] ?? 1);
         $perPage = 15;
         
-        $users = User::findAll($perPage, ($page - 1) * $perPage);
-        $total = User::count();
+        $search = trim((string) ($_GET['search'] ?? ''));
+
+        $users = User::findAll($perPage, ($page - 1) * $perPage, $search);
+        $total = User::countMatching($search);
         
         jsonResponse([
             'users' => $users,

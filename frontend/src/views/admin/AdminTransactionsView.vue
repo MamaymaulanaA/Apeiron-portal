@@ -7,7 +7,7 @@
  *   POST /admin/transactions/{id}/reject         { notes }  ← wajib
  *   POST /admin/transactions/{id}/retry-license  (khusus pending_license)
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   Receipt,
   Eye,
@@ -16,6 +16,7 @@ import {
   RefreshCw,
   FileText,
   ExternalLink,
+  Search,
 } from 'lucide-vue-next'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -39,6 +40,27 @@ const loading = ref(true)
 const items = ref([])
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, total_pages: 1 })
 const status = ref('')
+
+/**
+ * Pencarian dikirim ke server bersama filter status.
+ *
+ * Daftar ini berpaginasi 15 baris. Menyaring di klien hanya akan menelusuri
+ * halaman yang sedang tampil, jadi mencari nama yang ada di halaman lima akan
+ * menjawab "tidak ada" padahal ada. Endpoint menerima ?search= dan menghitung
+ * paginasinya dengan saringan yang sama.
+ */
+const search = ref('')
+let searchTimer = null
+
+watch(search, () => {
+  clearTimeout(searchTimer)
+  // Menunggu ketikan berhenti; tanpa jeda satu kata berarti satu permintaan
+  // per huruf.
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    load()
+  }, 350)
+})
 const page = ref(1)
 
 // Detail
@@ -61,7 +83,11 @@ async function load() {
   loading.value = true
   try {
     const { data } = await api.get('/admin/transactions', {
-      params: { status: status.value || undefined, page: page.value },
+      params: {
+        status: status.value || undefined,
+        page: page.value,
+        search: search.value.trim() || undefined,
+      },
     })
     items.value = data.transactions || []
     pagination.value = data.pagination || pagination.value
@@ -173,6 +199,13 @@ onMounted(load)
         <p class="text-muted">Tinjau dan proses bukti transaksi dari user.</p>
       </div>
     </header>
+
+    <div v-if="!loading" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari nama atau email user…">
+      </div>
+    </div>
 
     <!-- Filter status -->
     <div class="filters scroll-area">
@@ -557,5 +590,19 @@ onMounted(load)
 .approve-note {
   padding-top: var(--sp-2);
   border-top: 1px solid var(--border);
+}
+
+/* ---------- Toolbar ----------
+   Sama bentuknya dengan halaman Panduan di sisi user. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
 }
 </style>

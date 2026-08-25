@@ -7,9 +7,10 @@
  * dijatuhkan ke BookOpen, jadi memberi kotak teks bebas hanya akan menghasilkan
  * kartu yang ikonnya tidak sesuai tanpa admin tahu sebabnya.
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   BookOpen,
+  Search,
   Plus,
   Pencil,
   Trash2,
@@ -32,6 +33,24 @@ import { toast } from '@/stores/toast'
 const loading = ref(true)
 const loadError = ref('')
 const tutorials = ref([])
+
+/* Dimuat utuh, jadi penyaringan di klien menelusuri seluruh data. */
+const search = ref('')
+const statusFilter = ref('all')
+
+const visibleTutorials = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return tutorials.value.filter((t) => {
+    if (statusFilter.value === 'published' && !Number(t.is_published)) return false
+    if (statusFilter.value === 'draft' && Number(t.is_published)) return false
+    if (!q) return true
+    return (
+      t.title.toLowerCase().includes(q) ||
+      (t.excerpt || '').toLowerCase().includes(q) ||
+      (t.category || '').toLowerCase().includes(q)
+    )
+  })
+})
 
 const formOpen = ref(false)
 const saving = ref(false)
@@ -234,6 +253,19 @@ onMounted(load)
       </button>
     </header>
 
+    <div v-if="!loading && !loadError && tutorials.length" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari panduan…">
+      </div>
+
+      <select v-model="statusFilter" class="select toolbar-select">
+        <option value="all">Semua status</option>
+        <option value="published">Terbit</option>
+        <option value="draft">Draf</option>
+      </select>
+    </div>
+
     <SkeletonRows v-if="loading" :rows="3" :height="64" />
 
     <section v-else-if="loadError" class="card">
@@ -262,6 +294,14 @@ onMounted(load)
       </EmptyState>
     </section>
 
+    <section v-else-if="!visibleTutorials.length" class="card">
+      <EmptyState
+        :icon="Search"
+        title="Tidak ada yang cocok"
+        description="Coba kata kunci lain atau ubah saringan status."
+      />
+    </section>
+
     <section v-else class="card">
       <div class="table-wrap">
         <table class="table">
@@ -275,7 +315,7 @@ onMounted(load)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="t in tutorials" :key="t.id">
+            <tr v-for="t in visibleTutorials" :key="t.id">
               <td>
                 <span class="tut-cell">
                   <span v-if="t.image_path" class="tut-thumb">
@@ -729,5 +769,26 @@ onMounted(load)
   align-items: center;
   gap: var(--sp-2);
   margin-top: var(--sp-3);
+}
+
+/* ---------- Toolbar ----------
+   Bentuknya sama dengan halaman Panduan di sisi user: satu baris berisi kotak
+   cari lalu saringan. .toolbar-select WAJIB menimpa width: 100% milik .select —
+   tanpa itu select memakan satu baris penuh dan kontrolnya menumpuk ke bawah. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+.toolbar-select {
+  width: auto;
+  min-width: 150px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
 }
 </style>

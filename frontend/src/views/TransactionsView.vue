@@ -14,7 +14,9 @@
  * riwayat, supaya aturan siapa yang boleh mengunggah tetap satu sumber.
  */
 import { ref, computed, onMounted } from 'vue'
-import { Receipt, FileText } from 'lucide-vue-next'
+import { Receipt, FileText,
+  Search,
+} from 'lucide-vue-next'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
@@ -25,6 +27,25 @@ import { toast } from '@/stores/toast'
 
 const loading = ref(true)
 const items = ref([])
+
+/* Riwayat transaksi user dimuat utuh dari /user/transactions, jadi menyaring
+   di klien menelusuri seluruh datanya — bukan sebagian yang kebetulan tampil. */
+const search = ref('')
+const statusFilter = ref('all')
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return items.value.filter((t) => {
+    if (statusFilter.value !== 'all' && t.status !== statusFilter.value) return false
+    if (!q) return true
+    return (
+      String(t.status_label || '').toLowerCase().includes(q) ||
+      String(t.document_name || '').toLowerCase().includes(q) ||
+      String(t.admin_notes || '').toLowerCase().includes(q) ||
+      String(t.created_at || '').toLowerCase().includes(q)
+    )
+  })
+})
 
 const active = ref(null)
 const canUpload = ref(false)
@@ -65,6 +86,21 @@ onMounted(load)
       </div>
     </header>
 
+    <div v-if="!loading && items.length" class="control-row">
+      <div class="input-group toolbar-search">
+        <Search class="input-icon" :size="16" />
+        <input v-model="search" class="input" type="search" placeholder="Cari status, berkas, atau tanggal…">
+      </div>
+
+      <select v-model="statusFilter" class="select toolbar-select">
+        <option value="all">Semua status</option>
+        <option value="waiting_verification">Menunggu Verifikasi</option>
+        <option value="approved">Disetujui</option>
+        <option value="rejected">Ditolak</option>
+        <option value="pending_license">Pending Lisensi</option>
+      </select>
+    </div>
+
     <SubmissionPanel
       v-if="!loading && showPanel"
       :transaction="active"
@@ -93,6 +129,13 @@ onMounted(load)
       </EmptyState>
 
       <!-- Tabel untuk layar lega -->
+      <EmptyState
+        v-else-if="!filtered.length"
+        :icon="Search"
+        title="Tidak ada yang cocok"
+        description="Coba kata kunci lain atau ubah saringan status."
+      />
+
       <div v-else class="table-wrap desktop-only">
         <table class="table">
           <thead>
@@ -105,7 +148,7 @@ onMounted(load)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="t in items" :key="t.id">
+            <tr v-for="t in filtered" :key="t.id">
               <td>
                 <span class="doc">
                   <span class="icon-chip icon-chip-sm tone-brand"><FileText :size="15" /></span>
@@ -122,8 +165,8 @@ onMounted(load)
       </div>
 
       <!-- Kartu untuk layar kecil -->
-      <div v-if="!loading && items.length" class="tx-cards mobile-only">
-        <article v-for="t in items" :key="t.id" class="tx-card">
+      <div v-if="!loading && filtered.length" class="tx-cards mobile-only">
+        <article v-for="t in filtered" :key="t.id" class="tx-card">
           <header class="row-between">
             <span class="row">
               <span class="icon-chip icon-chip-sm tone-brand"><FileText :size="15" /></span>
@@ -221,6 +264,27 @@ onMounted(load)
   }
   .mobile-only {
     display: flex;
+  }
+}
+
+/* ---------- Toolbar ----------
+   Bentuknya sama dengan halaman Panduan. .toolbar-select WAJIB menimpa
+   width: 100% milik .select — tanpa itu select memakan satu baris penuh dan
+   kontrolnya menumpuk ke bawah. */
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
+}
+.toolbar-select {
+  width: auto;
+  min-width: 180px;
+}
+
+@media (max-width: 640px) {
+  .toolbar-search,
+  .toolbar-select {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
 </style>
