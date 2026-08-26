@@ -18,16 +18,22 @@ import {
   RotateCcw,
   LayoutGrid,
   List,
+  Lock,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import { api, errorMessage } from '@/lib/api'
-import { bonusHref, formatFileSize } from '@/lib/community'
+import { bonusHref, formatFileSize, BONUS_ACCESS_COPY } from '@/lib/community'
 
 const loading = ref(true)
 const loadError = ref('')
 const bonuses = ref([])
 const categories = ref([])
+/** Keadaan akses menurut server; menjelaskan kenapa daftarnya kosong. */
+const access = ref('granted')
+const accessCopy = computed(
+  () => BONUS_ACCESS_COPY[access.value] || BONUS_ACCESS_COPY.none,
+)
 
 const search = ref('')
 const category = ref('all')
@@ -53,6 +59,7 @@ async function load() {
     const { data } = await api.get('/user/bonuses')
     bonuses.value = data.bonuses || []
     categories.value = data.categories || []
+    access.value = data.access || 'granted'
   } catch (e) {
     loadError.value = errorMessage(e, 'Gagal memuat bonus')
   } finally {
@@ -116,6 +123,24 @@ onMounted(load)
             <RotateCcw :size="15" />
             Coba lagi
           </button>
+        </template>
+      </EmptyState>
+    </section>
+
+    <!-- Dibedakan dengan jujur: belum disetujui BUKAN sama dengan belum ada
+         bonus. Menulis "belum ada bonus" pada user yang transaksinya masih
+         menunggu adalah keterangan yang salah, dan ia akan menunggu sesuatu
+         yang sebenarnya sudah ada. -->
+    <section v-else-if="access !== 'granted'" class="card">
+      <EmptyState
+        :icon="Lock"
+        :title="accessCopy.title"
+        :description="accessCopy.description"
+      >
+        <template v-if="access !== 'pending'" #action>
+          <RouterLink to="/transactions" class="btn btn-primary">
+            {{ access === 'rejected' ? 'Unggah Ulang' : 'Ke Transaksi' }}
+          </RouterLink>
         </template>
       </EmptyState>
     </section>

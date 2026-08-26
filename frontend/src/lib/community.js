@@ -98,6 +98,31 @@ export const GROUP_ACCESS_COPY = {
 }
 
 /**
+ * Teks untuk tiap keadaan akses Bonus Member.
+ *
+ * Disusun terpisah dari GROUP_ACCESS_COPY karena kalimatnya menyebut bonus,
+ * bukan grup — tetapi aturannya sama dan berasal dari satu sumber di
+ * Transaction::memberAccessState().
+ */
+export const BONUS_ACCESS_COPY = {
+  none: {
+    title: 'Belum ada transaksi',
+    description:
+      'Bonus member tersedia setelah Anda melakukan transaksi dan transaksinya disetujui.',
+  },
+  pending: {
+    title: 'Menunggu verifikasi',
+    description:
+      'Transaksi Anda sedang menunggu verifikasi. Bonus akan tersedia setelah transaksi disetujui.',
+  },
+  rejected: {
+    title: 'Transaksi ditolak',
+    description:
+      'Silakan unggah ulang bukti transaksi. Bonus akan tersedia setelah transaksi disetujui.',
+  },
+}
+
+/**
  * Penekanan sederhana pada teks paragraf panduan: **tebal** dan *miring*.
  *
  * AMAN DIPAKAI DENGAN v-html KARENA URUTANNYA: teksnya di-escape LEBIH DULU,

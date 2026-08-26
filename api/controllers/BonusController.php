@@ -49,19 +49,41 @@ class BonusController
     // Sisi user
     // =========================================================================
 
-    /** GET /user/bonuses — hanya yang aktif. */
+    /**
+     * GET /user/bonuses — hanya yang aktif, dan hanya bila transaksinya sudah
+     * disetujui.
+     *
+     * Penyaringnya di sini, bukan di tampilan. Ketika belum disetujui,
+     * payload-nya tidak memuat satu bonus pun — bukan memuat semuanya lalu
+     * menyembunyikannya. Menyembunyikan di layar bukan penjagaan: siapa pun
+     * bisa membuka endpoint ini langsung.
+     *
+     * Dashboard dan halaman Bonus sama-sama memakai endpoint ini, jadi satu
+     * penjagaan di sini menutup keduanya sekaligus.
+     */
     public function userBonuses(): void
     {
         requireAuth();
+        $user = currentUser();
 
-        $bonuses = array_map(static fn(Bonus $b) => $b->toArray(), Bonus::allActive());
+        $transaction = Transaction::findActiveByUser($user->id);
+        $access = Transaction::memberAccessState($transaction);
+
+        $bonuses = $access === 'granted'
+            ? array_map(static fn(Bonus $b) => $b->toArray(), Bonus::allActive())
+            : [];
 
         $categories = array_values(array_unique(array_filter(
             array_column($bonuses, 'category'),
             static fn($c) => $c !== null && $c !== ''
         )));
 
-        jsonResponse(['bonuses' => $bonuses, 'categories' => $categories]);
+        jsonResponse([
+            'access' => $access,
+            'transaction_status' => $transaction->status ?? null,
+            'bonuses' => $bonuses,
+            'categories' => $categories,
+        ]);
     }
 
     /**
@@ -75,6 +97,14 @@ class BonusController
     public function downloadBonus(array $params): void
     {
         requireAuth();
+
+        // Penjagaan yang sama seperti daftarnya, dan ini yang sebenarnya
+        // menentukan. Tanpa pemeriksaan di sini, tautan unduh yang sempat
+        // tersimpan di riwayat browser — atau id yang ditebak — tetap bekerja
+        // meski transaksinya kemudian ditolak.
+        if (Transaction::memberAccessState(Transaction::findActiveByUser(currentUser()->id)) !== 'granted') {
+            jsonResponse(['error' => 'Bonus tersedia setelah transaksi Anda disetujui'], 403);
+        }
 
         $bonus = Bonus::findActive((int) ($params['id'] ?? 0));
         if (!$bonus) jsonResponse(['error' => 'Bonus tidak ditemukan'], 404);

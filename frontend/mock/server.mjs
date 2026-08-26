@@ -398,9 +398,17 @@ const routes = {
       members: others.map((u) => ({ name: u.name, seed: `seed-${u.id}` })),
     }
   },
+  // Bonus mengikuti gerbang yang sama dengan Group: hanya keluar bila
+  // transaksinya sudah disetujui. Ketika belum, payload-nya benar-benar
+  // kosong — bukan lengkap lalu disembunyikan di tampilan.
   'GET /user/bonuses': () => {
-    const active = BONUSES.filter((b) => b.is_active)
-    return { bonuses: active, categories: [...new Set(active.map((b) => b.category).filter(Boolean))] }
+    const active = ACCESS === 'granted' ? BONUSES.filter((b) => b.is_active) : []
+    return {
+      access: ACCESS,
+      transaction_status: { none: null, pending: 'waiting_verification', rejected: 'rejected', granted: 'approved' }[ACCESS],
+      bonuses: active,
+      categories: [...new Set(active.map((b) => b.category).filter(Boolean))],
+    }
   },
   'GET /admin/bonuses': () => ({ bonuses: BONUSES }),
 

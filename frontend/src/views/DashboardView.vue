@@ -71,6 +71,14 @@ const activeLoading = ref(true)
 const bonuses = ref([])
 const bonusesLoading = ref(true)
 const bonusesError = ref('')
+/**
+ * Keadaan akses bonus menurut server.
+ *
+ * Bukan sekadar untuk tampilan: server memang tidak mengirim satu bonus pun
+ * ketika belum disetujui, jadi nilai ini hanya menjelaskan KENAPA daftarnya
+ * kosong — bukan yang menentukan boleh atau tidaknya.
+ */
+const bonusAccess = ref('none')
 
 /**
  * Forum (panduan) dan Group. Keduanya dari endpoint yang menyajikan data
@@ -227,6 +235,7 @@ async function loadBonuses() {
   try {
     const { data } = await api.get('/user/bonuses')
     bonuses.value = data.bonuses || []
+    bonusAccess.value = data.access || 'none'
   } catch (e) {
     bonusesError.value = errorMessage(e, 'Gagal memuat bonus')
   } finally {
@@ -611,7 +620,17 @@ onMounted(() => {
       <!-- Bonus Member — GET /user/bonuses, hanya yang aktif.
            Menggantikan kartu Lisensi Anda; license key dan API key tetap ada
            di halaman Plugin, jadi tidak ada akses yang hilang. -->
-      <RailCard title="Bonus Member" :icon="Gift" tone="tone-peach" to="/bonuses" flush>
+      <!-- Disembunyikan sepenuhnya sampai transaksinya disetujui. Menampilkan
+           judulnya dengan daftar kosong hanya memancing pertanyaan; halaman
+           Bonus sendiri yang menjelaskan alasannya bagi yang membukanya. -->
+      <RailCard
+        v-if="bonusesLoading || bonusAccess === 'granted'"
+        title="Bonus Member"
+        :icon="Gift"
+        tone="tone-peach"
+        to="/bonuses"
+        flush
+      >
         <SkeletonRows v-if="bonusesLoading" :rows="2" :height="44" />
 
         <EmptyState

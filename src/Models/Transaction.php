@@ -132,6 +132,35 @@ class Transaction
         return $this->status === self::STATUS_WAITING || empty($this->status);
     }
 
+    /**
+     * Keadaan akses fitur member berdasarkan transaksi terakhir user.
+     *
+     * Dipakai bersama oleh Group dan Bonus Member. Aturannya satu supaya
+     * keduanya tidak bisa diam-diam berbeda: kalau tiap controller menyalin
+     * pemeriksaannya sendiri, satu perubahan di salah satu tempat akan
+     * membuat user melihat Group tapi tidak melihat Bonus tanpa alasan yang
+     * bisa dijelaskan.
+     *
+     * Nilainya: 'granted' | 'pending' | 'rejected' | 'none'.
+     *
+     * 'granted' mencakup pending_license, bukan hanya approved. Pada status
+     * itu admin SUDAH memverifikasi pembayaran — setPendingLicense() mengisi
+     * approved_by — dan yang belum selesai hanyalah penerbitan lisensi karena
+     * server lisensi sedang tidak terhubung. Menahan akses karena gangguan di
+     * sisi kami menghukum user atas hal yang bukan urusannya.
+     *
+     * Ini memang berbeda dari can_download pada plugin, yang menahan berkas
+     * sampai lisensinya benar-benar terbit: plugin adalah aset berlisensi,
+     * sedangkan grup dan bonus bukan.
+     */
+    public static function memberAccessState(?self $transaction): string
+    {
+        if (!$transaction) return 'none';
+        if ($transaction->isApproved() || $transaction->isPendingLicense()) return 'granted';
+        if ($transaction->isRejected()) return 'rejected';
+        return 'pending';
+    }
+
     public function isApproved(): bool
     {
         return $this->status === self::STATUS_APPROVED;

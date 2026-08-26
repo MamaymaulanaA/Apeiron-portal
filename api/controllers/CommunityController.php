@@ -50,27 +50,16 @@ class CommunityController
     }
 
     /**
-     * Menerjemahkan transaksi terakhir user menjadi keadaan akses.
+     * Keadaan akses grup untuk transaksi ini.
      *
-     *   none      — belum pernah mengunggah bukti transaksi
-     *   pending   — sudah mengunggah, masih menunggu verifikasi admin
-     *   rejected  — ditolak admin, perlu unggah ulang
-     *   granted   — sudah diverifikasi admin
-     *
-     * 'granted' mencakup pending_license, bukan hanya approved. Pada status itu
-     * admin SUDAH memverifikasi pembayaran — setPendingLicense() mengisi
-     * approved_by — dan yang belum selesai hanyalah penerbitan lisensi karena
-     * server lisensi sedang tidak bisa dihubungi. Menahan akses grup karena
-     * gangguan di sisi kami menghukum user atas hal yang bukan urusannya.
-     * Ini memang berbeda dari can_download, yang menahan berkas plugin sampai
-     * lisensinya benar-benar terbit; grup bukan aset berlisensi.
+     * Aturannya kini tinggal satu di Transaction::memberAccessState(), dipakai
+     * bersama dengan Bonus Member. Sebelumnya aturan yang sama disalin di dua
+     * tempat, yang berarti satu perubahan bisa membuat Group dan Bonus
+     * berbeda tanpa alasan.
      */
     private static function accessStateFor(?Transaction $transaction): string
     {
-        if (!$transaction) return 'none';
-        if ($transaction->isApproved() || $transaction->isPendingLicense()) return 'granted';
-        if ($transaction->isRejected()) return 'rejected';
-        return 'pending';
+        return Transaction::memberAccessState($transaction);
     }
 
     // =========================================================================
