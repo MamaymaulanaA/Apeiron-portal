@@ -135,19 +135,36 @@ class Plugin
      */
     public static function getLatest(): ?self
     {
-        $product = PluginProduct::findBySlug(PluginProduct::DEFAULT_SLUG);
+        // Dibungkus try: sebelum migration dijalankan, tabel plugin_products
+        // dan kolom version_sort belum ada, dan query di dalamnya MELEMPAR.
+        //
+        // Ini bukan kehati-hatian yang berlebihan. Method ini dipanggil
+        // UserController::dashboard(), jadi lemparan di sini membuat SELURUH
+        // dashboard user gagal 500 — bukan hanya bagian pluginnya. Persis itu
+        // yang terjadi setelah pemisahan plugin dan versi diterapkan sementara
+        // migrationnya belum dijalankan.
+        try {
+            $product = PluginProduct::findBySlug(PluginProduct::DEFAULT_SLUG);
 
-        if ($product) {
-            $latest = self::latestFor($product->id);
-            if ($latest) return $latest;
+            if ($product) {
+                $latest = self::latestFor($product->id);
+                if ($latest) return $latest;
+            }
+        } catch (Throwable $e) {
+            error_log('[PORTAL][PLUGIN] getLatest jatuh ke jalur lama: ' . $e->getMessage());
         }
 
-        // Cadangan untuk database yang migrationnya belum dijalankan: tanpa
-        // kolom version_sort, urutan rilis adalah satu-satunya yang tersedia.
-        $row = Database::fetchOne(
-            "SELECT * FROM plugins WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1"
-        );
-        return $row ? self::fromArray($row) : null;
+        // Jalur lama: tanpa version_sort, urutan rilis adalah satu-satunya
+        // yang tersedia. Hasilnya sama dengan perilaku sebelum pemisahan.
+        try {
+            $row = Database::fetchOne(
+                "SELECT * FROM plugins WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1"
+            );
+            return $row ? self::fromArray($row) : null;
+        } catch (Throwable $e) {
+            error_log('[PORTAL][PLUGIN] getLatest gagal seluruhnya: ' . $e->getMessage());
+            return null;
+        }
     }
 
     public static function all(): array

@@ -33,12 +33,21 @@ class CommunityController
         $access = self::accessStateFor($transaction);
 
         // Hanya keadaan 'granted' yang memuat data grup.
+        //
+        // Dibungkus try: sebelum migration dijalankan, tabel community_groups
+        // belum ada dan query-nya melempar — yang akan meruntuhkan halaman
+        // dashboard user, bukan hanya kartu Group-nya. Daftar kosong masih
+        // bisa dijelaskan; halaman yang gagal tidak.
         $groups = [];
         if ($access === 'granted') {
-            $groups = array_map(
-                static fn(CommunityGroup $g) => $g->toArray(),
-                CommunityGroup::allActive()
-            );
+            try {
+                $groups = array_map(
+                    static fn(CommunityGroup $g) => $g->toArray(),
+                    CommunityGroup::allActive()
+                );
+            } catch (Throwable $e) {
+                error_log('[PORTAL][GROUP] Daftar grup tidak terbaca: ' . $e->getMessage());
+            }
         }
 
         jsonResponse([
@@ -233,10 +242,16 @@ class CommunityController
     {
         requireAuth();
 
-        $tutorials = array_map(
-            static fn(Tutorial $t) => $t->toCard(),
-            Tutorial::allPublished()
-        );
+        // Alasan yang sama seperti pada grup: tabel tutorials belum tentu ada.
+        try {
+            $tutorials = array_map(
+                static fn(Tutorial $t) => $t->toCard(),
+                Tutorial::allPublished()
+            );
+        } catch (Throwable $e) {
+            error_log('[PORTAL][PANDUAN] Daftar panduan tidak terbaca: ' . $e->getMessage());
+            $tutorials = [];
+        }
 
         // Kategori dikirim sekalian supaya frontend tidak perlu menebaknya dari
         // daftar, dan penyaringnya tetap benar saat daftarnya kosong.

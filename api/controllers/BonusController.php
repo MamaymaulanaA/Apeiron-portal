@@ -69,9 +69,17 @@ class BonusController
         $transaction = Transaction::findActiveByUser($user->id);
         $access = Transaction::memberAccessState($transaction);
 
-        $bonuses = $access === 'granted'
-            ? array_map(static fn(Bonus $b) => $b->toArray(), Bonus::allActive())
-            : [];
+        // Dibungkus try: sebelum migration dijalankan, tabel bonuses belum ada
+        // dan query-nya melempar. Halaman Bonus yang kosong masih bisa
+        // dijelaskan; halaman yang runtuh tidak.
+        $bonuses = [];
+        if ($access === 'granted') {
+            try {
+                $bonuses = array_map(static fn(Bonus $b) => $b->toArray(), Bonus::allActive());
+            } catch (Throwable $e) {
+                error_log('[PORTAL][BONUS] Daftar bonus tidak terbaca: ' . $e->getMessage());
+            }
+        }
 
         $categories = array_values(array_unique(array_filter(
             array_column($bonuses, 'category'),
@@ -106,7 +114,13 @@ class BonusController
             jsonResponse(['error' => 'Bonus tersedia setelah transaksi Anda disetujui'], 403);
         }
 
-        $bonus = Bonus::findActive((int) ($params['id'] ?? 0));
+        try {
+            $bonus = Bonus::findActive((int) ($params['id'] ?? 0));
+        } catch (Throwable $e) {
+            error_log('[PORTAL][BONUS] ' . $e->getMessage());
+            $bonus = null;
+        }
+
         if (!$bonus) jsonResponse(['error' => 'Bonus tidak ditemukan'], 404);
 
         if (!$bonus->isFile()) {
