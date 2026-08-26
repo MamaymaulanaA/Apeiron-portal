@@ -219,6 +219,42 @@ const LICENSE_VARIANTS = {
   stale: { ...LICENSE, status_stale: true },
 }
 
+/**
+ * Plugin dan riwayat versinya. Bentuknya meniru PluginController.
+ *
+ * Sengaja berisi 1.0.10 dan 1.0.9 sekaligus: kalau urutannya memakai
+ * perbandingan teks biasa, 1.0.9 akan tampil sebagai yang terbaru.
+ */
+let PLUGIN_SEQ = 40
+const PLUGIN_PRODUCTS = [
+  {
+    id: 1,
+    name: 'Apeiron Kit',
+    slug: 'apeiron-kit',
+    description: 'Plugin utama Apeiron.',
+    is_active: 1,
+    sort_order: 0,
+    created_at: '2026-01-01 00:00:00',
+    versions: [
+      { id: 33, version: '1.0.10', changelog: 'Perbaikan kompatibilitas Elementor 3.25 dan penambahan widget Countdown.', released_at: '2026-08-20 09:00:00', filename: 'apeiron-kit-1.0.10.zip', is_active: 1 },
+      { id: 32, version: '1.0.9', changelog: 'Perbaikan bug pada form RSVP.', released_at: '2026-06-11 09:00:00', filename: 'apeiron-kit-1.0.9.zip', is_active: 1 },
+      { id: 31, version: '1.0.3', changelog: 'Rilis awal seri 1.0.', released_at: '2026-05-19 01:20:00', filename: 'apeiron-kit-1.0.3.zip', is_active: 1 },
+    ],
+  },
+]
+
+/** Nomor versi diurut seperti version_sort di database, bukan seperti teks. */
+function sortKey(v) {
+  return String(v).split('.').slice(0, 4).concat(['0', '0', '0', '0'])
+    .slice(0, 4).map((x) => String(parseInt(x, 10) || 0).padStart(5, '0')).join('.')
+}
+
+function sortedVersions(p, activeOnly) {
+  return [...p.versions]
+    .filter((v) => (activeOnly ? v.is_active : true))
+    .sort((a, b) => (sortKey(a.version) < sortKey(b.version) ? 1 : -1))
+}
+
 const ACTIVE_LICENSE = LICENSE_VARIANTS[process.env.LICENSE] || LICENSE
 
 /**
@@ -305,8 +341,34 @@ const routes = {
       verified_at: t.verified_at ?? (t.approved_at || t.rejected_at),
     })),
   }),
+  'GET /user/plugins': () => ({
+    plugins: PLUGIN_PRODUCTS.filter((p) => p.is_active).map((p) => {
+      const [latest, ...previous] = sortedVersions(p, true)
+      const pack = (v) => ({
+        id: v.id, version: v.version, changelog: v.changelog,
+        released_at: v.released_at,
+        download_url: `/api/user/download-plugin?version=${v.id}`,
+      })
+      return {
+        id: p.id, name: p.name, slug: p.slug, description: p.description,
+        latest: pack(latest), previous: previous.map(pack),
+      }
+    }).filter((p) => p.latest),
+  }),
   'GET /user/templates': () => ({ templates: TEMPLATES }),
 
+  'GET /admin/plugins': () => ({
+    plugins: PLUGIN_PRODUCTS.map((p) => {
+      const [latest] = sortedVersions(p, true)
+      return {
+        id: p.id, name: p.name, slug: p.slug, description: p.description,
+        is_active: !!p.is_active, sort_order: p.sort_order, created_at: p.created_at,
+        version_count: p.versions.length,
+        latest_version: latest?.version ?? null,
+        latest_released_at: latest?.released_at ?? null,
+      }
+    }),
+  }),
   'GET /admin/dashboard': () => ({
     stats: {
       waiting_verification: 6, approved: 128, rejected: 9, pending_license: 2,
@@ -323,7 +385,6 @@ const routes = {
     pagination: { current_page: 1, per_page: 15, total: 143, total_pages: 10 },
   }),
   'GET /admin/templates': () => ({ templates: TEMPLATES }),
-  'GET /admin/plugins': () => ({ plugins: PLUGINS }),
 
   'GET /user/active-members': () => {
     // Saringan yang sama dengan backend: aktif, bukan admin, bukan diri sendiri.
@@ -363,6 +424,32 @@ const routes = {
   'GET /notifications/unread-count': () => ({ unread_count: 2 }),
 }
 
+/**
+ * Pembaca multipart seadanya — cukup untuk mengambil field teks.
+ * Berkasnya diabaikan; mock tidak menyimpan apa pun ke disk.
+ */
+function readMultipart(req, done) {
+  let body = ''
+  req.setEncoding('latin1')
+  req.on('data', (c) => { body += c })
+  req.on('end', () => {
+    const fields = {}
+    const CRLF = '\r\n'
+    // Dipisah manual, bukan dengan regex: yang dibutuhkan hanya field teks,
+    // dan pemisahan sederhana jauh lebih mudah dibaca daripada satu pola
+    // panjang yang penuh escape.
+    for (const part of body.split('name="').slice(1)) {
+      const name = part.slice(0, part.indexOf('"'))
+      const start = part.indexOf(CRLF + CRLF)
+      if (start === -1) continue
+      const rest = part.slice(start + 4)
+      const end = rest.lastIndexOf(CRLF + '--')
+      fields[name] = (end === -1 ? rest : rest.slice(0, end)).trim()
+    }
+    done(fields)
+  })
+}
+
 createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost')
   const path = url.pathname.replace(/^\/api/, '')
@@ -396,6 +483,72 @@ createServer((req, res) => {
     }
     res.writeHead(200)
     return res.end(JSON.stringify({ tutorial: { ...toCard(t), content: t.content, steps: TUTORIAL_STEPS[t.id] || [] } }))
+  }
+
+  // Riwayat versi satu plugin (route berparameter).
+  const verMatch = path.match(/^\/admin\/plugins\/(\d+)\/versions$/)
+  if (verMatch) {
+    const p = PLUGIN_PRODUCTS.find((x) => x.id === Number(verMatch[1]))
+    if (!p) { res.writeHead(404); return res.end(JSON.stringify({ error: 'Plugin tidak ditemukan' })) }
+
+    if (req.method === 'GET') {
+      const [latest] = sortedVersions(p, true)
+      res.writeHead(200)
+      return res.end(JSON.stringify({
+        plugin: { id: p.id, name: p.name, slug: p.slug },
+        versions: sortedVersions(p, false).map((v) => ({ ...v, is_latest: v.id === latest?.id })),
+      }))
+    }
+
+    // POST: rilis versi baru. Versi lain sengaja tidak disentuh — itulah
+    // perilaku yang sedang diuji.
+    if (req.method === 'POST') {
+      return readMultipart(req, (fields) => {
+        const version = (fields.version || '').trim()
+        if (!version) { res.writeHead(400); return res.end(JSON.stringify({ error: 'Nomor versi wajib diisi' })) }
+        if (p.versions.some((v) => v.version === version)) {
+          res.writeHead(400)
+          return res.end(JSON.stringify({ error: `Versi ${version} sudah ada pada plugin ini` }))
+        }
+        const v = {
+          id: ++PLUGIN_SEQ,
+          version,
+          changelog: fields.changelog || null,
+          released_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+          filename: `${p.slug}-${version}.zip`,
+          is_active: fields.is_active === '0' ? 0 : 1,
+        }
+        p.versions.push(v)
+        res.writeHead(201)
+        res.end(JSON.stringify({ message: `Versi ${version} berhasil ditambahkan`, id: v.id, notified_users: 3 }))
+      })
+    }
+  }
+
+  // Hapus / ubah satu versi.
+  const oneVer = path.match(/^\/admin\/plugin-versions\/(\d+)(\/update)?$/)
+  if (oneVer) {
+    const id = Number(oneVer[1])
+    const p = PLUGIN_PRODUCTS.find((x) => x.versions.some((v) => v.id === id))
+    if (!p) { res.writeHead(404); return res.end(JSON.stringify({ error: 'Versi tidak ditemukan' })) }
+
+    if (req.method === 'DELETE') {
+      const v = p.versions.find((x) => x.id === id)
+      p.versions = p.versions.filter((x) => x.id !== id)
+      res.writeHead(200)
+      return res.end(JSON.stringify({ message: `Versi ${v.version} berhasil dihapus` }))
+    }
+
+    if (req.method === 'POST') {
+      return readMultipart(req, (fields) => {
+        const v = p.versions.find((x) => x.id === id)
+        if (fields.version) v.version = fields.version.trim()
+        if ('changelog' in fields) v.changelog = fields.changelog || null
+        if ('is_active' in fields) v.is_active = fields.is_active === '0' ? 0 : 1
+        res.writeHead(200)
+        res.end(JSON.stringify({ message: 'Versi berhasil diperbarui' }))
+      })
+    }
   }
 
   const handler = routes[key]

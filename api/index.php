@@ -80,6 +80,7 @@ require_once API_ROOT . '/helpers.php';
 require_once PORTAL_ROOT . '/src/Models/Transaction.php';
 require_once PORTAL_ROOT . '/src/Models/UserLicense.php';
 require_once PORTAL_ROOT . '/src/Models/Template.php';
+require_once PORTAL_ROOT . '/src/Models/PluginProduct.php';
 require_once PORTAL_ROOT . '/src/Models/Plugin.php';
 require_once PORTAL_ROOT . '/src/Models/Notification.php';
 require_once PORTAL_ROOT . '/src/Models/CommunityGroup.php';
@@ -99,6 +100,7 @@ require_once API_ROOT . '/controllers/AdminController.php';
 require_once API_ROOT . '/controllers/CommunityController.php';
 require_once API_ROOT . '/controllers/DocumentController.php';
 require_once API_ROOT . '/controllers/BonusController.php';
+require_once API_ROOT . '/controllers/PluginController.php';
 
 // Get request info
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -128,6 +130,7 @@ $routes = [
     'GET:/user/transactions' => ['UserController', 'transactions'],
     'POST:/user/upload-document' => ['UserController', 'uploadDocument'],
     'GET:/user/templates' => ['UserController', 'templates'],
+    'GET:/user/plugins' => ['PluginController', 'userPlugins'],
     'GET:/user/download-plugin' => ['UserController', 'downloadPlugin'],
     'GET:/user/download-invoice' => ['UserController', 'downloadInvoice'],
 
@@ -153,11 +156,19 @@ $routes = [
     'PUT:/admin/templates/{id}' => ['AdminController', 'updateTemplate'],
     'DELETE:/admin/templates/{id}' => ['AdminController', 'deleteTemplate'],
 
-    // Admin - Plugins
-    'GET:/admin/plugins' => ['AdminController', 'plugins'],
-    'POST:/admin/plugins' => ['AdminController', 'uploadPlugin'],
-    'POST:/admin/plugins/{id}/update' => ['AdminController', 'updatePlugin'],
-    'DELETE:/admin/plugins/{id}' => ['AdminController', 'deletePlugin'],
+    // Admin - Plugin (identitas) dan versinya.
+    // Keduanya sengaja punya rute terpisah: merilis versi baru tidak boleh
+    // menyentuh plugin induknya, dan menghapus satu versi tidak boleh ikut
+    // menghapus pluginnya.
+    'GET:/admin/plugins' => ['PluginController', 'adminPlugins'],
+    'POST:/admin/plugins' => ['PluginController', 'createPlugin'],
+    'POST:/admin/plugins/{id}/update' => ['PluginController', 'updatePlugin'],
+    'DELETE:/admin/plugins/{id}' => ['PluginController', 'deletePlugin'],
+
+    'GET:/admin/plugins/{id}/versions' => ['PluginController', 'adminVersions'],
+    'POST:/admin/plugins/{id}/versions' => ['PluginController', 'createVersion'],
+    'POST:/admin/plugin-versions/{id}/update' => ['PluginController', 'updateVersion'],
+    'DELETE:/admin/plugin-versions/{id}' => ['PluginController', 'deleteVersion'],
 
     // Group & Forum - user
     'GET:/user/groups' => ['CommunityController', 'userGroups'],

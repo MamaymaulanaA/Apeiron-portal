@@ -1,14 +1,22 @@
 <script setup>
 /**
- * Kelola plugin.
+ * Kelola plugin dan riwayat versinya.
  *
- *   GET    /admin/plugins
- *   POST   /admin/plugins             multipart: version, changelog, plugin(.zip)
- *   POST   /admin/plugins/{id}/update multipart: version, changelog, plugin(opsional)
- *   DELETE /admin/plugins/{id}
+ *   GET    /admin/plugins                       daftar plugin
+ *   POST   /admin/plugins                       tambah plugin
+ *   POST   /admin/plugins/{id}/update           ubah plugin
+ *   DELETE /admin/plugins/{id}                  hapus plugin + seluruh versinya
  *
- * Backend mengirim notifikasi ke semua user berlisensi saat plugin diperbarui —
- * itu tetap terjadi apa adanya di sisi server.
+ *   GET    /admin/plugins/{id}/versions         riwayat versi
+ *   POST   /admin/plugins/{id}/versions         rilis versi baru (multipart)
+ *   POST   /admin/plugin-versions/{id}/update   ubah versi
+ *   DELETE /admin/plugin-versions/{id}          hapus satu versi
+ *
+ * Plugin dan versinya sengaja terpisah. Sebelumnya setiap unggahan membuat
+ * "plugin" baru dan mematikan seluruh versi sebelumnya, sehingga riwayat rilis
+ * tidak pernah bisa ada.
+ *
+ * "Versi terbaru" datang dari backend (is_latest), bukan dari urutan tampilan.
  */
 import { ref, computed, onMounted } from 'vue'
 import {
@@ -19,7 +27,10 @@ import {
   FileArchive,
   TriangleAlert,
   CircleCheck,
+  EyeOff,
   Search,
+  Layers,
+  ChevronDown,
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
@@ -30,26 +41,36 @@ import { toast } from '@/stores/toast'
 
 const loading = ref(true)
 const items = ref([])
+const acting = ref(false)
 
-/* Daftar plugin dimuat utuh, jadi menyaring di klien menelusuri seluruh data. */
 const search = ref('')
-
 const visibleItems = computed(() => {
   const q = search.value.trim().toLowerCase()
   if (!q) return items.value
   return items.value.filter(
     (p) =>
-      String(p.version || '').toLowerCase().includes(q) ||
-      String(p.filename || '').toLowerCase().includes(q) ||
-      String(p.changelog || '').toLowerCase().includes(q)
+      String(p.name || '').toLowerCase().includes(q) ||
+      String(p.slug || '').toLowerCase().includes(q) ||
+      String(p.latest_version || '').toLowerCase().includes(q),
   )
 })
-const acting = ref(false)
 
-const formOpen = ref(false)
-const editing = ref(null)
-const form = ref({ version: '', changelog: '' })
+/* ---- Panel versi ---- */
+const openId = ref(null)
+const versions = ref([])
+const versionsLoading = ref(false)
+
+/* ---- Form ---- */
+const pluginFormOpen = ref(false)
+const editingPlugin = ref(null)
+const pluginForm = ref({ name: '', slug: '', description: '', is_active: true })
+
+const versionFormOpen = ref(false)
+const editingVersion = ref(null)
+const versionForm = ref({ version: '', changelog: '', is_active: true })
 const zipFile = ref(null)
+
+/* Satu target hapus untuk keduanya; jenisnya menentukan teks dan endpoint. */
 const deleteTarget = ref(null)
 
 async function load() {
@@ -64,61 +85,64 @@ async function load() {
   }
 }
 
-function openCreate() {
-  editing.value = null
-  form.value = { version: '', changelog: '' }
-  zipFile.value = null
-  formOpen.value = true
+async function loadVersions(pluginId) {
+  versionsLoading.value = true
+  try {
+    const { data } = await api.get(`/admin/plugins/${pluginId}/versions`)
+    versions.value = data.versions || []
+  } catch (e) {
+    versions.value = []
+    toast.error(errorMessage(e, 'Gagal memuat daftar versi'))
+  } finally {
+    versionsLoading.value = false
+  }
 }
 
-function openEdit(p) {
-  editing.value = p
-  form.value = { version: p.version || '', changelog: p.changelog || '' }
-  zipFile.value = null
-  formOpen.value = true
+async function toggleVersions(plugin) {
+  if (openId.value === plugin.id) {
+    openId.value = null
+    return
+  }
+  openId.value = plugin.id
+  await loadVersions(plugin.id)
 }
 
-function onZipChange(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  if (!/\.zip$/i.test(file.name)) {
-    toast.error('File harus berformat ZIP')
-    e.target.value = ''
-    return
-  }
-  // Batas dicerminkan dari backend (PLUGIN_MAX_SIZE = 50MB).
-  if (file.size > 50 * 1024 * 1024) {
-    toast.error('Ukuran file maksimal 50MB')
-    e.target.value = ''
-    return
-  }
-  zipFile.value = file
+/* ---- Plugin ---- */
+function openCreatePlugin() {
+  editingPlugin.value = null
+  pluginForm.value = { name: '', slug: '', description: '', is_active: true }
+  pluginFormOpen.value = true
 }
 
-async function save() {
-  if (acting.value) return
-  if (!editing.value && !zipFile.value) {
-    toast.error('File plugin wajib diupload')
-    return
+function openEditPlugin(p) {
+  editingPlugin.value = p
+  pluginForm.value = {
+    name: p.name || '',
+    slug: p.slug || '',
+    description: p.description || '',
+    is_active: !!p.is_active,
   }
+  pluginFormOpen.value = true
+}
+
+async function savePlugin() {
   acting.value = true
   try {
     const fd = new FormData()
-    fd.append('version', form.value.version.trim())
-    fd.append('changelog', form.value.changelog.trim())
-    if (zipFile.value) fd.append('plugin', zipFile.value)
+    fd.append('name', pluginForm.value.name)
+    fd.append('slug', pluginForm.value.slug)
+    fd.append('description', pluginForm.value.description)
+    fd.append('is_active', pluginForm.value.is_active ? '1' : '0')
 
-    if (editing.value) {
-      const { data } = await api.post(`/admin/plugins/${editing.value.id}/update`, fd)
-      const n = data.notified_users
-      toast.success(
-        n ? `Plugin diperbarui. ${n} user diberi notifikasi.` : 'Plugin berhasil diperbarui'
-      )
+    if (editingPlugin.value) {
+      await api.post(`/admin/plugins/${editingPlugin.value.id}/update`, fd)
+      toast.success('Plugin berhasil diperbarui')
     } else {
       await api.post('/admin/plugins', fd)
-      toast.success('Plugin berhasil diupload')
+      toast.success('Plugin berhasil ditambahkan')
     }
-    formOpen.value = false
+
+    pluginFormOpen.value = false
     await load()
   } catch (e) {
     toast.error(errorMessage(e, 'Gagal menyimpan plugin'))
@@ -127,16 +151,87 @@ async function save() {
   }
 }
 
-async function confirmDelete() {
-  if (!deleteTarget.value || acting.value) return
+/* ---- Versi ---- */
+function openCreateVersion(plugin) {
+  openId.value = plugin.id
+  editingVersion.value = null
+  versionForm.value = { version: '', changelog: '', is_active: true }
+  zipFile.value = null
+  versionFormOpen.value = true
+}
+
+function openEditVersion(v) {
+  editingVersion.value = v
+  versionForm.value = {
+    version: v.version || '',
+    changelog: v.changelog || '',
+    is_active: !!v.is_active,
+  }
+  zipFile.value = null
+  versionFormOpen.value = true
+}
+
+function onZipChange(e) {
+  zipFile.value = e.target.files?.[0] || null
+}
+
+async function saveVersion() {
+  // Berkas wajib saat merilis versi baru; saat mengedit boleh dikosongkan
+  // supaya changelog bisa diperbaiki tanpa mengunggah ulang.
+  if (!editingVersion.value && !zipFile.value) {
+    toast.error('Berkas plugin (.zip) wajib diunggah')
+    return
+  }
+
   acting.value = true
   try {
-    await api.delete(`/admin/plugins/${deleteTarget.value.id}`)
-    toast.success('Plugin berhasil dihapus')
-    deleteTarget.value = null
-    await load()
+    const fd = new FormData()
+    fd.append('version', versionForm.value.version)
+    fd.append('changelog', versionForm.value.changelog)
+    fd.append('is_active', versionForm.value.is_active ? '1' : '0')
+    if (zipFile.value) fd.append('plugin', zipFile.value)
+
+    if (editingVersion.value) {
+      await api.post(`/admin/plugin-versions/${editingVersion.value.id}/update`, fd)
+      toast.success('Versi berhasil diperbarui')
+    } else {
+      const { data } = await api.post(`/admin/plugins/${openId.value}/versions`, fd)
+      toast.success(
+        data?.notified_users
+          ? `Versi dirilis — ${data.notified_users} user diberi tahu`
+          : 'Versi berhasil dirilis',
+      )
+    }
+
+    versionFormOpen.value = false
+    await Promise.all([load(), loadVersions(openId.value)])
   } catch (e) {
-    toast.error(errorMessage(e, 'Gagal menghapus plugin'))
+    toast.error(errorMessage(e, 'Gagal menyimpan versi'))
+  } finally {
+    acting.value = false
+  }
+}
+
+/* ---- Hapus ---- */
+async function confirmDelete() {
+  const t = deleteTarget.value
+  if (!t) return
+
+  acting.value = true
+  try {
+    if (t.kind === 'plugin') {
+      await api.delete(`/admin/plugins/${t.item.id}`)
+      toast.success('Plugin beserta seluruh versinya dihapus')
+      if (openId.value === t.item.id) openId.value = null
+      await load()
+    } else {
+      await api.delete(`/admin/plugin-versions/${t.item.id}`)
+      toast.success(`Versi ${t.item.version} dihapus`)
+      await Promise.all([load(), loadVersions(openId.value)])
+    }
+    deleteTarget.value = null
+  } catch (e) {
+    toast.error(errorMessage(e, 'Gagal menghapus'))
   } finally {
     acting.value = false
   }
@@ -150,118 +245,228 @@ onMounted(load)
     <header class="page-head">
       <div>
         <h1>Kelola Plugin</h1>
-        <p class="text-muted">Unggah dan kelola rilis Apeiron Kit.</p>
+        <p class="text-muted">Kelola plugin dan riwayat versinya.</p>
       </div>
 
-      <button class="btn btn-primary" type="button" @click="openCreate">
+      <button class="btn btn-primary" type="button" @click="openCreatePlugin">
         <Plus :size="17" />
-        Upload Plugin
+        Tambah Plugin
       </button>
     </header>
 
     <div v-if="!loading && items.length" class="control-row">
       <div class="input-group toolbar-search">
         <Search class="input-icon" :size="16" />
-        <input v-model="search" class="input" type="search" placeholder="Cari versi atau catatan rilis…">
+        <input v-model="search" class="input" type="search" placeholder="Cari nama plugin atau versi…">
       </div>
     </div>
 
     <section class="card">
-      <SkeletonRows v-if="loading" :rows="4" :height="64" />
+      <SkeletonRows v-if="loading" :rows="3" :height="80" />
 
       <EmptyState
         v-else-if="!items.length"
         :icon="Package"
         title="Belum ada plugin"
-        description="Unggah rilis pertama agar user dapat mengunduhnya."
+        description="Tambahkan plugin terlebih dahulu, lalu rilis versinya."
       >
         <template #action>
-          <button class="btn btn-primary" type="button" @click="openCreate">
+          <button class="btn btn-primary" type="button" @click="openCreatePlugin">
             <Plus :size="16" />
-            Upload Plugin
+            Tambah Plugin
+          </button>
+        </template>
+      </EmptyState>
+
+      <EmptyState
+        v-else-if="!visibleItems.length"
+        :icon="Search"
+        title="Tidak ada yang cocok"
+        description="Coba kata kunci lain."
+      >
+        <template #action>
+          <button class="btn btn-secondary" type="button" @click="search = ''">
+            Hapus filter
           </button>
         </template>
       </EmptyState>
 
       <div v-else class="plugin-list">
         <article v-for="p in visibleItems" :key="p.id" class="plugin">
-          <span class="icon-chip tone-neutral plugin-icon">
-            <FileArchive :size="20" />
-          </span>
+          <div class="plugin-main">
+            <span class="icon-chip tone-neutral plugin-icon">
+              <Package :size="20" />
+            </span>
 
-          <div class="plugin-text">
-            <header class="plugin-head">
-              <h3>v{{ p.version }}</h3>
-              <span v-if="Number(p.is_active)" class="badge tone-ok">
-                <CircleCheck :size="13" />
-                Aktif
-              </span>
-            </header>
+            <div class="plugin-text">
+              <header class="plugin-head">
+                <h3>{{ p.name }}</h3>
+                <span v-if="p.is_active" class="badge tone-ok">
+                  <CircleCheck :size="13" />
+                  Aktif
+                </span>
+                <span v-else class="badge tone-neutral">
+                  <EyeOff :size="13" />
+                  Nonaktif
+                </span>
+              </header>
 
-            <p class="text-caption plugin-file">{{ p.filename }}</p>
-            <p v-if="p.changelog" class="plugin-log">{{ p.changelog }}</p>
-            <p class="text-caption">Diunggah {{ formatDate(p.created_at) }}</p>
+              <p class="text-caption plugin-slug">{{ p.slug }}</p>
+              <p v-if="p.description" class="plugin-desc">{{ p.description }}</p>
+
+              <p class="text-caption">
+                {{ p.version_count }} versi
+                <template v-if="p.latest_version">
+                  · Terbaru v{{ p.latest_version }}
+                  <template v-if="p.latest_released_at">
+                    ({{ formatDate(p.latest_released_at, false) }})
+                  </template>
+                </template>
+                <template v-else>· belum ada versi</template>
+              </p>
+            </div>
+
+            <div class="plugin-actions">
+              <button class="btn btn-sm btn-secondary" type="button" @click="toggleVersions(p)">
+                <Layers :size="14" />
+                Versi
+                <ChevronDown :size="14" class="chev" :class="{ open: openId === p.id }" />
+              </button>
+              <button class="btn btn-sm btn-secondary" type="button" @click="openEditPlugin(p)">
+                <Pencil :size="14" />
+                Edit
+              </button>
+              <button
+                class="btn btn-sm btn-secondary danger"
+                type="button"
+                @click="deleteTarget = { kind: 'plugin', item: p }"
+              >
+                <Trash2 :size="14" />
+                Hapus
+              </button>
+            </div>
           </div>
 
-          <div class="plugin-actions">
-            <button class="btn btn-sm btn-secondary" type="button" @click="openEdit(p)">
-              <Pencil :size="14" />
-              Edit
-            </button>
-            <button
-              class="btn btn-sm btn-secondary danger"
-              type="button"
-              @click="deleteTarget = p"
-            >
-              <Trash2 :size="14" />
-              Hapus
-            </button>
+          <!-- ---------- Riwayat versi ---------- -->
+          <div v-if="openId === p.id" class="versions">
+            <header class="versions-head">
+              <h4>Riwayat versi</h4>
+              <button class="btn btn-sm btn-primary" type="button" @click="openCreateVersion(p)">
+                <Plus :size="14" />
+                Tambah Versi
+              </button>
+            </header>
+
+            <SkeletonRows v-if="versionsLoading" :rows="2" :height="52" />
+
+            <p v-else-if="!versions.length" class="versions-empty">
+              Belum ada versi. Rilis versi pertama agar user dapat mengunduhnya.
+            </p>
+
+            <ul v-else class="version-list">
+              <li v-for="v in versions" :key="v.id" class="version">
+                <span class="icon-chip icon-chip-sm tone-neutral">
+                  <FileArchive :size="15" />
+                </span>
+
+                <div class="version-text">
+                  <span class="version-head">
+                    <strong>v{{ v.version }}</strong>
+                    <!-- is_latest datang dari backend, bukan dari posisi baris. -->
+                    <span v-if="v.is_latest" class="badge tone-ok">Terbaru</span>
+                    <span v-if="!v.is_active" class="badge tone-neutral">
+                      <EyeOff :size="12" />
+                      Disembunyikan
+                    </span>
+                  </span>
+                  <span class="text-caption">{{ v.filename }}</span>
+                  <span v-if="v.changelog" class="version-log">{{ v.changelog }}</span>
+                  <span class="text-caption">Rilis {{ formatDate(v.released_at, false) }}</span>
+                </div>
+
+                <div class="version-actions">
+                  <button class="btn btn-sm btn-secondary" type="button" @click="openEditVersion(v)">
+                    <Pencil :size="13" />
+                  </button>
+                  <button
+                    class="btn btn-sm btn-secondary danger"
+                    type="button"
+                    @click="deleteTarget = { kind: 'version', item: v }"
+                  >
+                    <Trash2 :size="13" />
+                  </button>
+                </div>
+              </li>
+            </ul>
           </div>
         </article>
       </div>
     </section>
 
-    <!-- ---------- Modal form ---------- -->
+    <!-- ---------- Form plugin ---------- -->
     <ModalDialog
-      :open="formOpen"
-      :title="editing ? 'Edit Plugin' : 'Upload Plugin'"
-      :subtitle="
-        editing
-          ? `Memperbarui v${editing.version} — user berlisensi akan diberi notifikasi`
-          : 'Unggah rilis baru Apeiron Kit'
-      "
-      @close="formOpen = false"
+      :open="pluginFormOpen"
+      :title="editingPlugin ? 'Edit Plugin' : 'Tambah Plugin'"
+      :subtitle="editingPlugin ? editingPlugin.name : 'Identitas plugin; versinya ditambahkan setelah ini'"
+      @close="pluginFormOpen = false"
     >
-      <form id="plugin-form" class="form" @submit.prevent="save">
+      <form id="plugin-form" class="form" @submit.prevent="savePlugin">
         <div class="field">
-          <label class="field-label" for="p-version">Versi</label>
-          <input
-            id="p-version"
-            v-model="form.version"
-            class="input"
-            type="text"
-            placeholder="1.2.0"
-            required
-            :disabled="acting"
-          >
-          <p class="field-hint">Dipakai sebagai nama file: apeiron-kit-{versi}.zip</p>
+          <label class="field-label" for="pl-name">Nama plugin</label>
+          <input id="pl-name" v-model="pluginForm.name" class="input" type="text" placeholder="Apeiron Kit" required :disabled="acting">
         </div>
 
         <div class="field">
-          <label class="field-label" for="p-changelog">Changelog</label>
-          <textarea
-            id="p-changelog"
-            v-model="form.changelog"
-            class="textarea"
-            rows="4"
-            placeholder="Apa yang berubah di rilis ini…"
-            :disabled="acting"
-          />
+          <label class="field-label" for="pl-slug">Slug</label>
+          <input id="pl-slug" v-model="pluginForm.slug" class="input" type="text" placeholder="apeiron-kit" :disabled="acting">
+          <p class="field-hint">
+            Kosongkan untuk diturunkan dari nama. Slug menghubungkan plugin
+            dengan lisensi, jadi mengubahnya pada plugin yang sudah punya
+            lisensi sebaiknya dihindari.
+          </p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="pl-desc">Deskripsi</label>
+          <textarea id="pl-desc" v-model="pluginForm.description" class="textarea" rows="3" :disabled="acting" />
+        </div>
+
+        <label class="check">
+          <input v-model="pluginForm.is_active" type="checkbox" :disabled="acting">
+          <span>Tampilkan plugin ini ke user</span>
+        </label>
+      </form>
+
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="pluginFormOpen = false">Batal</button>
+        <button class="btn btn-primary" type="submit" form="plugin-form" :disabled="acting">
+          {{ acting ? 'Menyimpan…' : editingPlugin ? 'Simpan Perubahan' : 'Tambah Plugin' }}
+        </button>
+      </template>
+    </ModalDialog>
+
+    <!-- ---------- Form versi ---------- -->
+    <ModalDialog
+      :open="versionFormOpen"
+      :title="editingVersion ? 'Edit Versi' : 'Tambah Versi'"
+      :subtitle="editingVersion ? `v${editingVersion.version}` : 'Versi sebelumnya tetap tersimpan dan tetap bisa diunduh'"
+      @close="versionFormOpen = false"
+    >
+      <form id="version-form" class="form" @submit.prevent="saveVersion">
+        <div class="field">
+          <label class="field-label" for="v-number">Nomor versi</label>
+          <input id="v-number" v-model="versionForm.version" class="input" type="text" placeholder="1.0.3" required :disabled="acting">
+          <p class="field-hint">Diawali angka, misalnya 1.0.3. Tidak boleh sama dengan versi lain pada plugin ini.</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="v-changelog">Changelog</label>
+          <textarea id="v-changelog" v-model="versionForm.changelog" class="textarea" rows="4" placeholder="Apa yang berubah di rilis ini…" :disabled="acting" />
         </div>
 
         <div class="field">
           <span class="field-label">
-            File plugin (.zip) {{ editing ? '— opsional' : '' }}
+            Berkas plugin (.zip){{ editingVersion ? ' — opsional' : '' }}
           </span>
 
           <label class="zip-picker" :class="{ filled: zipFile }">
@@ -269,23 +474,27 @@ onMounted(load)
               <FileArchive :size="16" />
             </span>
             <span class="zip-text">
-              {{ zipFile ? zipFile.name : 'Pilih file ZIP (maks. 50MB)' }}
+              {{ zipFile ? zipFile.name : 'Pilih berkas ZIP (maks. 50MB)' }}
             </span>
             <input class="sr-only" type="file" accept=".zip" @change="onZipChange">
           </label>
 
-          <p v-if="editing" class="field-hint">
-            Kosongkan bila hanya ingin mengubah versi atau changelog.
+          <p v-if="editingVersion" class="field-hint">
+            Kosongkan bila hanya ingin mengubah nomor versi atau changelog.
+            Berkas versi lain tidak akan tersentuh.
           </p>
         </div>
+
+        <label class="check">
+          <input v-model="versionForm.is_active" type="checkbox" :disabled="acting">
+          <span>Tampilkan versi ini ke user</span>
+        </label>
       </form>
 
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="formOpen = false">
-          Batal
-        </button>
-        <button class="btn btn-primary" type="submit" form="plugin-form" :disabled="acting">
-          {{ acting ? 'Mengunggah…' : editing ? 'Simpan Perubahan' : 'Upload Plugin' }}
+        <button class="btn btn-secondary" type="button" @click="versionFormOpen = false">Batal</button>
+        <button class="btn btn-primary" type="submit" form="version-form" :disabled="acting">
+          {{ acting ? 'Menyimpan…' : editingVersion ? 'Simpan Perubahan' : 'Rilis Versi' }}
         </button>
       </template>
     </ModalDialog>
@@ -293,24 +502,31 @@ onMounted(load)
     <!-- ---------- Konfirmasi hapus ---------- -->
     <ModalDialog
       :open="!!deleteTarget"
-      title="Hapus Plugin"
+      :title="deleteTarget?.kind === 'plugin' ? 'Hapus Plugin' : 'Hapus Versi'"
       size="sm"
       @close="deleteTarget = null"
     >
       <div class="confirm">
-        <span class="icon-chip tone-err confirm-icon"><TriangleAlert :size="22" /></span>
-        <p>
-          Yakin ingin menghapus <strong>v{{ deleteTarget?.version }}</strong>?
-          File ZIP di server juga akan dihapus.
+        <span class="icon-chip tone-err confirm-icon">
+          <TriangleAlert :size="20" />
+        </span>
+
+        <p v-if="deleteTarget?.kind === 'plugin'">
+          Hapus <strong>{{ deleteTarget?.item?.name }}</strong> beserta
+          <strong>{{ deleteTarget?.item?.version_count }} versi</strong> dan seluruh berkasnya?
+          Lisensi yang sudah terbit tidak terpengaruh, tetapi user tidak akan
+          bisa mengunduh plugin ini lagi.
+        </p>
+        <p v-else>
+          Hapus <strong>v{{ deleteTarget?.item?.version }}</strong>? Hanya versi
+          ini yang dihapus — plugin dan versi lainnya tetap utuh.
         </p>
       </div>
 
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="deleteTarget = null">
-          Batal
-        </button>
+        <button class="btn btn-secondary" type="button" @click="deleteTarget = null">Batal</button>
         <button class="btn btn-danger" type="button" :disabled="acting" @click="confirmDelete">
-          {{ acting ? 'Menghapus…' : 'Hapus Plugin' }}
+          {{ acting ? 'Menghapus…' : 'Hapus' }}
         </button>
       </template>
     </ModalDialog>
@@ -318,13 +534,9 @@ onMounted(load)
 </template>
 
 <style scoped>
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+.toolbar-search {
+  flex: 1;
+  min-width: 160px;
 }
 
 /* ---- Daftar plugin ---- */
@@ -336,10 +548,6 @@ onMounted(load)
 }
 
 .plugin {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-4);
-  padding: var(--sp-5);
   border: 1px solid var(--border);
   border-radius: var(--r);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
@@ -347,6 +555,13 @@ onMounted(load)
 .plugin:hover {
   border-color: var(--brand-border);
   box-shadow: var(--sh-card);
+}
+
+.plugin-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
 }
 
 .plugin-icon {
@@ -368,18 +583,19 @@ onMounted(load)
 .plugin-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--sp-3);
 }
 .plugin-head h3 {
   font-size: var(--fs-h3);
 }
 
-.plugin-file {
+.plugin-slug {
   font-family: var(--font-mono);
   word-break: break-all;
 }
 
-.plugin-log {
+.plugin-desc {
   margin-top: var(--sp-1);
   font-size: var(--fs-label);
   color: var(--text-body);
@@ -388,78 +604,147 @@ onMounted(load)
 
 .plugin-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-2);
   flex-shrink: 0;
 }
 
-.btn.danger:hover:not(:disabled) {
-  background: var(--err-soft);
-  border-color: var(--err-border);
-  color: var(--err);
+.chev {
+  transition: transform var(--dur) var(--ease);
+}
+.chev.open {
+  transform: rotate(180deg);
 }
 
-/* ---- Pemilih ZIP ---- */
+/* ---- Riwayat versi ---- */
+.versions {
+  padding: var(--sp-5);
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+  border-radius: 0 0 var(--r) var(--r);
+}
+
+.versions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.versions-head h4 {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.versions-empty {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.version {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.version-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.version-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  color: var(--text-heading);
+}
+
+.version-log {
+  font-size: var(--fs-caption);
+  color: var(--text-body);
+  line-height: var(--lh-snug);
+}
+
+.version-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* ---- Form ---- */
 .zip-picker {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
-  border: 1.5px dashed var(--border-strong);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--border-strong, var(--border));
   border-radius: var(--r);
-  background: var(--bg-subtle);
   cursor: pointer;
-  transition: border-color var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .zip-picker:hover {
   border-color: var(--brand);
 }
 .zip-picker.filled {
   border-style: solid;
-  border-color: var(--ok-border);
-  background: var(--ok-soft);
+  border-color: var(--brand-border);
+  background: var(--brand-soft);
 }
 .zip-text {
   flex: 1;
   min-width: 0;
   font-size: var(--fs-label);
-  font-weight: var(--fw-medium);
-  color: var(--text-heading);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-body);
+  word-break: break-all;
 }
 
-/* ---- Form ---- */
-.form {
+.check {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-label);
+  color: var(--text-body);
+  cursor: pointer;
 }
 
-/* ---- Konfirmasi ---- */
 .confirm {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-4);
-  text-align: center;
 }
 .confirm-icon {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--r);
-}
-.confirm p {
-  color: var(--text-body);
-  line-height: var(--lh-normal);
-}
-.confirm strong {
-  color: var(--text-heading);
+  background: var(--tone-bg);
+  flex-shrink: 0;
 }
 
-/* ---- Responsif ---- */
-@media (max-width: 780px) {
-  .plugin {
+.btn.danger {
+  color: var(--err);
+}
+.btn.danger:hover:not(:disabled) {
+  border-color: var(--err);
+  background: var(--err-soft);
+}
+
+@media (max-width: 720px) {
+  .plugin-main {
     flex-wrap: wrap;
   }
   .plugin-actions {
@@ -467,33 +752,6 @@ onMounted(load)
   }
   .plugin-actions .btn {
     flex: 1;
-  }
-}
-
-@media (max-width: 640px) {
-  .plugin-list {
-    padding: var(--sp-4);
-  }
-}
-
-/* ---------- Toolbar ----------
-   Bentuknya sama dengan halaman Panduan di sisi user. .toolbar-select WAJIB
-   menimpa width: 100% milik .select — tanpa itu select memakan satu baris
-   penuh dan kontrolnya menumpuk ke bawah. */
-.toolbar-search {
-  flex: 1;
-  min-width: 160px;
-}
-.toolbar-select {
-  width: auto;
-  min-width: 150px;
-}
-
-@media (max-width: 640px) {
-  .toolbar-search,
-  .toolbar-select {
-    flex: 1 1 100%;
-    width: 100%;
   }
 }
 </style>

@@ -13,6 +13,7 @@ import {
   Check,
   Circle,
   CircleAlert,
+  History,
   RefreshCw,
   CircleCheck,
   CircleHelp,
@@ -33,7 +34,15 @@ import { toast } from '@/stores/toast'
 
 const loading = ref(true)
 const licenses = ref([])
-const plugin = ref(null)
+/**
+ * Daftar plugin beserta versi terbarunya dan riwayat versinya.
+ *
+ * Sebelumnya hanya ada satu objek `latest_plugin`, karena hanya satu versi
+ * yang pernah bisa hidup. Sekarang tiap plugin membawa `latest` dan
+ * `previous`; urutannya sudah ditentukan backend, jadi tampilan tidak
+ * mengurutkan apa pun sendiri.
+ */
+const plugins = ref([])
 const copied = ref('')
 
 const hasLicense = computed(() => licenses.value.length > 0)
@@ -58,9 +67,12 @@ function statusIcon(l) {
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/user/licenses')
-    licenses.value = data.licenses || []
-    plugin.value = data.latest_plugin || null
+    const [lic, plug] = await Promise.all([
+      api.get('/user/licenses'),
+      api.get('/user/plugins'),
+    ])
+    licenses.value = lic.data.licenses || []
+    plugins.value = plug.data.plugins || []
   } catch (e) {
     toast.error(errorMessage(e, 'Gagal memuat data lisensi'))
   } finally {
@@ -135,28 +147,68 @@ onMounted(load)
       </div>
     </header>
 
-    <!-- ---------- Kartu rilis plugin ---------- -->
-    <section v-if="plugin" class="release card">
-      <span class="icon-chip release-icon tone-neutral">
-        <Package :size="24" />
-      </span>
+    <!-- ---------- Plugin: versi terbaru + riwayat ---------- -->
+    <SkeletonRows v-if="loading" :rows="1" :height="120" />
 
-      <div class="release-text">
-        <p class="text-overline">Versi Terbaru</p>
-        <h2>Apeiron Kit v{{ plugin.version }}</h2>
-        <p v-if="plugin.changelog" class="release-log">{{ plugin.changelog }}</p>
+    <section v-for="p in plugins" v-else :key="p.id" class="release card">
+      <div class="release-main">
+        <span class="icon-chip release-icon tone-neutral">
+          <Package :size="24" />
+        </span>
+
+        <div class="release-text">
+          <p class="text-overline">Versi Terbaru</p>
+          <h2>
+            {{ p.name }}
+            <span class="release-ver">v{{ p.latest.version }}</span>
+            <span class="badge tone-ok">Terbaru</span>
+          </h2>
+          <p v-if="p.latest.changelog" class="release-log">{{ p.latest.changelog }}</p>
+          <p class="text-caption">Rilis {{ formatDate(p.latest.released_at, false) }}</p>
+        </div>
+
+        <div class="release-action">
+          <!-- Gerbangnya tetap seperti sebelumnya: unduhan butuh lisensi.
+               Server yang menentukan, ini hanya menyembunyikan tombolnya. -->
+          <a v-if="hasLicense" class="btn btn-primary" :href="p.latest.download_url">
+            <Download :size="17" />
+            Unduh Plugin
+          </a>
+          <p v-else class="locked">
+            <CircleAlert :size="15" />
+            Lisensi aktif diperlukan.
+          </p>
+        </div>
       </div>
 
-      <div class="release-action">
-        <a v-if="hasLicense" class="btn btn-primary" href="/api/user/download-plugin">
-          <Download :size="17" />
-          Unduh Plugin
-        </a>
-        <p v-else class="locked">
-          <CircleAlert :size="15" />
-          Lisensi aktif diperlukan.
+      <!-- Hanya muncul kalau memang ada versi sebelumnya. -->
+      <div v-if="hasLicense && p.previous.length" class="history">
+        <p class="history-title">
+          <History :size="14" />
+          Versi sebelumnya
         </p>
+
+        <ul class="history-list">
+          <li v-for="v in p.previous" :key="v.id" class="history-row">
+            <span class="history-ver">v{{ v.version }}</span>
+            <span class="text-caption history-date">
+              {{ formatDate(v.released_at, false) }}
+            </span>
+            <a class="btn btn-sm btn-secondary" :href="v.download_url">
+              <Download :size="13" />
+              Unduh
+            </a>
+          </li>
+        </ul>
       </div>
+    </section>
+
+    <section v-if="!loading && !plugins.length" class="card">
+      <EmptyState
+        :icon="Package"
+        title="Belum ada plugin"
+        description="Plugin akan tampil di sini setelah admin merilis versinya."
+      />
     </section>
 
     <!-- ---------- Daftar lisensi ---------- -->
@@ -393,9 +445,63 @@ onMounted(load)
 /* ---- Rilis ---- */
 .release {
   display: flex;
+  flex-direction: column;
+}
+
+.release-main {
+  display: flex;
   align-items: center;
   gap: var(--sp-5);
   padding: var(--sp-6);
+}
+
+.release-ver {
+  font-family: var(--font-mono);
+}
+
+/* ---- Riwayat versi ---- */
+.history {
+  padding: var(--sp-4) var(--sp-6) var(--sp-5);
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.history-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.history-ver {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+
+/* Mendorong tombol ke kanan tanpa memaksa lebar tetap pada tanggalnya. */
+.history-date {
+  flex: 1;
+  min-width: 0;
 }
 
 .release-icon {

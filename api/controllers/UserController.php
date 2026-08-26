@@ -453,14 +453,30 @@ class UserController
             jsonResponse(['error' => 'Akses ditolak: Lisensi aktif diperlukan'], 403);
         }
         
-        // Find latest active plugin using dedicated method
-        $latest = Plugin::getLatest();
-        
+        // ?version=<id> mengunduh versi tertentu; tanpa itu, versi terbaru.
+        //
+        // Ini yang membuat versi lama tetap bisa diunduh. Sebelumnya endpoint
+        // ini selalu memakai getLatest(), jadi begitu versi baru diunggah,
+        // versi sebelumnya tidak bisa diambil lagi oleh siapa pun.
+        $versionId = (int) ($_GET['version'] ?? 0);
+
+        if ($versionId > 0) {
+            $latest = Plugin::find($versionId);
+
+            // Versi yang dinonaktifkan admin tidak boleh ikut terunduh hanya
+            // karena id-nya masih tertinggal di riwayat browser.
+            if ($latest && !$latest->is_active) $latest = null;
+        } else {
+            $latest = Plugin::getLatest();
+        }
+
         if (!$latest) {
-            jsonResponse(['error' => 'Tidak ada versi plugin aktif'], 404);
+            jsonResponse(['error' => 'Versi plugin tidak ditemukan'], 404);
         }
         
-        $filePath = PORTAL_ROOT . '/storage/plugins/' . $latest->filename;
+        // basename(): nilai dari database pun tidak dipercaya menunjuk ke
+        // dalam folder ini.
+        $filePath = PORTAL_ROOT . '/storage/plugins/' . basename($latest->filename);
         
         if (!file_exists($filePath)) {
             error_log('Plugin file not found: ' . $filePath);
