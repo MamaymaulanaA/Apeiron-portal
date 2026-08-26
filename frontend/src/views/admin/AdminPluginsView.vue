@@ -674,7 +674,10 @@ onMounted(load)
   color: var(--text-heading);
 }
 
+/* pre-line, alasan yang sama seperti di halaman user: catatan rilis yang
+   ditulis beberapa baris harus tetap beberapa baris. */
 .version-log {
+  white-space: pre-line;
   font-size: var(--fs-caption);
   color: var(--text-body);
   line-height: var(--lh-snug);

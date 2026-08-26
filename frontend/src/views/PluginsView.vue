@@ -450,9 +450,9 @@ onMounted(load)
 
 .release-main {
   display: flex;
-  align-items: center;
-  gap: var(--sp-5);
-  padding: var(--sp-6);
+  align-items: flex-start;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-6) var(--sp-7);
 }
 
 .release-ver {
@@ -512,23 +512,68 @@ onMounted(load)
   flex-shrink: 0;
 }
 
+/* Jarak dibedakan menurut kedekatan makna, bukan diseragamkan: label dan
+   judul adalah satu kesatuan sehingga rapat, sedangkan catatan rilis blok
+   tersendiri sehingga diberi ruang lebih. Jarak yang sama rata justru
+   membuat semuanya terbaca menempel. */
 .release-text {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
 }
+
+/* Nama, nomor versi, dan badge diberi jarak sendiri; sebelumnya ketiganya
+   hanya dipisah spasi teks sehingga terbaca menempel. */
 .release-text h2 {
-  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
   font-size: var(--fs-h2);
+  line-height: var(--lh-snug);
 }
+
+/* pre-line: baris baru pada changelog dipertahankan.
+   Tanpa ini HTML meruntuhkan newline jadi spasi, sehingga catatan rilis yang
+   ditulis beberapa baris tercetak menyamping sebagai satu kalimat panjang. */
 .release-log {
-  margin-top: var(--sp-2);
+  margin-top: var(--sp-3);
+  white-space: pre-line;
   font-size: var(--fs-label);
-  color: var(--text-muted);
+  color: var(--text-body);
   line-height: var(--lh-normal);
+}
+
+/* Tanggal rilis adalah keterangan, bukan bagian dari catatan rilis. */
+.release-text > .text-caption {
+  margin-top: var(--sp-2);
 }
 
 .release-action {
   flex-shrink: 0;
+}
+
+/* Di layar sempit tombol turun ke bawah teks. Tanpa ini barisnya nowrap dan
+   tombolnya terdorong keluar tepi kartu — terukur 80px melewati kartu pada
+   lebar sempit, meski halamannya sendiri tidak ikut menggeser. */
+@media (max-width: 640px) {
+  .release-main {
+    flex-wrap: wrap;
+  }
+  .release-text {
+    flex-basis: 100%;
+  }
+  .release-action {
+    width: 100%;
+  }
+  .release-action .btn {
+    width: 100%;
+  }
+  .history-row {
+    flex-wrap: wrap;
+  }
 }
 
 .locked {

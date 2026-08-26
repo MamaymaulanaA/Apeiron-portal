@@ -236,7 +236,7 @@ const PLUGIN_PRODUCTS = [
     sort_order: 0,
     created_at: '2026-01-01 00:00:00',
     versions: [
-      { id: 33, version: '1.0.10', changelog: 'Perbaikan kompatibilitas Elementor 3.25 dan penambahan widget Countdown.', released_at: '2026-08-20 09:00:00', filename: 'apeiron-kit-1.0.10.zip', is_active: 1 },
+      { id: 33, version: '1.0.10', changelog: 'Update Gm\nUpate UI\nPerbaikan kompatibilitas Elementor 3.25.', released_at: '2026-08-20 09:00:00', filename: 'apeiron-kit-1.0.10.zip', is_active: 1 },
       { id: 32, version: '1.0.9', changelog: 'Perbaikan bug pada form RSVP.', released_at: '2026-06-11 09:00:00', filename: 'apeiron-kit-1.0.9.zip', is_active: 1 },
       { id: 31, version: '1.0.3', changelog: 'Rilis awal seri 1.0.', released_at: '2026-05-19 01:20:00', filename: 'apeiron-kit-1.0.3.zip', is_active: 1 },
     ],
