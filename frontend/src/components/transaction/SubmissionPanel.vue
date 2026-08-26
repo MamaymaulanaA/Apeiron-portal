@@ -21,9 +21,14 @@ import {
   CircleAlert,
   ShieldCheck,
   ServerCrash,
+  MessageCircle,
+  Copy,
+  Check,
 } from 'lucide-vue-next'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/format'
+import { authState } from '@/stores/auth'
+import { ADMIN_CONTACT, buildConfirmationMessage, whatsappHref } from '@/lib/contact'
 import { toast } from '@/stores/toast'
 
 const props = defineProps({
@@ -35,6 +40,35 @@ const emit = defineEmits(['uploaded'])
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const uploading = ref(false)
+
+/* ---------- Kontak admin saat menunggu ---------- */
+
+const pesanKonfirmasi = computed(() =>
+  buildConfirmationMessage({
+    user: authState.user,
+    transaction: props.transaction,
+    formatDate,
+  }),
+)
+
+const waHref = computed(() => whatsappHref(pesanKonfirmasi.value))
+
+/**
+ * Telegram tidak menerima teks siap-isi pada tautan ke akun pribadi — hanya
+ * tautan berbagi yang bisa. Jadi tombolnya membuka obrolan, dan pesannya
+ * disediakan lewat tombol salin di sebelahnya.
+ */
+const tersalin = ref(false)
+
+async function salinPesan() {
+  try {
+    await navigator.clipboard.writeText(pesanKonfirmasi.value)
+    tersalin.value = true
+    setTimeout(() => (tersalin.value = false), 1800)
+  } catch {
+    toast.error('Gagal menyalin pesan')
+  }
+}
 
 const isRejected = computed(() => props.transaction?.status === 'rejected')
 const isPendingLicense = computed(
@@ -186,12 +220,127 @@ async function submit() {
           <span class="status-dot" />
           Proses sedang berjalan
         </p>
+
+        <!-- ---------- Kontak admin ---------- -->
+        <div class="kontak">
+          <p class="kontak-lead">
+            <template v-if="isPendingLicense">
+              Lisensi belum terbit lebih dari <strong>1&times;24 jam</strong>?
+              Hubungi admin agar bisa kami periksa.
+            </template>
+            <template v-else>
+              Belum diproses lebih dari <strong>1&times;24 jam</strong>? Hubungi
+              admin untuk mempercepat verifikasi.
+            </template>
+          </p>
+
+          <div class="kontak-aksi">
+            <!-- WhatsApp menerima pesan siap-isi lewat parameter text. -->
+            <a
+              class="btn btn-sm btn-secondary"
+              :href="waHref"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MessageCircle :size="15" />
+              WhatsApp
+            </a>
+
+            <a
+              class="btn btn-sm btn-secondary"
+              :href="ADMIN_CONTACT.telegram"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MessageCircle :size="15" />
+              Telegram
+            </a>
+          </div>
+
+          <!-- Telegram tidak bisa diisi otomatis, jadi pesannya disediakan
+               untuk disalin. Ditampilkan apa adanya supaya jelas apa yang
+               akan terkirim. -->
+          <div class="kontak-pesan">
+            <div class="kontak-pesan-head">
+              <span class="text-overline">Format pesan konfirmasi</span>
+              <button class="btn btn-sm btn-secondary" type="button" @click="salinPesan">
+                <component :is="tersalin ? Check : Copy" :size="14" />
+                {{ tersalin ? 'Tersalin' : 'Salin' }}
+              </button>
+            </div>
+            <pre class="kontak-teks">{{ pesanKonfirmasi }}</pre>
+          </div>
+        </div>
       </template>
     </div>
   </div>
 </template>
 
 <style scoped>
+
+/* ---- Kontak admin saat menunggu ---- */
+.kontak {
+  width: 100%;
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.kontak-lead {
+  font-size: var(--fs-label);
+  color: var(--text-body);
+  line-height: var(--lh-normal);
+}
+.kontak-lead strong {
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold);
+}
+
+.kontak-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.kontak-pesan {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.kontak-pesan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+/* pre, bukan p: pesannya memang berbaris-baris dan harus terlihat persis
+   seperti yang akan terkirim. white-space: pre-wrap supaya baris panjang
+   tetap membungkus alih-alih menggeser panel. */
+.kontak-teks {
+  margin: 0;
+  padding: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-normal);
+  color: var(--text-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 480px) {
+  .kontak-aksi .btn {
+    flex: 1;
+  }
+}
+
 .submission {
   display: block;
 }

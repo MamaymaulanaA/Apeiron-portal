@@ -288,9 +288,19 @@ const LICENSE_AFTER_SERVER_CHANGE = {
  *
  *   NEW=1 node mock/server.mjs
  */
+/**
+ * TXSTATUS meniru status transaksi user tanpa mengubah data lain, mis.
+ * untuk melihat tahap menunggu verifikasi:
+ *
+ *   TXSTATUS=waiting_verification node mock/server.mjs
+ */
 const myTx = process.env.NEW === '1'
   ? null
-  : TX.find((t) => t.user_id === USER.id) || null
+  : (() => {
+      const t = TX.find((x) => x.user_id === USER.id) || null
+      if (!t || !process.env.TXSTATUS) return t
+      return { ...t, status: process.env.TXSTATUS, approved_at: null }
+    })()
 
 const routes = {
   'GET /auth/csrf': () => ({ csrf_token: 'mock-csrf-token' }),
@@ -312,7 +322,11 @@ const routes = {
           rejected_at: myTx.rejected_at,
         }
       : null,
-    license: LICENSE,
+    // Lisensi hanya ada bila transaksinya disetujui. Tanpa penyesuaian ini,
+    // mode TXSTATUS/NEW menghasilkan data yang tidak konsisten — transaksi
+    // masih menunggu tetapi lisensinya sudah terbit — dan panel pengajuan
+    // tidak pernah tampil karena halaman menganggap aksesnya sudah aktif.
+    license: myTx && myTx.status === 'approved' ? LICENSE : null,
     templates: TEMPLATES,
     can_upload: false,
     can_download: true,
