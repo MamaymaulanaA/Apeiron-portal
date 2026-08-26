@@ -10,6 +10,7 @@
  * dibedakan dari "komponennya memang tidak dijalankan ulang".
  *
  * Yang dijaga:
+ *   - hanya role 'user' yang pernah terkena gerbang aktivasi ini;
  *   - hanya user yang BELUM pernah mengunggah bukti yang melihatnya;
  *   - yang sudah mengunggah — termasuk yang ditolak — tidak pernah melihatnya;
  *   - gagal memuat dashboard tidak boleh disalahartikan sebagai user baru.
@@ -24,11 +25,30 @@ function check(label, got, want) {
   console.log(`FAIL  ${label.padEnd(56)} got=${JSON.stringify(got)} want=${JSON.stringify(want)}`)
 }
 
-const dasar = { loading: false, data: {}, transaction: null, dismissed: false }
+const dasar = { role: 'user', loading: false, data: {}, transaction: null, dismissed: false }
 const tx = (status) => ({ id: 1, status })
 
 console.log('--- user baru ---')
 check('belum unggah, belum ditutup -> muncul', shouldShowOnboarding(dasar), true)
+
+console.log('--- role selain user tidak pernah digerbang ---')
+// Bug yang diperbaiki: admin tidak pernah punya transaksi member, jadi ia
+// justru SELALU memenuhi syarat "belum pernah mengunggah". Tanpa konteks role,
+// admin diminta mengunggah bukti pembayaran untuk mendapatkan plugin.
+check('admin -> tidak muncul', shouldShowOnboarding({ ...dasar, role: 'admin' }), false)
+check(
+  'admin, meski browser bersih -> tetap tidak muncul',
+  shouldShowOnboarding({ ...dasar, role: 'admin', dismissed: false }),
+  false,
+)
+// Diperiksa positif terhadap 'user': apa pun yang bukan 'user' tidak digerbang,
+// bukan hanya 'admin'. Role yang belum termuat pun tidak boleh memunculkannya.
+check('role null -> tidak muncul', shouldShowOnboarding({ ...dasar, role: null }), false)
+check('role undefined -> tidak muncul', shouldShowOnboarding({ ...dasar, role: undefined }), false)
+check('role tak dikenal -> tidak muncul', shouldShowOnboarding({ ...dasar, role: 'editor' }), false)
+// Perbandingannya persis, tanpa toleransi huruf besar.
+check('Admin (huruf besar) -> tidak muncul', shouldShowOnboarding({ ...dasar, role: 'Admin' }), false)
+check('User (huruf besar) -> tidak muncul', shouldShowOnboarding({ ...dasar, role: 'User' }), false)
 
 console.log('--- sudah mengunggah: tidak pernah muncul ---')
 // Inti permintaannya. Sekali bukti dikirim, popup tidak boleh kembali —
@@ -66,7 +86,17 @@ console.log('--- dashboard gagal dimuat ---')
 check('data null -> tidak muncul', shouldShowOnboarding({ ...dasar, data: null }), false)
 check(
   'data null + belum ditutup -> tetap tidak muncul',
-  shouldShowOnboarding({ loading: false, data: null, transaction: null, dismissed: false }),
+  shouldShowOnboarding({ role: 'user', loading: false, data: null, transaction: null, dismissed: false }),
+  false,
+)
+
+console.log('--- user biasa tetap bekerja seperti semula ---')
+// Penjagaan role tidak boleh diam-diam mematikan gerbangnya untuk yang memang
+// dituju. Ini yang membedakan perbaikan dari sekadar menyembunyikan popup.
+check('user belum aktif -> muncul', shouldShowOnboarding({ ...dasar }), true)
+check(
+  'user sudah aktif (approved) -> tidak muncul',
+  shouldShowOnboarding({ ...dasar, transaction: tx('approved') }),
   false,
 )
 

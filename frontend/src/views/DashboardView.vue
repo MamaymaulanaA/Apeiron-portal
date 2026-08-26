@@ -182,6 +182,8 @@ watch(
   () => [loading.value, data.value, transaction.value],
   () => {
     onboardingOpen.value = shouldShowOnboarding({
+      // Role dari /auth/me, bukan tebakan dari ada-tidaknya transaksi.
+      role: authState.user?.role ?? null,
       loading: loading.value,
       data: data.value,
       transaction: transaction.value,

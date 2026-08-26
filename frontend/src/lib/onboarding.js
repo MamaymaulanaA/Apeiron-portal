@@ -11,12 +11,26 @@
 
 /**
  * @param {object} o
+ * @param {string|null} o.role     role akun menurut server; hanya 'user' yang digerbang
  * @param {boolean} o.loading      dashboard masih memuat
  * @param {object|null} o.data     isi dashboard; null bila gagal dimuat
  * @param {object|null} o.transaction transaksi user, null bila belum pernah unggah
  * @param {boolean} o.dismissed    sudah ditutup pada sesi ini
  */
-export function shouldShowOnboarding({ loading, data, transaction, dismissed }) {
+export function shouldShowOnboarding({ role, loading, data, transaction, dismissed }) {
+  // Aktivasi member hanya berlaku untuk role 'user'.
+  //
+  // Tanpa syarat ini, syarat "belum punya transaksi" berlaku untuk SETIAP akun
+  // yang login — dan admin memang tidak pernah punya transaksi member, sehingga
+  // ia justru selalu memenuhi syaratnya. Admin lalu diminta mengunggah bukti
+  // pembayaran untuk mendapatkan plugin, yang tidak ada artinya bagi akun yang
+  // memang tidak membeli apa pun.
+  //
+  // Diperiksa positif terhadap 'user', bukan negatif terhadap 'admin': role
+  // yang belum termuat (null) atau role baru yang belum dikenal tidak boleh
+  // ikut terkena gerbang ini hanya karena ia bukan 'admin'.
+  if (role !== 'user') return false
+
   // Belum selesai memuat: belum ada yang bisa disimpulkan.
   if (loading) return false
 

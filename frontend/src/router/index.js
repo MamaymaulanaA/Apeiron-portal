@@ -23,10 +23,13 @@ const routes = [
 
   // ---- Area user ----
   {
+    // meta.member: dashboard ini milik member dan punya padanan admin sendiri
+    // di /admin/dashboard. Admin yang membukanya diarahkan ke sana oleh
+    // beforeEach, sebelum komponennya sempat di-mount.
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/views/DashboardView.vue'),
-    meta: { auth: true, title: 'Dashboard' },
+    meta: { auth: true, member: true, title: 'Dashboard' },
   },
   {
     path: '/transactions',
@@ -152,6 +155,17 @@ router.beforeEach(async (to) => {
 
   if (to.meta.admin && !isAdmin.value) {
     return { name: 'dashboard' }
+  }
+
+  // Kebalikannya, yang sebelumnya tidak ada: admin tidak boleh berakhir di
+  // dashboard member. Tanpa aturan ini, /dashboard yang diketik langsung,
+  // di-bookmark, atau datang dari ?redirect= saat sesi habis akan merender
+  // pengalaman member untuk admin — lengkap dengan popup aktivasi.
+  //
+  // Diperiksa di beforeEach, bukan di dalam komponen: pengalihan yang terjadi
+  // setelah mount akan menampilkan dashboard member sekejap lebih dulu.
+  if (to.meta.member && isAdmin.value) {
+    return { name: 'admin-dashboard' }
   }
 
   // User yang sudah login tidak perlu melihat halaman login/register lagi.

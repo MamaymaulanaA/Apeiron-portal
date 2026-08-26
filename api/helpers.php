@@ -94,11 +94,73 @@ function getCsrfToken(): string
 }
 
 /**
+ * Segarkan salinan user di sesi dari database.
+ *
+ * Sesi menyimpan objek User yang diambil SEKALI saat login. Selama salinan itu
+ * tidak pernah dibaca ulang, role dan is_active yang dipakai untuk otorisasi
+ * adalah keadaan saat login, bukan keadaan sekarang — sehingga menurunkan admin
+ * jadi user biasa tidak mencabut haknya, dan menonaktifkan user tidak menutup
+ * sesinya. Di sinilah role menjadi otoritatif untuk seluruh API, termasuk
+ * /auth/me yang dipakai frontend untuk menentukan navigasi.
+ *
+ * Dibaca sekali per permintaan lalu ditahan di memori: satu permintaan bisa
+ * memanggil currentUser() berkali-kali, dan tidak ada gunanya menanyakan baris
+ * yang sama berulang kali dalam satu proses.
+ *
+ * @return object|null null bila barisnya sudah tidak ada atau tidak aktif lagi.
+ */
+function refreshCurrentUser(): ?object
+{
+    static $sudahDibaca = false;
+    static $hasil = null;
+
+    if ($sudahDibaca) {
+        return $hasil;
+    }
+    $sudahDibaca = true;
+
+    $snapshot = $_SESSION['portal_user'] ?? null;
+    $id = $_SESSION['user_id'] ?? ($snapshot->id ?? null);
+
+    if (!$id) {
+        return $hasil = null;
+    }
+
+    try {
+        $segar = User::find((int) $id);
+    } catch (Throwable $e) {
+        // Database sedang tidak terbaca. Menolak permintaan di sini akan
+        // mengubah gangguan database menjadi logout massal, jadi permintaannya
+        // diteruskan dengan salinan lama dan akan gagal di tempat yang memang
+        // bermasalah — bukan di gerbang autentikasi.
+        error_log('[PORTAL][AUTH] Gagal menyegarkan user #' . $id . ': ' . $e->getMessage());
+        return $hasil = $snapshot;
+    }
+
+    // Barisnya hilang atau dinonaktifkan: sesi tidak boleh tetap berlaku.
+    // Pemeriksaan is_active di sini sama persis dengan yang sudah dilakukan
+    // AuthController::login(), jadi tidak ada akun yang bisa login hari ini
+    // lalu tiba-tiba tertolak oleh perubahan ini.
+    if (!$segar || !$segar->is_active) {
+        return $hasil = null;
+    }
+
+    $_SESSION['portal_user'] = $segar;
+    $_SESSION['user_id'] = $segar->id;
+    $_SESSION['user_role'] = $segar->role;
+
+    return $hasil = $segar;
+}
+
+/**
  * Get current authenticated user
+ *
+ * Nilainya berasal dari database, bukan dari salinan di sesi — lihat
+ * refreshCurrentUser().
  */
 function currentUser(): ?object
 {
-    return $_SESSION['portal_user'] ?? null;
+    return refreshCurrentUser();
 }
 
 /**
