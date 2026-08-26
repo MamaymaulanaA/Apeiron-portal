@@ -64,7 +64,18 @@ class PluginController
 
         $out = [];
 
-        foreach (PluginProduct::allActive() as $product) {
+        // Sebelum migration dijalankan, tabel plugin_products belum ada.
+        // Tanpa penjaga ini seluruh halaman berubah jadi "Terjadi kesalahan
+        // server" — pesan yang tidak memberi tahu apa pun. Bagi user, plugin
+        // yang belum bisa dibaca cukup berarti daftarnya kosong.
+        try {
+            $products = PluginProduct::allActive();
+        } catch (Throwable $e) {
+            error_log('[PORTAL][PLUGIN] ' . $e->getMessage());
+            jsonResponse(['plugins' => []]);
+        }
+
+        foreach ($products as $product) {
             $versions = Plugin::forProduct($product->id, true);
             if (!$versions) continue;
 
@@ -105,8 +116,16 @@ class PluginController
     {
         requireAdmin();
 
+        // Admin justru perlu tahu penyebabnya, jadi di sini kegagalannya
+        // diterjemahkan jadi petunjuk yang menyebut berkas migration-nya.
+        try {
+            $products = PluginProduct::all();
+        } catch (Throwable $e) {
+            self::failed($e, 'Gagal memuat daftar plugin');
+        }
+
         $out = [];
-        foreach (PluginProduct::all() as $product) {
+        foreach ($products as $product) {
             $latest = Plugin::latestFor($product->id);
 
             $out[] = $product->toArray() + [
@@ -224,7 +243,12 @@ class PluginController
     {
         requireAdmin();
 
-        $product = PluginProduct::find((int) ($params['id'] ?? 0));
+        try {
+            $product = PluginProduct::find((int) ($params['id'] ?? 0));
+        } catch (Throwable $e) {
+            self::failed($e, 'Gagal memuat daftar versi');
+        }
+
         if (!$product) jsonResponse(['error' => 'Plugin tidak ditemukan'], 404);
 
         $versions = Plugin::forProduct($product->id);
