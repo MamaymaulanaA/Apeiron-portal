@@ -107,15 +107,35 @@ export const GROUP_ACCESS_COPY = {
 /**
  * Teks saat user sedang dalam masa Percobaan Plugin.
  *
- * Durasinya datang dari setelan admin, bukan dari lisensi — jadi kalimatnya
- * disusun dengan label yang dikirim server apa adanya.
+ * Durasinya datang dari setelan admin, bukan dari lisensi — kalimatnya disusun
+ * dengan label yang dikirim server apa adanya.
+ *
+ * Ada dua bentuk, dan bedanya disengaja:
+ *
+ *   ringkas  — kartu di dashboard. User sedang melihat halaman lain, jadi
+ *              yang perlu ia tahu cukup "sedang percobaan, bonus menyusul".
+ *   lengkap  — halaman Bonus. Ia datang ke sini KARENA mencari bonus, jadi
+ *              alasannya harus lengkap: bonus itu hak member berlangganan,
+ *              dan percobaan bukan langganan.
  */
-export function bonusTrialCopy(label) {
+export function bonusTrialCopy(label, { detail = false } = {}) {
+  const selama = label ? ` selama ${label}` : ''
+
+  if (!detail) {
+    return {
+      title: 'Percobaan Plugin',
+      description:
+        `Anda sedang mendapatkan akses percobaan plugin${selama}. ` +
+        'Bonus Member tersedia setelah masa percobaan selesai.',
+    }
+  }
+
   return {
-    title: 'Percobaan Plugin',
-    description: label
-      ? `Anda sedang mendapatkan akses percobaan plugin selama ${label}. Bonus Member tersedia setelah masa percobaan selesai.`
-      : 'Anda sedang mendapatkan akses percobaan plugin. Bonus Member tersedia setelah masa percobaan selesai.',
+    title: 'Bonus Member belum tersedia',
+    description:
+      `Anda sedang mendapatkan akses percobaan plugin${selama}. ` +
+      'Bonus Member khusus untuk member berlangganan, dan akan terbuka ' +
+      'setelah masa percobaan selesai.',
   }
 }
 

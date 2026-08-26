@@ -35,7 +35,7 @@ const trial = ref(null)
 
 const accessCopy = computed(() =>
   access.value === 'trial'
-    ? bonusTrialCopy(trial.value?.label)
+    ? bonusTrialCopy(trial.value?.label, { detail: true })
     : BONUS_ACCESS_COPY[access.value] || BONUS_ACCESS_COPY.none,
 )
 
