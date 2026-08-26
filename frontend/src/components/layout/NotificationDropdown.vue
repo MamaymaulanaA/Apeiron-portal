@@ -337,4 +337,80 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
 }
+
+/* ---- Layar kecil ----------------------------------------------------------
+   Panel dijangkarkan ke loncengnya (`right: 0`), dan itu benar selama lonceng
+   memang elemen terkanan. Di layar sempit ia tidak: masih ada avatar user di
+   sebelahnya, sehingga tepi kanan panel berhenti ±68px dari tepi layar
+   sementara lebarnya sudah selebar layar dikurangi 32px. Sisanya menggantung
+   ke KIRI — terukur −32,6px pada 375px.
+
+   `width: min(360px, 100vw - 32px)` yang sudah ada tidak menolong: ia membatasi
+   LEBAR, bukan POSISI, dan yang meleset di sini posisinya.
+
+   Menggeser breakpoint ke angka yang pas-pasan juga tidak menyelesaikan, karena
+   jarak lonceng ke tepi kanan ikut berubah mengikuti panjang nama user. Jadi di
+   bawah 640px penjangkarannya dilepas dari lonceng dan dipindah ke viewport.
+
+   640px dipilih karena breakpoint itu yang sudah dipakai di 25 tempat lain,
+   termasuk topbar ini sendiri saat menyembunyikan nama user. Retaknya sendiri
+   mulai di sekitar 428px; sisanya sengaja jadi ruang aman.
+
+   position: fixed di sini menempel pada .topbar, bukan viewport — backdrop-filter
+   pada .topbar menjadikannya containing block untuk keturunan fixed. Kebetulan
+   hasilnya sama karena topbar selebar layar penuh di bawah 640px, dan itu sudah
+   diukur, bukan diasumsikan. */
+@media (max-width: 640px) {
+  .notif-panel {
+    position: fixed;
+    /* --topbar-h token global dan tidak berubah antar breakpoint, jadi ini
+       bukan angka ajaib yang akan meleset saat topbar disesuaikan. */
+    top: calc(var(--topbar-h) + var(--sp-2));
+    left: var(--sp-3);
+    right: var(--sp-3);
+    width: auto;
+
+    /* Dua inset + max-width + margin-left:auto = panel menempel ke inset KANAN,
+       sehingga arah bukanya tetap terasa datang dari lonceng. Tanpa
+       margin-left, panel akan melar penuh; dengan margin auto di kedua sisi ia
+       akan ke tengah dan kehilangan hubungan itu. */
+    max-width: 380px;
+    margin-left: auto;
+
+    /* Tinggi mengikuti layar, bukan angka tetap: 420px lebih tinggi daripada
+       ruang yang tersisa pada ponsel pendek dalam mode lanskap. */
+    max-height: calc(100dvh - var(--topbar-h) - var(--sp-6));
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Judul dan tombol "Tandai semua" tetap terlihat saat daftarnya digulir:
+     yang menggulir hanya daftarnya, bukan seluruh panel. */
+  .notif-head {
+    flex-shrink: 0;
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .notif-mark {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .notif-list {
+    /* min-height: 0 wajib — tanpa itu anak flex menolak menyusut di bawah
+       tinggi kontennya dan daftarnya meluber keluar panel alih-alih menggulir. */
+    max-height: none;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Padding mendatar dikurangi supaya judul dan pesan mendapat ruang baca
+     lebih; ruang vertikalnya justru ditambah agar tiap baris tetap nyaman
+     disentuh. */
+  .notif-item {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .notif-empty {
+    padding: var(--sp-7) var(--sp-4);
+  }
+}
 </style>
