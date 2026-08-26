@@ -256,9 +256,9 @@ class UserController
      * ada di database portal. Adanya baris berarti lisensi pernah diterbitkan,
      * bukan bahwa ia masih berlaku hari ini.
      */
-    private static function licensePayload(UserLicense $l): array
+    private static function licensePayload(UserLicense $l, bool $force = false): array
     {
-        $state = self::licenseStatusFor($l);
+        $state = self::licenseStatusFor($l, $force);
 
         return [
             'id' => $l->id,
@@ -364,9 +364,23 @@ class UserController
         $licenses = UserLicense::findByUser($user->id);
         
         $latestPlugin = Plugin::getLatest();
-        
+
+        // ?refresh=1 melewati cache dan bertanya langsung ke License Server.
+        // Dipakai tombol "Cek Status" di halaman Plugin, untuk kasus data
+        // lisensi diubah di server — durasi jadi Lifetime, batas aktivasi
+        // dinaikkan — dan portal masih memegang jawaban lama.
+        //
+        // Tidak ada endpoint baru untuk ini, di portal maupun di server:
+        // jalurnya tetap /user/licenses yang sudah ada, memanggil
+        // portal_license.php yang sudah ada. Yang berbeda hanya apakah cache
+        // boleh dipakai.
+        $force = !empty($_GET['refresh']);
+
         jsonResponse([
-            'licenses' => array_map([self::class, 'licensePayload'], $licenses),
+            'licenses' => array_map(
+                static fn(UserLicense $l) => self::licensePayload($l, $force),
+                $licenses
+            ),
             'latest_plugin' => $latestPlugin ? [
                 'version' => $latestPlugin->version,
                 'filename' => $latestPlugin->filename,

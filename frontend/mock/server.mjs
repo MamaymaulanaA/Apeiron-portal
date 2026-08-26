@@ -221,6 +221,30 @@ const LICENSE_VARIANTS = {
 
 const ACTIVE_LICENSE = LICENSE_VARIANTS[process.env.LICENSE] || LICENSE
 
+/**
+ * Keadaan lisensi SETELAH diubah di License Server: durasi 1 Tahun menjadi
+ * Lifetime, dan batas aktivasi naik dari 1 ke 2.
+ *
+ * Dikembalikan hanya ketika ?refresh=1 — meniru persis kasus yang dituju
+ * tombol "Cek Status": data di server berubah, portal masih memegang jawaban
+ * lama, lalu user menekan tombolnya.
+ */
+const LICENSE_AFTER_SERVER_CHANGE = {
+  ...LICENSE,
+  status: {
+    status: 'active',
+    is_lifetime: true,
+    duration_label: 'Lifetime',
+    issued_at: '2026-08-21 12:30:00',
+    activated_at: '2026-08-22 09:15:00',
+    expires_at: null,
+    days_remaining: null,
+    activations_used: 2,
+    activation_limit: 2,
+  },
+  status_stale: false,
+}
+
 /** Dashboard user berubah mengikuti transaksi milik USER. */
 const myTx = TX.find((t) => t.user_id === USER.id) || null
 
@@ -255,8 +279,15 @@ const routes = {
     stats: { licenses: 1, transactions: 3 },
   }),
   'PUT /user/profile': () => ({ message: 'Profil berhasil diupdate' }),
-  'GET /user/licenses': () => ({
-    licenses: [ACTIVE_LICENSE],
+  'GET /user/licenses': (url) => ({
+    // Tanpa refresh: jawaban lama. Dengan refresh: jawaban server terbaru.
+    // Kalau varian dipilih lewat env (mis. LICENSE=stale), varian itu yang
+    // dipakai supaya jalur gagalnya juga bisa diuji.
+    licenses: [
+      url?.searchParams?.get('refresh') && !process.env.LICENSE
+        ? LICENSE_AFTER_SERVER_CHANGE
+        : ACTIVE_LICENSE,
+    ],
     latest_plugin: { version: PLUGINS[0].version, filename: PLUGINS[0].filename, changelog: PLUGINS[0].changelog },
   }),
   'GET /user/transactions': () => ({
@@ -370,7 +401,9 @@ createServer((req, res) => {
   const handler = routes[key]
   if (handler) {
     res.writeHead(200)
-    return res.end(JSON.stringify(handler()))
+    // url dioper supaya handler bisa membaca query (mis. ?refresh=1).
+    // Handler lain mengabaikannya.
+    return res.end(JSON.stringify(handler(url)))
   }
 
   // POST/PUT/DELETE lain dianggap sukses agar alur UI bisa ditelusuri.

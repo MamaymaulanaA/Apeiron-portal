@@ -13,6 +13,7 @@ import {
   Check,
   Circle,
   CircleAlert,
+  RefreshCw,
   CircleCheck,
   CircleHelp,
   CircleX,
@@ -64,6 +65,51 @@ async function load() {
     toast.error(errorMessage(e, 'Gagal memuat data lisensi'))
   } finally {
     loading.value = false
+  }
+}
+
+const checking = ref(false)
+
+/**
+ * Cek Status — ambil ulang keadaan lisensi langsung dari License Server.
+ *
+ * Dipakai saat data lisensi diubah di server (durasi jadi Lifetime, batas
+ * aktivasi dinaikkan) dan portal masih memegang jawaban lama dari cache.
+ *
+ * Memakai endpoint yang sudah ada, /user/licenses, dengan refresh=1 yang
+ * memberitahu backend agar melewati cache. Tidak ada endpoint baru, dan tidak
+ * ada logika lisensi apa pun di sisi ini: portal hanya meminta, membaca, lalu
+ * menampilkan.
+ */
+async function checkStatus() {
+  if (checking.value) return
+  checking.value = true
+
+  try {
+    const { data } = await api.get('/user/licenses', { params: { refresh: 1 } })
+    const fresh = data.licenses || []
+
+    // Permintaan berhasil TIDAK berarti server lisensi menjawab.
+    //
+    // Kalau server diam, backend mempertahankan cache lama dan menandainya
+    // status_stale — HTTP-nya tetap 200. Melaporkan "berhasil diperbarui" di
+    // sini akan membuat user yakin datanya baru padahal tidak berubah sama
+    // sekali. Jadi tanda itu yang menentukan pesannya, bukan kode HTTP.
+    const adaYangBasi = fresh.some((l) => l.status_stale)
+
+    licenses.value = fresh
+
+    if (adaYangBasi) {
+      toast.warning('Server lisensi tidak merespons. Menampilkan data terakhir yang tersimpan.')
+    } else {
+      toast.success('Status lisensi diperbarui')
+    }
+  } catch (e) {
+    // Data lama sengaja tidak disentuh: gagal mengecek bukan alasan untuk
+    // mengosongkan yang sudah ada di layar.
+    toast.error(errorMessage(e, 'Gagal mengecek status lisensi'))
+  } finally {
+    checking.value = false
   }
 }
 
@@ -139,10 +185,22 @@ onMounted(load)
                 </span>
               </span>
             </span>
-            <a class="btn btn-sm btn-secondary" href="/api/user/download-invoice">
-              <Receipt :size="14" />
-              Invoice
-            </a>
+            <span class="lic-actions">
+              <button
+                class="btn btn-sm btn-secondary"
+                type="button"
+                :disabled="checking"
+                @click="checkStatus"
+              >
+                <RefreshCw :size="14" :class="{ spinning: checking }" />
+                {{ checking ? 'Mengecek…' : 'Cek Status' }}
+              </button>
+
+              <a class="btn btn-sm btn-secondary" href="/api/user/download-invoice">
+                <Receipt :size="14" />
+                Invoice
+              </a>
+            </span>
           </header>
 
           <!-- Keadaan lisensi menurut License Server.
@@ -266,6 +324,17 @@ onMounted(load)
 </template>
 
 <style scoped>
+.lic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* Memakai @keyframes spin yang sudah ada di base.css. */
+.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
 /* ---- Keadaan lisensi ---- */
 .lic-state {
   display: flex;
