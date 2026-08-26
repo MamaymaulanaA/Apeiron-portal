@@ -14,6 +14,7 @@ import {
   Circle,
   CircleAlert,
   History,
+  ListChecks,
   RefreshCw,
   CircleCheck,
   CircleHelp,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
+import ModalDialog from '@/components/ui/ModalDialog.vue'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import {
@@ -78,6 +80,42 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * Catatan rilis yang sedang dibuka di popup.
+ *
+ * Changelog panjang tidak dimuat penuh di kartu: satu rilis bisa berisi
+ * sepuluh butir perubahan, dan menumpuknya semua membuat kartu memanjang
+ * sampai bagian lain terdorong jauh ke bawah. Kartu menampilkan ringkasannya,
+ * popup menampilkan daftar lengkapnya.
+ */
+const changelogOpen = ref(null)
+
+/**
+ * Pecah changelog jadi butir daftar.
+ *
+ * Ditulis admin sebagai teks bebas, satu perubahan per baris. Penanda butir
+ * yang mungkin sudah diketik sendiri (-, *, •) dibuang supaya tidak tampil
+ * dobel dengan bullet dari daftarnya.
+ */
+function changelogItems(text) {
+  // Dipisah dengan split biasa, bukan regex: pola dengan escape \r\n mudah
+  // rusak saat berkasnya disunting, dan hasilnya baru terlihat salah di
+  // layar. Sisa carriage return dibersihkan oleh trim().
+  return String(text ?? '')
+    .split('\n')
+    .map((line) => line.replace(/^[\s\-*•]+/, '').trim())
+    .filter(Boolean)
+}
+
+/** Butir pertama saja, untuk ringkasan di kartu. */
+function changelogPreview(text, max = 2) {
+  return changelogItems(text).slice(0, max)
+}
+
+function openChangelog(plugin, version) {
+  changelogOpen.value = { plugin, version }
 }
 
 const checking = ref(false)
@@ -163,7 +201,25 @@ onMounted(load)
             <span class="release-ver">v{{ p.latest.version }}</span>
             <span class="badge tone-ok">Terbaru</span>
           </h2>
-          <p v-if="p.latest.changelog" class="release-log">{{ p.latest.changelog }}</p>
+          <!-- Ringkasan saja. Rilis dengan sepuluh butir perubahan akan
+               memanjangkan kartu sampai bagian lain terdorong jauh ke bawah,
+               jadi selebihnya dipindah ke popup. -->
+          <ul v-if="changelogPreview(p.latest.changelog).length" class="release-log">
+            <li v-for="(item, i) in changelogPreview(p.latest.changelog)" :key="i">
+              {{ item }}
+            </li>
+          </ul>
+
+          <button
+            v-if="changelogItems(p.latest.changelog).length > 2"
+            class="link-more"
+            type="button"
+            @click="openChangelog(p, p.latest)"
+          >
+            <ListChecks :size="14" />
+            Lihat semua catatan rilis ({{ changelogItems(p.latest.changelog).length }})
+          </button>
+
           <p class="text-caption">Rilis {{ formatDate(p.latest.released_at, false) }}</p>
         </div>
 
@@ -194,6 +250,18 @@ onMounted(load)
             <span class="text-caption history-date">
               {{ formatDate(v.released_at, false) }}
             </span>
+            <!-- Sebelumnya catatan rilis versi lama tidak terlihat sama
+                 sekali; sekarang bisa dibuka tanpa memenuhi daftar. -->
+            <button
+              v-if="changelogItems(v.changelog).length"
+              class="btn btn-sm btn-secondary btn-icon"
+              type="button"
+              :aria-label="`Catatan rilis v${v.version}`"
+              @click="openChangelog(p, v)"
+            >
+              <ListChecks :size="13" />
+            </button>
+
             <a class="btn btn-sm btn-secondary" :href="v.download_url">
               <Download :size="13" />
               Unduh
@@ -210,6 +278,40 @@ onMounted(load)
         description="Plugin akan tampil di sini setelah admin merilis versinya."
       />
     </section>
+
+    <!-- ---------- Popup catatan rilis ---------- -->
+    <ModalDialog
+      :open="!!changelogOpen"
+      title="Catatan Rilis"
+      :subtitle="changelogOpen ? `${changelogOpen.plugin.name} v${changelogOpen.version.version}` : ''"
+      @close="changelogOpen = null"
+    >
+      <div v-if="changelogOpen" class="cl">
+        <p class="text-caption cl-date">
+          Rilis {{ formatDate(changelogOpen.version.released_at, false) }}
+        </p>
+
+        <ul class="cl-list">
+          <li v-for="(item, i) in changelogItems(changelogOpen.version.changelog)" :key="i">
+            {{ item }}
+          </li>
+        </ul>
+      </div>
+
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="changelogOpen = null">
+          Tutup
+        </button>
+        <a
+          v-if="hasLicense && changelogOpen"
+          class="btn btn-primary"
+          :href="changelogOpen.version.download_url"
+        >
+          <Download :size="15" />
+          Unduh v{{ changelogOpen.version.version }}
+        </a>
+      </template>
+    </ModalDialog>
 
     <!-- ---------- Daftar lisensi ---------- -->
     <section class="card">
@@ -538,12 +640,75 @@ onMounted(load)
 /* pre-line: baris baru pada changelog dipertahankan.
    Tanpa ini HTML meruntuhkan newline jadi spasi, sehingga catatan rilis yang
    ditulis beberapa baris tercetak menyamping sebagai satu kalimat panjang. */
+/* Daftar berbullet, bukan paragraf: catatan rilis memang berisi beberapa
+   butir perubahan, dan menampilkannya sebagai satu blok teks membuat batas
+   antar butir hilang. white-space tidak lagi diperlukan karena tiap baris
+   sudah menjadi elemennya sendiri. */
 .release-log {
   margin-top: var(--sp-3);
-  white-space: pre-line;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
   font-size: var(--fs-label);
   color: var(--text-body);
   line-height: var(--lh-normal);
+}
+.release-log li {
+  position: relative;
+  padding-left: var(--sp-4);
+}
+.release-log li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--text-muted);
+}
+
+/* Tautan teks, bukan tombol: aksi utama kartu ini tetap Unduh Plugin, dan
+   dua tombol setara akan membuat keduanya bersaing. */
+.link-more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  color: var(--brand);
+}
+.link-more:hover {
+  text-decoration: underline;
+}
+
+/* ---- Popup catatan rilis ---- */
+.cl-date {
+  margin-bottom: var(--sp-4);
+}
+.cl-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  font-size: var(--fs-label);
+  color: var(--text-body);
+  line-height: var(--lh-normal);
+}
+.cl-list li {
+  position: relative;
+  padding-left: var(--sp-5);
+}
+.cl-list li::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0.6em;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--brand);
 }
 
 /* Tanggal rilis adalah keterangan, bukan bagian dari catatan rilis. */
