@@ -33,7 +33,17 @@ const lengkap = bonusTrialCopy('2 Bulan', { detail: true })
 check('judulnya menyebut bonus', lengkap.title, 'Bonus Member belum tersedia')
 check('menyebut durasi', lengkap.description.includes('selama 2 Bulan'), true)
 check('menyebut berlangganan', lengkap.description.includes('member berlangganan'), true)
-check('menyebut kapan terbuka', lengkap.description.includes('masa percobaan selesai'), true)
+// Arahannya di sini bukan "tunggu sampai percobaan selesai" melainkan upgrade:
+// percobaan tidak berubah sendiri jadi Member, admin yang mengubahnya. Menyuruh
+// menunggu di halaman ini membuat user duduk diam menanti hal yang tidak datang.
+check('mengarahkan hubungi admin', lengkap.description.includes('hubungi admin'), true)
+check('menyebut upgrade ke Member', lengkap.description.includes('upgrade ke Member'), true)
+check('tidak menyuruh menunggu', lengkap.description.includes('masa percobaan selesai'), false)
+
+// Kartu dashboard sengaja tidak ikut berubah: di sana user hanya diberi tahu
+// keadaannya, sedangkan ajakan upgrade tempatnya di halaman Bonus.
+check('kartu tidak mengajak upgrade', ringkas.description.includes('upgrade'), false)
+check('kartu tetap menyebut percobaan selesai', ringkas.description.includes('masa percobaan selesai'), true)
 
 console.log('--- durasi mengikuti setelan admin ---')
 check('14 Hari', bonusTrialCopy('14 Hari').description.includes('selama 14 Hari'), true)

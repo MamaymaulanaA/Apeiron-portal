@@ -16,6 +16,7 @@ import {
   Download,
   ExternalLink,
   RotateCcw,
+  MessageCircle,
   LayoutGrid,
   List,
   Lock,
@@ -23,6 +24,8 @@ import {
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import { api, errorMessage } from '@/lib/api'
+import { authState } from '@/stores/auth'
+import { ADMIN_CONTACT, buildUpgradeMessage, whatsappHref } from '@/lib/contact'
 import { bonusHref, formatFileSize, BONUS_ACCESS_COPY, bonusTrialCopy } from '@/lib/community'
 
 const loading = ref(true)
@@ -32,6 +35,18 @@ const categories = ref([])
 /** Keadaan akses menurut server; menjelaskan kenapa daftarnya kosong. */
 const access = ref('granted')
 const trial = ref(null)
+
+/**
+ * Pesan upgrade siap kirim.
+ *
+ * Kalimat di layar menyebut "member berlangganan", jadi harus ada jalan
+ * menuju ke sana — tanpa tombol ini user yang ingin berlangganan justru
+ * buntu di halaman yang menyuruhnya berlangganan.
+ */
+const pesanUpgrade = computed(() =>
+  buildUpgradeMessage({ user: authState.user, trialLabel: trial.value?.label }),
+)
+const waUpgrade = computed(() => whatsappHref(pesanUpgrade.value))
 
 const accessCopy = computed(() =>
   access.value === 'trial'
@@ -147,6 +162,32 @@ onMounted(load)
             {{ access === 'rejected' ? 'Unggah Ulang' : 'Ke Transaksi' }}
           </RouterLink>
         </template>
+
+        <!-- Saat percobaan, yang dibutuhkan bukan halaman Transaksi melainkan
+             cara menghubungi admin untuk naik jadi Member. -->
+        <template v-if="access === 'trial'" #action>
+          <span class="upgrade-aksi">
+            <a
+              class="btn btn-primary"
+              :href="waUpgrade"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MessageCircle :size="16" />
+              Hubungi Admin via WhatsApp
+            </a>
+
+            <a
+              class="btn btn-secondary"
+              :href="ADMIN_CONTACT.telegram"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MessageCircle :size="16" />
+              Telegram
+            </a>
+          </span>
+        </template>
       </EmptyState>
     </section>
 
@@ -221,6 +262,25 @@ onMounted(load)
 </template>
 
 <style scoped>
+
+/* ---- Tombol upgrade saat percobaan ---- */
+.upgrade-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 480px) {
+  /* Menumpuk penuh supaya keduanya mudah ditekan. */
+  .upgrade-aksi {
+    width: 100%;
+  }
+  .upgrade-aksi .btn {
+    flex: 1 1 100%;
+  }
+}
+
 .toolbar-search {
   flex: 1;
   min-width: 160px;

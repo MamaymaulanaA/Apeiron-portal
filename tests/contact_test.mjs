@@ -11,6 +11,7 @@
 import {
   ADMIN_CONTACT,
   buildConfirmationMessage,
+  buildUpgradeMessage,
   whatsappHref,
 } from '../frontend/src/lib/contact.js'
 
@@ -77,6 +78,33 @@ const hrefNakal = whatsappHref(nakal)
 check('ampersand ter-encode', hrefNakal.includes('%26'), true)
 check('tanpa & mentah pada query', hrefNakal.split('?text=')[1].includes('&'), false)
 check('utuh setelah decode', decodeURIComponent(hrefNakal.split('?text=')[1]), nakal)
+
+console.log('--- pesan upgrade ke Member ---')
+// Maksudnya berbeda dari pesan konfirmasi transaksi: yang satu menanyakan
+// bukti yang sudah dikirim, yang ini menanyakan cara berlangganan. Satu pesan
+// untuk dua maksud akan membuat admin menebak-nebak.
+const upgrade = buildUpgradeMessage({ user, trialLabel: '2 Bulan' })
+check('menyebut maksudnya', upgrade.includes('ingin upgrade ke Member'), true)
+check('memuat nama', upgrade.includes('Nama: Sinta Dewi'), true)
+check('memuat email', upgrade.includes('Email: sinta@example.com'), true)
+// Status percobaan disertakan supaya admin tahu posisi user tanpa bertanya.
+check('menyebut status percobaan', upgrade.includes('Status: Percobaan Plugin (2 Bulan)'), true)
+check('menanyakan paket', upgrade.includes('paket'), true)
+// Tidak boleh tertukar dengan pesan konfirmasi transaksi.
+check('bukan pesan konfirmasi', upgrade.includes('konfirmasi bukti transaksi'), false)
+check('tanpa nomor transaksi', upgrade.includes('No. Transaksi'), false)
+
+console.log('--- upgrade saat durasi belum diisi ---')
+// Statusnya tetap disebut, tanpa kurung kosong yang menggantung.
+const tanpaDurasi = buildUpgradeMessage({ user, trialLabel: null })
+check('tetap menyebut percobaan', tanpaDurasi.includes('Status: Percobaan Plugin'), true)
+check('tanpa kurung kosong', tanpaDurasi.includes('()'), false)
+
+console.log('--- tautan upgrade ---')
+const hrefUpgrade = whatsappHref(upgrade)
+check('tanpa baris baru mentah', /[\r\n]/.test(hrefUpgrade), false)
+check('baris baru ter-encode', hrefUpgrade.includes('%0A'), true)
+check('utuh setelah decode', decodeURIComponent(hrefUpgrade.split('?text=')[1]), upgrade)
 
 console.log(`\n${pass} lulus, ${fail} gagal`)
 process.exit(fail > 0 ? 1 : 0)

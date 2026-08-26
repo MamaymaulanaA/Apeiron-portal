@@ -134,8 +134,8 @@ export function bonusTrialCopy(label, { detail = false } = {}) {
     title: 'Bonus Member belum tersedia',
     description:
       `Anda sedang mendapatkan akses percobaan plugin${selama}. ` +
-      'Bonus Member khusus untuk member berlangganan, dan akan terbuka ' +
-      'setelah masa percobaan selesai.',
+      'Bonus Member khusus untuk member berlangganan — hubungi admin ' +
+      'untuk upgrade ke Member.',
   }
 }
 

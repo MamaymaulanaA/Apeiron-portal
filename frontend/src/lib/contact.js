@@ -36,6 +36,26 @@ export function buildConfirmationMessage({ user, transaction, formatDate } = {})
 }
 
 /**
+ * Pesan untuk user yang ingin naik dari masa percobaan ke Member.
+ *
+ * Dipisah dari pesan konfirmasi transaksi karena maksudnya berbeda: yang satu
+ * menanyakan bukti yang sudah dikirim, yang ini menanyakan cara berlangganan.
+ * Satu pesan untuk dua maksud akan membuat admin menebak-nebak.
+ *
+ * Status percobaan disertakan supaya admin tahu posisi user tanpa bertanya.
+ */
+export function buildUpgradeMessage({ user, trialLabel } = {}) {
+  const baris = ['Halo Admin Apeiron, saya ingin upgrade ke Member.', '']
+
+  if (user?.name) baris.push(`Nama: ${user.name}`)
+  if (user?.email) baris.push(`Email: ${user.email}`)
+  baris.push(trialLabel ? `Status: Percobaan Plugin (${trialLabel})` : 'Status: Percobaan Plugin')
+
+  baris.push('', 'Mohon informasi paket dan cara berlangganannya. Terima kasih.')
+  return baris.join('\n')
+}
+
+/**
  * Tautan WhatsApp beserta pesannya.
  *
  * encodeURIComponent, bukan encodeURI: yang terakhir membiarkan '#' lolos, dan
