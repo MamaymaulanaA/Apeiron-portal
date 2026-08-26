@@ -20,30 +20,28 @@ function check(label, got, want) {
 console.log('--- kartu dashboard: ringkas ---')
 const ringkas = bonusTrialCopy('2 Bulan')
 check('judulnya', ringkas.title, 'Percobaan Plugin')
-check(
-  'kalimatnya',
-  ringkas.description,
-  'Anda sedang mendapatkan akses percobaan plugin selama 2 Bulan. Bonus Member tersedia setelah masa percobaan selesai.',
-)
+check('kalimatnya', ringkas.description, 'Anda sedang mendapatkan akses percobaan plugin selama 2 Bulan. Bonus khusus untuk Member — hubungi admin untuk upgrade ke Member.')
 
 console.log('--- halaman Bonus: lengkap ---')
-// User datang ke sini KARENA mencari bonus, jadi alasannya harus lengkap:
-// bonus itu hak member berlangganan, dan percobaan bukan langganan.
+// Judulnya berbeda karena pertanyaan yang dijawab berbeda: di dashboard
+// "saya sedang apa", di halaman Bonus "kenapa kosong".
 const lengkap = bonusTrialCopy('2 Bulan', { detail: true })
-check('judulnya menyebut bonus', lengkap.title, 'Bonus Member belum tersedia')
+check('judulnya menyebut bonus', lengkap.title, 'Bonus Belum Tersedia')
+check('judulnya beda dari kartu', lengkap.title !== ringkas.title, true)
+
+// Kalimatnya sengaja sama persis di dua tempat: posisinya user memang belum
+// Member, dan dua penjelasan berbeda untuk keadaan yang sama hanya membuat
+// user menebak mana yang benar.
+check('kalimatnya sama dengan kartu', lengkap.description, ringkas.description)
 check('menyebut durasi', lengkap.description.includes('selama 2 Bulan'), true)
-check('menyebut berlangganan', lengkap.description.includes('member berlangganan'), true)
-// Arahannya di sini bukan "tunggu sampai percobaan selesai" melainkan upgrade:
-// percobaan tidak berubah sendiri jadi Member, admin yang mengubahnya. Menyuruh
-// menunggu di halaman ini membuat user duduk diam menanti hal yang tidak datang.
+check('menyebut Member', lengkap.description.includes('khusus untuk Member'), true)
 check('mengarahkan hubungi admin', lengkap.description.includes('hubungi admin'), true)
 check('menyebut upgrade ke Member', lengkap.description.includes('upgrade ke Member'), true)
-check('tidak menyuruh menunggu', lengkap.description.includes('masa percobaan selesai'), false)
 
-// Kartu dashboard sengaja tidak ikut berubah: di sana user hanya diberi tahu
-// keadaannya, sedangkan ajakan upgrade tempatnya di halaman Bonus.
-check('kartu tidak mengajak upgrade', ringkas.description.includes('upgrade'), false)
-check('kartu tetap menyebut percobaan selesai', ringkas.description.includes('masa percobaan selesai'), true)
+// Tidak menyuruh menunggu: masa percobaan tidak berakhir sendiri, admin yang
+// mematikannya. Menyuruh menunggu membuat user menanti hal yang tidak datang.
+check('tidak menyuruh menunggu', lengkap.description.includes('masa percobaan selesai'), false)
+check('tidak menyuruh menunggu di kartu', ringkas.description.includes('masa percobaan selesai'), false)
 
 console.log('--- durasi mengikuti setelan admin ---')
 check('14 Hari', bonusTrialCopy('14 Hari').description.includes('selama 14 Hari'), true)

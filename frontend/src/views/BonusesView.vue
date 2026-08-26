@@ -39,9 +39,9 @@ const trial = ref(null)
 /**
  * Pesan upgrade siap kirim.
  *
- * Kalimat di layar menyebut "member berlangganan", jadi harus ada jalan
- * menuju ke sana — tanpa tombol ini user yang ingin berlangganan justru
- * buntu di halaman yang menyuruhnya berlangganan.
+ * Kalimat di layar menyuruh menghubungi admin, jadi jalannya harus ada di
+ * sini juga — tanpa tombol ini user dibiarkan mencari sendiri nomor yang
+ * baru saja disuruh dihubungi.
  */
 const pesanUpgrade = computed(() =>
   buildUpgradeMessage({ user: authState.user, trialLabel: trial.value?.label }),

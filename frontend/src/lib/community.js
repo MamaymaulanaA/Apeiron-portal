@@ -110,32 +110,21 @@ export const GROUP_ACCESS_COPY = {
  * Durasinya datang dari setelan admin, bukan dari lisensi — kalimatnya disusun
  * dengan label yang dikirim server apa adanya.
  *
- * Ada dua bentuk, dan bedanya disengaja:
- *
- *   ringkas  — kartu di dashboard. User sedang melihat halaman lain, jadi
- *              yang perlu ia tahu cukup "sedang percobaan, bonus menyusul".
- *   lengkap  — halaman Bonus. Ia datang ke sini KARENA mencari bonus, jadi
- *              alasannya harus lengkap: bonus itu hak member berlangganan,
- *              dan percobaan bukan langganan.
+ * Kalimatnya sama di dashboard dan di halaman Bonus, dan itu disengaja:
+ * posisinya user memang belum Member, jadi dua tempat yang menjelaskan hal
+ * yang sama dengan kata berbeda hanya membuat user menebak mana yang benar.
+ * Yang membedakan cuma judulnya, karena yang dijawab berbeda: di dashboard
+ * "saya sedang apa", di halaman Bonus "kenapa kosong".
  */
 export function bonusTrialCopy(label, { detail = false } = {}) {
   const selama = label ? ` selama ${label}` : ''
-
-  if (!detail) {
-    return {
-      title: 'Percobaan Plugin',
-      description:
-        `Anda sedang mendapatkan akses percobaan plugin${selama}. ` +
-        'Bonus Member tersedia setelah masa percobaan selesai.',
-    }
-  }
+  const alasan =
+    `Anda sedang mendapatkan akses percobaan plugin${selama}. ` +
+    'Bonus khusus untuk Member — hubungi admin untuk upgrade ke Member.'
 
   return {
-    title: 'Bonus Member belum tersedia',
-    description:
-      `Anda sedang mendapatkan akses percobaan plugin${selama}. ` +
-      'Bonus Member khusus untuk member berlangganan — hubungi admin ' +
-      'untuk upgrade ke Member.',
+    title: detail ? 'Bonus Belum Tersedia' : 'Percobaan Plugin',
+    description: alasan,
   }
 }
 
