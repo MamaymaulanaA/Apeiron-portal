@@ -576,6 +576,38 @@ class AdminController
         }
         if (isset($input['role'])) $updateData['role'] = $input['role'];
         if (isset($input['is_active'])) $updateData['is_active'] = $input['is_active'];
+
+        // ---- Percobaan Plugin ----
+        //
+        // Setelan manual. Durasinya tidak pernah dihitung dari lisensi; ia
+        // angka yang diketik admin dan hanya dipakai untuk ditampilkan.
+        if (array_key_exists('trial_enabled', $input)) {
+            $aktif = (bool) $input['trial_enabled'];
+            $updateData['trial_enabled'] = (int) $aktif;
+
+            if ($aktif) {
+                $durasi = (int) ($input['trial_duration'] ?? 0);
+                $satuan = strtolower(trim((string) ($input['trial_unit'] ?? 'bulan')));
+
+                if ($durasi < 1) {
+                    jsonResponse(['error' => 'Durasi percobaan minimal 1'], 400);
+                }
+                if ($durasi > 999) {
+                    jsonResponse(['error' => 'Durasi percobaan maksimal 999'], 400);
+                }
+                if (!in_array($satuan, ['hari', 'bulan'], true)) {
+                    jsonResponse(['error' => 'Satuan percobaan harus Hari atau Bulan'], 400);
+                }
+
+                $updateData['trial_duration'] = $durasi;
+                $updateData['trial_unit'] = $satuan;
+            } else {
+                // Dikosongkan saat dimatikan supaya angka lama tidak muncul
+                // lagi begitu percobaan dinyalakan kembali.
+                $updateData['trial_duration'] = null;
+                $updateData['trial_unit'] = null;
+            }
+        }
         if (!empty($input['password'])) {
             // Pass raw password - User::update() handles hashing
             $updateData['password'] = $input['password'];

@@ -54,6 +54,7 @@ import {
   bonusHref,
   formatFileSize,
   GROUP_ACCESS_COPY,
+  bonusTrialCopy,
 } from '@/lib/community'
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
@@ -83,6 +84,9 @@ const bonusesError = ref('')
  * kosong — bukan yang menentukan boleh atau tidaknya.
  */
 const bonusAccess = ref('none')
+/** Info percobaan plugin dari server; null bila tidak sedang percobaan. */
+const bonusTrial = ref(null)
+const trialCopy = computed(() => bonusTrialCopy(bonusTrial.value?.label))
 
 /**
  * Forum (panduan) dan Group. Keduanya dari endpoint yang menyajikan data
@@ -303,6 +307,7 @@ async function loadBonuses() {
     const { data } = await api.get('/user/bonuses')
     bonuses.value = data.bonuses || []
     bonusAccess.value = data.access || 'none'
+    bonusTrial.value = data.trial || null
   } catch (e) {
     bonusesError.value = errorMessage(e, 'Gagal memuat bonus')
   } finally {
@@ -687,6 +692,19 @@ onMounted(() => {
       <!-- Bonus Member — GET /user/bonuses, hanya yang aktif.
            Menggantikan kartu Lisensi Anda; license key dan API key tetap ada
            di halaman Plugin, jadi tidak ada akses yang hilang. -->
+      <!-- Percobaan Plugin. Muncul menggantikan kartu Bonus Member, karena
+           menyembunyikan keduanya membuat user tidak tahu kenapa bonusnya
+           hilang. -->
+      <RailCard
+        v-if="bonusAccess === 'trial'"
+        title="Percobaan Plugin"
+        :icon="Clock"
+        tone="tone-warn"
+        flush
+      >
+        <p class="trial-copy">{{ trialCopy.description }}</p>
+      </RailCard>
+
       <!-- Disembunyikan sepenuhnya sampai transaksinya disetujui. Menampilkan
            judulnya dengan daftar kosong hanya memancing pertanyaan; halaman
            Bonus sendiri yang menjelaskan alasannya bagi yang membukanya. -->
@@ -860,6 +878,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
+
+/* ---- Percobaan Plugin ---- */
+.trial-copy {
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  font-size: var(--fs-label);
+  color: var(--text-body);
+  line-height: var(--lh-normal);
+}
+
 
 /* ---- Popup onboarding user baru ---- */
 .ob {

@@ -424,9 +424,31 @@ const routes = {
   // transaksinya sudah disetujui. Ketika belum, payload-nya benar-benar
   // kosong — bukan lengkap lalu disembunyikan di tampilan.
   'GET /user/bonuses': () => {
+    // TRIAL=3bulan / TRIAL=14hari meniru user yang sedang percobaan plugin.
+    // Percobaan mengalahkan status transaksi, persis seperti di server.
+    const trialRaw = process.env.TRIAL || ''
+    const m = trialRaw.match(/^(\d+)\s*(hari|bulan)$/i)
+    const trialAktif = !!m
+
+    if (trialAktif) {
+      const satuan = m[2].toLowerCase()
+      return {
+        access: 'trial',
+        transaction_status: 'approved',
+        trial: {
+          duration: Number(m[1]),
+          unit: satuan,
+          label: `${m[1]} ${satuan === 'hari' ? 'Hari' : 'Bulan'}`,
+        },
+        bonuses: [],
+        categories: [],
+      }
+    }
+
     const active = ACCESS === 'granted' ? BONUSES.filter((b) => b.is_active) : []
     return {
       access: ACCESS,
+      trial: null,
       transaction_status: { none: null, pending: 'waiting_verification', rejected: 'rejected', granted: 'approved' }[ACCESS],
       bonuses: active,
       categories: [...new Set(active.map((b) => b.category).filter(Boolean))],

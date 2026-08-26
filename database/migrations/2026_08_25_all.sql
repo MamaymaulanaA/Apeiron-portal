@@ -2,7 +2,7 @@
 -- Panduan, Group, dan Bonus — seluruh perubahan database dalam satu berkas
 -- =============================================================================
 --
--- Gabungan dari enam migration di folder ini, disusun berurutan. Jalankan
+-- Gabungan dari tujuh migration di folder ini, disusun berurutan. Jalankan
 -- berkas INI saja; tidak perlu menjalankan keempatnya satu per satu.
 --
 -- Aman dijalankan berulang. Setiap pernyataan memakai IF NOT EXISTS, jadi
@@ -284,3 +284,24 @@ ALTER TABLE `plugins`
 
 ALTER TABLE `plugins`
   ADD INDEX IF NOT EXISTS `idx_plugin_active` (`plugin_id`, `is_active`);
+
+
+-- =============================================================================
+-- 8. Percobaan Plugin pada profil user
+-- =============================================================================
+-- Setelan manual milik admin. Durasinya tidak pernah dihitung dari lisensi; ia
+-- hanya angka untuk ditampilkan, dan trial_enabled yang menentukan Bonus
+-- Member terkunci atau tidak. Default 0 — user lama tetap Member biasa.
+-- Penjelasan lengkap: database/migrations/2026_08_26_plugin_trial.sql
+
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `trial_enabled` tinyint(1) NOT NULL DEFAULT 0 AFTER `role`;
+
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `trial_duration` int(11) DEFAULT NULL AFTER `trial_enabled`;
+
+-- Disimpan sebagai teks, bukan enum: satuan yang bertambah kelak (mis. minggu)
+-- hanya perlu ditangani di validasi, tanpa ALTER pada tabel yang sudah berisi
+-- data pengguna.
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `trial_unit` varchar(10) DEFAULT NULL AFTER `trial_duration`;

@@ -11,6 +11,17 @@ class User
     public string $password_hash;
     public string $name;
     public string $role;
+
+    /**
+     * Percobaan Plugin — setelan manual milik admin.
+     *
+     * trial_enabled yang menentukan Bonus Member terkunci atau tidak. Durasi
+     * dan satuannya HANYA untuk ditampilkan; keduanya tidak pernah dihitung
+     * terhadap tanggal apa pun, dan tidak diambil dari lisensi.
+     */
+    public bool $trial_enabled = false;
+    public ?int $trial_duration = null;
+    public ?string $trial_unit = null;
     public bool $is_active;
     public ?string $email_verified_at;
     public ?string $last_login_at;
@@ -124,6 +135,19 @@ class User
         }
         if (isset($data['role'])) {
             $updateData['role'] = $data['role'];
+        }
+
+        // array_key_exists, bukan isset: mematikan percobaan mengirim 0, dan
+        // isset() menganggap 0 sah — tapi null juga harus bisa lewat untuk
+        // mengosongkan durasinya.
+        if (array_key_exists('trial_enabled', $data)) {
+            $updateData['trial_enabled'] = (int) (bool) $data['trial_enabled'];
+        }
+        if (array_key_exists('trial_duration', $data)) {
+            $updateData['trial_duration'] = $data['trial_duration'];
+        }
+        if (array_key_exists('trial_unit', $data)) {
+            $updateData['trial_unit'] = $data['trial_unit'];
         }
 
         $updateData['updated_at'] = date('Y-m-d H:i:s');
@@ -248,7 +272,8 @@ class User
         $params[] = $offset;
 
         return Database::fetchAll(
-            "SELECT id, username, name, email, role, is_active, created_at, last_login_at
+            "SELECT id, username, name, email, role, is_active, created_at, last_login_at,
+                    trial_enabled, trial_duration, trial_unit
              FROM users {$where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
             $params
         );
@@ -288,6 +313,27 @@ class User
     /**
      * Create instance from array
      */
+    /** Apakah user ini sedang dalam masa percobaan plugin? */
+    public function onPluginTrial(): bool
+    {
+        return $this->trial_enabled;
+    }
+
+    /**
+     * Durasi percobaan sebagaimana ditulis admin, mis. "3 Bulan".
+     *
+     * Mengembalikan null bila percobaannya mati atau angkanya belum diisi —
+     * kalimat "selama  " tanpa angka lebih membingungkan daripada tidak ada
+     * kalimatnya sama sekali.
+     */
+    public function trialLabel(): ?string
+    {
+        if (!$this->trial_enabled || !$this->trial_duration) return null;
+
+        $satuan = $this->trial_unit === 'hari' ? 'Hari' : 'Bulan';
+        return $this->trial_duration . ' ' . $satuan;
+    }
+
     public static function fromArray(array $row): self
     {
         $user = new self();
@@ -297,6 +343,11 @@ class User
         $user->password_hash = $row['password_hash'];
         $user->name = $row['name'];
         $user->role = $row['role'];
+        // ?? — kolom percobaan baru; baris lama yang belum tersentuh
+        // migration tetap terbaca tanpa error.
+        $user->trial_enabled = (bool) ($row['trial_enabled'] ?? false);
+        $user->trial_duration = isset($row['trial_duration']) ? (int) $row['trial_duration'] : null;
+        $user->trial_unit = $row['trial_unit'] ?? null;
         $user->is_active = (bool) $row['is_active'];
         $user->email_verified_at = $row['email_verified_at'] ?? null;
         $user->last_login_at = $row['last_login_at'] ?? null;

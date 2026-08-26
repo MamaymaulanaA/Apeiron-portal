@@ -104,6 +104,21 @@ export const GROUP_ACCESS_COPY = {
  * bukan grup — tetapi aturannya sama dan berasal dari satu sumber di
  * Transaction::memberAccessState().
  */
+/**
+ * Teks saat user sedang dalam masa Percobaan Plugin.
+ *
+ * Durasinya datang dari setelan admin, bukan dari lisensi — jadi kalimatnya
+ * disusun dengan label yang dikirim server apa adanya.
+ */
+export function bonusTrialCopy(label) {
+  return {
+    title: 'Percobaan Plugin',
+    description: label
+      ? `Anda sedang mendapatkan akses percobaan plugin selama ${label}. Bonus Member tersedia setelah masa percobaan selesai.`
+      : 'Anda sedang mendapatkan akses percobaan plugin. Bonus Member tersedia setelah masa percobaan selesai.',
+  }
+}
+
 export const BONUS_ACCESS_COPY = {
   none: {
     title: 'Belum ada transaksi',

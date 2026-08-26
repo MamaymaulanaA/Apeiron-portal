@@ -45,6 +45,50 @@ class BonusController
         'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     ];
 
+    /**
+     * Keadaan akses Bonus Member untuk seorang user.
+     *
+     * Percobaan plugin diperiksa LEBIH DULU dan mengalahkan status transaksi:
+     * user yang sedang percobaan tetap terkunci meski lisensinya satu tahun.
+     * Itu memang maksud fiturnya.
+     *
+     * Datanya dibaca ulang dari database, BUKAN dari currentUser(). Objek di
+     * sesi adalah salinan dari saat login; kalau admin menyalakan percobaan
+     * sementara user sedang masuk, salinan itu tertinggal dan aksesnya tidak
+     * ikut berubah sampai user logout.
+     */
+    private static function accessFor(int $userId): string
+    {
+        try {
+            $user = User::find($userId);
+            if ($user && $user->onPluginTrial()) return 'trial';
+        } catch (Throwable $e) {
+            // Kolom percobaan belum ada (migration belum dijalankan). Bukan
+            // alasan untuk menolak akses yang seharusnya diberikan; jatuh ke
+            // aturan transaksi seperti sebelum fitur ini ada.
+            error_log('[PORTAL][TRIAL] ' . $e->getMessage());
+        }
+
+        return Transaction::memberAccessState(Transaction::findActiveByUser($userId));
+    }
+
+    /** Durasi percobaan untuk ditampilkan, mis. ['label' => '3 Bulan']. */
+    private static function trialInfo(int $userId): ?array
+    {
+        try {
+            $user = User::find($userId);
+            if (!$user || !$user->onPluginTrial()) return null;
+
+            return [
+                'duration' => $user->trial_duration,
+                'unit' => $user->trial_unit,
+                'label' => $user->trialLabel(),
+            ];
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
     // =========================================================================
     // Sisi user
     // =========================================================================
@@ -66,8 +110,8 @@ class BonusController
         requireAuth();
         $user = currentUser();
 
+        $access = self::accessFor($user->id);
         $transaction = Transaction::findActiveByUser($user->id);
-        $access = Transaction::memberAccessState($transaction);
 
         // Dibungkus try: sebelum migration dijalankan, tabel bonuses belum ada
         // dan query-nya melempar. Halaman Bonus yang kosong masih bisa
@@ -89,6 +133,9 @@ class BonusController
         jsonResponse([
             'access' => $access,
             'transaction_status' => $transaction->status ?? null,
+            // Diisi hanya saat percobaan aktif; tampilan memakainya untuk
+            // menyebut durasinya persis seperti yang diatur admin.
+            'trial' => $access === 'trial' ? self::trialInfo($user->id) : null,
             'bonuses' => $bonuses,
             'categories' => $categories,
         ]);
@@ -110,7 +157,13 @@ class BonusController
         // menentukan. Tanpa pemeriksaan di sini, tautan unduh yang sempat
         // tersimpan di riwayat browser — atau id yang ditebak — tetap bekerja
         // meski transaksinya kemudian ditolak.
-        if (Transaction::memberAccessState(Transaction::findActiveByUser(currentUser()->id)) !== 'granted') {
+        $access = self::accessFor(currentUser()->id);
+
+        if ($access === 'trial') {
+            jsonResponse(['error' => 'Bonus Member tersedia setelah masa percobaan plugin selesai'], 403);
+        }
+
+        if ($access !== 'granted') {
             jsonResponse(['error' => 'Bonus tersedia setelah transaksi Anda disetujui'], 403);
         }
 

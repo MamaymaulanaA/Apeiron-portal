@@ -76,6 +76,10 @@ const form = ref({
   password: '',
   role: 'user',
   is_active: 1,
+  /* Percobaan Plugin — setelan manual, tidak diturunkan dari lisensi. */
+  trial_enabled: false,
+  trial_duration: 3,
+  trial_unit: 'bulan',
 })
 
 // Konfirmasi hapus
@@ -123,6 +127,11 @@ function openEdit(u) {
     password: '', // kosong = password tidak diubah
     role: u.role || 'user',
     is_active: Number(u.is_active) ? 1 : 0,
+    trial_enabled: !!Number(u.trial_enabled),
+    // Angka bawaan dipakai saat percobaan belum pernah diatur, supaya kolomnya
+    // tidak kosong begitu tombolnya dinyalakan.
+    trial_duration: Number(u.trial_duration) || 3,
+    trial_unit: u.trial_unit || 'bulan',
   }
   formOpen.value = true
 }
@@ -138,6 +147,9 @@ async function save() {
         email: form.value.email.trim(),
         role: form.value.role,
         is_active: form.value.is_active,
+        trial_enabled: form.value.trial_enabled ? 1 : 0,
+        trial_duration: form.value.trial_enabled ? Number(form.value.trial_duration) : null,
+        trial_unit: form.value.trial_enabled ? form.value.trial_unit : null,
       }
       // Kirim password hanya bila admin benar-benar mengisinya.
       if (form.value.password) payload.password = form.value.password
@@ -411,6 +423,49 @@ onMounted(load)
             </select>
           </div>
         </div>
+
+        <!-- ---------- Percobaan Plugin ---------- -->
+        <div class="trial">
+          <label class="trial-head">
+            <input v-model="form.trial_enabled" type="checkbox" :disabled="acting">
+            <span>
+              <span class="trial-title">Percobaan Plugin</span>
+              <span class="field-hint">
+                Selama aktif, Bonus Member terkunci untuk user ini — meski
+                lisensinya berdurasi satu tahun.
+              </span>
+            </span>
+          </label>
+
+          <!-- Durasi hanya relevan saat percobaannya menyala. -->
+          <div v-if="form.trial_enabled" class="trial-durasi">
+            <div class="field">
+              <label class="field-label" for="u-trial-num">Durasi</label>
+              <input
+                id="u-trial-num"
+                v-model.number="form.trial_duration"
+                class="input"
+                type="number"
+                min="1"
+                max="999"
+                :disabled="acting"
+              >
+            </div>
+
+            <div class="field">
+              <label class="field-label" for="u-trial-unit">Satuan</label>
+              <select id="u-trial-unit" v-model="form.trial_unit" class="select" :disabled="acting">
+                <option value="hari">Hari</option>
+                <option value="bulan">Bulan</option>
+              </select>
+            </div>
+          </div>
+
+          <p v-if="form.trial_enabled" class="field-hint trial-note">
+            Angka ini hanya untuk ditampilkan ke user. Masa percobaan tidak
+            berakhir sendiri — matikan tombol ini bila sudah selesai.
+          </p>
+        </div>
       </form>
 
       <template #footer>
@@ -451,6 +506,52 @@ onMounted(load)
 </template>
 
 <style scoped>
+
+/* ---- Percobaan Plugin ---- */
+.trial {
+  padding: var(--sp-4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.trial-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  cursor: pointer;
+}
+.trial-head input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.trial-head > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trial-title {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.trial-durasi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.trial-durasi .field {
+  flex: 1;
+  min-width: 120px;
+}
+
+.trial-note {
+  margin-top: var(--sp-3);
+}
+
 .user-cell {
   display: flex;
   align-items: center;

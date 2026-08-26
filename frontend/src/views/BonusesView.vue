@@ -23,7 +23,7 @@ import {
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import { api, errorMessage } from '@/lib/api'
-import { bonusHref, formatFileSize, BONUS_ACCESS_COPY } from '@/lib/community'
+import { bonusHref, formatFileSize, BONUS_ACCESS_COPY, bonusTrialCopy } from '@/lib/community'
 
 const loading = ref(true)
 const loadError = ref('')
@@ -31,8 +31,12 @@ const bonuses = ref([])
 const categories = ref([])
 /** Keadaan akses menurut server; menjelaskan kenapa daftarnya kosong. */
 const access = ref('granted')
-const accessCopy = computed(
-  () => BONUS_ACCESS_COPY[access.value] || BONUS_ACCESS_COPY.none,
+const trial = ref(null)
+
+const accessCopy = computed(() =>
+  access.value === 'trial'
+    ? bonusTrialCopy(trial.value?.label)
+    : BONUS_ACCESS_COPY[access.value] || BONUS_ACCESS_COPY.none,
 )
 
 const search = ref('')
@@ -60,6 +64,7 @@ async function load() {
     bonuses.value = data.bonuses || []
     categories.value = data.categories || []
     access.value = data.access || 'granted'
+    trial.value = data.trial || null
   } catch (e) {
     loadError.value = errorMessage(e, 'Gagal memuat bonus')
   } finally {
@@ -137,7 +142,7 @@ onMounted(load)
         :title="accessCopy.title"
         :description="accessCopy.description"
       >
-        <template v-if="access !== 'pending'" #action>
+        <template v-if="access !== 'pending' && access !== 'trial'" #action>
           <RouterLink to="/transactions" class="btn btn-primary">
             {{ access === 'rejected' ? 'Unggah Ulang' : 'Ke Transaksi' }}
           </RouterLink>

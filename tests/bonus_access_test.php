@@ -38,6 +38,18 @@ class Database
             created_at TEXT, updated_at TEXT
         )");
 
+        self::$pdo->exec("CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT, email TEXT, password_hash TEXT, name TEXT,
+            role TEXT DEFAULT 'user',
+            trial_enabled INTEGER NOT NULL DEFAULT 0,
+            trial_duration INTEGER, trial_unit TEXT,
+            is_active INTEGER DEFAULT 1,
+            email_verified_at TEXT, remember_token TEXT,
+            last_login_at TEXT, last_login_ip TEXT,
+            created_at TEXT, updated_at TEXT
+        )");
+
         self::$pdo->exec("CREATE TABLE bonuses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL, category TEXT, description TEXT,
@@ -106,6 +118,7 @@ $USER_ID = 7;
 function currentUser(): object { return (object) ['id' => $GLOBALS['USER_ID'], 'name' => 'Sinta']; }
 
 Database::boot();
+require_once dirname(__DIR__) . '/src/Models/User.php';
 require_once dirname(__DIR__) . '/src/Models/Transaction.php';
 require_once dirname(__DIR__) . '/src/Models/Bonus.php';
 require_once dirname(__DIR__) . '/api/controllers/BonusController.php';
@@ -139,6 +152,22 @@ function setStatus(?string $status): void
         'created_at' => '2026-01-01 00:00:00',
         'updated_at' => '2026-01-01 00:00:00',
     ]);
+}
+
+Database::insert('users', [
+    'id' => 7, 'email' => 'sinta@example.com', 'password_hash' => 'x',
+    'name' => 'Sinta Dewi', 'role' => 'user', 'trial_enabled' => 0,
+    'is_active' => 1, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00',
+]);
+
+/** Nyalakan atau matikan percobaan plugin milik user uji. */
+function setTrial(bool $aktif, ?int $durasi = null, ?string $satuan = null): void
+{
+    Database::update('users', [
+        'trial_enabled' => (int) $aktif,
+        'trial_duration' => $durasi,
+        'trial_unit' => $satuan,
+    ], 'id = ?', [$GLOBALS['USER_ID']]);
 }
 
 // Dua bonus dengan rahasia yang berbeda bentuk: satu berkas, satu tautan.
@@ -259,6 +288,76 @@ setStatus('approved');
 [, $data] = call(fn() => $ctl->userBonuses());
 check('yang nonaktif tidak ikut', count($data['bonuses']), 1);
 check('yang aktif tetap ada', $data['bonuses'][0]['name'], 'Kelas Online');
+// =====================================================================
+echo "--- Percobaan Plugin mengunci Bonus Member ---\n";
+// =====================================================================
+// Aturan intinya: percobaan MENGALAHKAN status transaksi. User dengan lisensi
+// satu tahun yang sudah disetujui pun tetap terkunci selama percobaan aktif.
+Database::update('bonuses', ['is_active' => 1], 'id > ?', [0]);
+setStatus('approved');
+setTrial(true, 3, 'bulan');
+
+[$kode, $data] = call(fn() => $ctl->userBonuses());
+check('approved + percobaan -> access trial', $data['access'], 'trial');
+check('bonus tidak dikirim', count($data['bonuses']), 0);
+check('kategori juga ditahan', $data['categories'], []);
+
+$json = json_encode($data);
+check('tanpa nama bonus', str_contains($json, 'Kelas Online'), false);
+check('tanpa tautan', str_contains($json, 'RAHASIA-TAUTAN'), false);
+
+echo "--- durasi ditampilkan persis seperti diatur admin ---\n";
+check('label 3 Bulan', $data['trial']['label'] ?? null, '3 Bulan');
+check('angka apa adanya', $data['trial']['duration'] ?? null, 3);
+check('satuan apa adanya', $data['trial']['unit'] ?? null, 'bulan');
+
+setTrial(true, 14, 'hari');
+[, $d2] = call(fn() => $ctl->userBonuses());
+check('label 14 Hari', $d2['trial']['label'] ?? null, '14 Hari');
+
+// Transaksinya approved dan lisensinya setahun, tetapi yang tampil tetap
+// angka milik admin — durasinya tidak pernah diambil dari lisensi.
+setTrial(true, 1, 'bulan');
+[, $d3] = call(fn() => $ctl->userBonuses());
+check('tidak mengikuti lisensi', $d3['trial']['label'] ?? null, '1 Bulan');
+
+echo "--- unduhan ikut terkunci ---\n";
+// Menyembunyikan tombol tidak menutup apa pun; tautannya bisa tersimpan.
+[$kode, $err] = call(fn() => $ctl->downloadBonus(['id' => 2]));
+check('unduh ditolak 403', $kode, 403);
+check('alasannya menyebut percobaan', str_contains($err['error'] ?? '', 'percobaan'), true);
+check('tanpa tautan di pesan galat', str_contains(json_encode($err), 'RAHASIA-TAUTAN'), false);
+
+echo "--- dimatikan: kembali Member normal ---\n";
+setTrial(false);
+[, $d4] = call(fn() => $ctl->userBonuses());
+check('access kembali granted', $d4['access'], 'granted');
+check('bonus muncul lagi', count($d4['bonuses']), 2);
+check('info percobaan hilang', $d4['trial'], null);
+check('unduh boleh lagi', call(fn() => $ctl->downloadBonus(['id' => 999]))[0], 404);
+
+echo "--- percobaan pada user yang transaksinya BELUM disetujui ---\n";
+// Tetap terkunci, dan alasannya percobaan — bukan transaksi.
+setStatus('waiting_verification');
+setTrial(true, 2, 'bulan');
+[, $d5] = call(fn() => $ctl->userBonuses());
+check('access trial, bukan pending', $d5['access'], 'trial');
+check('tetap kosong', count($d5['bonuses']), 0);
+
+echo "--- percobaan aktif tanpa durasi ---\n";
+// Angka belum diisi: tetap terkunci, tetapi tanpa kalimat yang menggantung.
+setTrial(true, null, null);
+[, $d6] = call(fn() => $ctl->userBonuses());
+check('tetap terkunci', $d6['access'], 'trial');
+// ?? tidak bisa dipakai di sini: ia mengubah null jadi nilai cadangan,
+// sehingga assertion-nya tidak akan pernah bisa melihat null yang diuji.
+$labelKosong = array_key_exists('label', $d6['trial'] ?? []) ? $d6['trial']['label'] : 'TIDAK ADA KUNCI';
+check('label null, bukan teks kosong', $labelKosong, null);
+
+setTrial(false);
+setStatus('approved');
+
+
 
 printf("\n%d lulus, %d gagal\n", $pass, $fail);
 exit($fail > 0 ? 1 : 0);
