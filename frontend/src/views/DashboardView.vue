@@ -35,12 +35,15 @@ import {
   Users,
   Lock,
   Gift,
+  FileUp,
+  ShieldCheck,
 } from 'lucide-vue-next'
 import StatCard from '@/components/ui/StatCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonRows from '@/components/ui/SkeletonRows.vue'
 import RailCard from '@/components/ui/RailCard.vue'
 import PaginationBar from '@/components/ui/PaginationBar.vue'
+import ModalDialog from '@/components/ui/ModalDialog.vue'
 import WelcomeBanner from '@/components/ui/WelcomeBanner.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import PlatformIcon from '@/components/ui/PlatformIcon.vue'
@@ -55,6 +58,7 @@ import {
 import { api, errorMessage } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
 import { authState, isAdmin } from '@/stores/auth'
+import { shouldShowOnboarding } from '@/lib/onboarding'
 import { notifState, fetchNotifications } from '@/stores/notifications'
 import { toast } from '@/stores/toast'
 
@@ -119,6 +123,69 @@ const groupCopy = computed(
   () => GROUP_ACCESS_COPY[groupAccess.value] || GROUP_ACCESS_COPY.none
 )
 const transaction = computed(() => data.value?.transaction || null)
+
+/* ---------- Popup onboarding user baru ---------- */
+
+/**
+ * Belum pernah mengunggah bukti transaksi.
+ *
+ * Cukup diperiksa dari ada-tidaknya baris transaksi: createFromUpload()
+ * membuat barisnya SAAT unggahan diterima dan langsung menyetel
+ * waiting_verification, jadi tidak ada keadaan "punya transaksi tapi belum
+ * mengunggah". Tidak perlu penanda baru di database.
+ *
+ * Yang ditolak juga tidak dihitung baru — mereka sudah pernah mengunggah, dan
+ * dashboard sudah menampilkan alasan penolakan beserta tombol unggah ulang.
+ * Menambah popup di situ hanya mengulang hal yang sudah terlihat.
+ */
+const onboardingOpen = ref(false)
+
+/** Kunci per user, supaya berganti akun di browser yang sama tidak mewarisi. */
+const onboardingKey = computed(
+  () => `apeiron:onboarding:${authState.user?.id ?? 'anon'}`,
+)
+
+function sudahDitutup() {
+  try {
+    return sessionStorage.getItem(onboardingKey.value) === '1'
+  } catch {
+    // Tidak bisa membaca penyimpanan (mode privat): tampilkan saja.
+    // Menampilkan panduan dua kali jauh lebih ringan akibatnya daripada tidak
+    // menampilkannya sama sekali kepada user yang memang membutuhkannya.
+    return false
+  }
+}
+
+/**
+ * sessionStorage, bukan localStorage.
+ *
+ * Ditutup sekali berarti tidak muncul lagi selama sesi itu — tidak menghalangi
+ * tiap kali user kembali ke dashboard. Tetapi login berikutnya menampilkannya
+ * lagi selama bukti transaksi belum diunggah, karena user yang menutupnya
+ * tanpa sengaja tidak boleh kehilangan petunjuk satu-satunya. Begitu bukti
+ * diunggah, syaratnya gagal selamanya tanpa bergantung penyimpanan apa pun.
+ */
+function tutupOnboarding() {
+  onboardingOpen.value = false
+  try {
+    sessionStorage.setItem(onboardingKey.value, '1')
+  } catch {
+    // Gagal mengingat bukan alasan untuk menggagalkan aksinya.
+  }
+}
+
+watch(
+  () => [loading.value, data.value, transaction.value],
+  () => {
+    onboardingOpen.value = shouldShowOnboarding({
+      loading: loading.value,
+      data: data.value,
+      transaction: transaction.value,
+      dismissed: sudahDitutup(),
+    })
+  },
+  { immediate: true },
+)
 const license = computed(() => data.value?.license || null)
 const templates = computed(() => data.value?.templates || [])
 const plugin = computed(() => data.value?.latest_plugin || null)
@@ -736,10 +803,138 @@ onMounted(() => {
 
       </aside>
     </div>
+
+    <!-- ---------- Popup onboarding user baru ---------- -->
+    <ModalDialog
+      :open="onboardingOpen"
+      title="Lengkapi Aktivasi Anda"
+      subtitle="Satu langkah lagi sebelum plugin dan license key bisa dipakai"
+      size="sm"
+      @close="tutupOnboarding"
+    >
+      <div class="ob">
+        <span class="icon-chip tone-brand ob-icon">
+          <FileUp :size="22" />
+        </span>
+
+        <p class="ob-lead">
+          Untuk mendapatkan <strong>Plugin &amp; License Key</strong>, silakan
+          unggah bukti transaksi terlebih dahulu.
+        </p>
+
+        <ul class="ob-steps">
+          <li>
+            <span class="ob-num">1</span>
+            <span>Unggah bukti transaksi di halaman Transaksi.</span>
+          </li>
+          <li>
+            <span class="ob-num">2</span>
+            <span>Admin memverifikasi bukti yang Anda kirim.</span>
+          </li>
+          <li>
+            <span class="ob-num">3</span>
+            <span>License key terbit dan plugin siap diunduh.</span>
+          </li>
+        </ul>
+
+        <p class="ob-note">
+          <ShieldCheck :size="14" />
+          Bonus member dan group juga terbuka setelah transaksi disetujui.
+        </p>
+      </div>
+
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="tutupOnboarding">
+          Nanti Saja
+        </button>
+        <!-- Ditutup saat diklik: user sedang menuju halaman yang dimaksud,
+             jadi menampilkannya lagi ketika ia kembali hanya menghalangi. -->
+        <RouterLink to="/transactions" class="btn btn-primary" @click="tutupOnboarding">
+          <FileUp :size="16" />
+          Upload Bukti Transaksi
+        </RouterLink>
+      </template>
+    </ModalDialog>
+
   </div>
 </template>
 
 <style scoped>
+
+/* ---- Popup onboarding user baru ---- */
+.ob {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ob-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r);
+  background: var(--tone-bg);
+  flex-shrink: 0;
+}
+
+.ob-lead {
+  font-size: var(--fs-body);
+  color: var(--text-body);
+  line-height: var(--lh-normal);
+}
+.ob-lead strong {
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold);
+}
+
+/* Tiga langkah, bukan satu paragraf panjang: yang perlu dipahami user adalah
+   urutannya, dan urutan paling cepat terbaca sebagai daftar bernomor. */
+.ob-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.ob-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  font-size: var(--fs-label);
+  color: var(--text-body);
+  line-height: var(--lh-snug);
+}
+
+.ob-num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-border);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+}
+
+.ob-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  /* Tombolnya menumpuk penuh supaya keduanya mudah ditekan. */
+  .ob-steps {
+    padding: var(--sp-3);
+  }
+}
+
 /* ============ Kerangka dua kolom ============ */
 .dash-root {
   display: contents;

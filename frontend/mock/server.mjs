@@ -282,7 +282,15 @@ const LICENSE_AFTER_SERVER_CHANGE = {
 }
 
 /** Dashboard user berubah mengikuti transaksi milik USER. */
-const myTx = TX.find((t) => t.user_id === USER.id) || null
+/**
+ * NEW=1 meniru user yang baru mendaftar dan belum pernah mengunggah bukti
+ * transaksi — keadaan yang memunculkan popup onboarding.
+ *
+ *   NEW=1 node mock/server.mjs
+ */
+const myTx = process.env.NEW === '1'
+  ? null
+  : TX.find((t) => t.user_id === USER.id) || null
 
 const routes = {
   'GET /auth/csrf': () => ({ csrf_token: 'mock-csrf-token' }),
