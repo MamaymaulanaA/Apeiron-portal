@@ -4,7 +4,7 @@
  * Unduhan memakai tautan langsung ke endpoint agar cookie sesi ikut terkirim,
  * sama seperti perilaku sebelumnya.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   Package,
   KeyRound,
@@ -33,6 +33,7 @@ import {
   isLicenseActive,
 } from '@/lib/license'
 import { toast } from '@/stores/toast'
+import { shouldRefreshOnFocus } from '@/lib/refresh'
 
 const loading = ref(true)
 const licenses = ref([])
@@ -69,16 +70,44 @@ function statusIcon(l) {
 async function load() {
   loading.value = true
   try {
-    const [lic, plug] = await Promise.all([
-      api.get('/user/licenses'),
-      api.get('/user/plugins'),
-    ])
-    licenses.value = lic.data.licenses || []
-    plugins.value = plug.data.plugins || []
+    await ambilData()
   } catch (e) {
     toast.error(errorMessage(e, 'Gagal memuat data lisensi'))
   } finally {
     loading.value = false
+  }
+}
+
+async function ambilData() {
+  const [lic, plug] = await Promise.all([
+    api.get('/user/licenses'),
+    api.get('/user/plugins'),
+  ])
+  licenses.value = lic.data.licenses || []
+  plugins.value = plug.data.plugins || []
+}
+
+/**
+ * Muat ulang tanpa terlihat, saat user kembali ke tab ini.
+ *
+ * Tanpa skeleton: layarnya sudah terisi, dan mengosongkannya sekejap hanya
+ * untuk menggantinya dengan angka yang sama membuat halaman berkedip tanpa
+ * alasan.
+ *
+ * Tanpa toast saat gagal: user tidak meminta apa pun — ia cuma kembali ke tab.
+ * Memunculkan pesan galat atas sesuatu yang tidak ia lakukan lebih mengganggu
+ * daripada menampilkan data yang tertinggal beberapa menit. Yang sudah di layar
+ * dibiarkan apa adanya.
+ *
+ * Tidak memaksa refresh=1: backend punya TTL 10 menit sendiri, jadi kembali ke
+ * tab setelah 40 detik tidak menimbulkan permintaan keluar ke License Server —
+ * hanya satu permintaan lokal yang dijawab dari cache.
+ */
+async function muatDiamDiam() {
+  try {
+    await ambilData()
+  } catch {
+    /* biarkan data yang sudah tampil */
   }
 }
 
@@ -185,7 +214,39 @@ async function copyText(value, key) {
   }
 }
 
-onMounted(load)
+/* ---------- Segarkan sendiri saat tab kembali dibuka ---------- */
+
+/**
+ * Status lisensi berubah di License Server, bukan di portal — batas aktivasi
+ * dinaikkan, durasi jadi Lifetime — dan tidak ada yang memberi tahu halaman ini.
+ * Tombol Cek Status menutup kebutuhan itu hanya bagi yang ingat menekannya.
+ *
+ * Yang disegarkan di sini bukan pemanggilan ke License Server melainkan
+ * pemanggilan ke portal; TTL 10 menit di backend tetap yang menentukan kapan
+ * server lisensi benar-benar dihubungi. Jadi ini tidak menambah beban ke sana.
+ */
+const tersembunyiSejak = ref(null)
+
+function onVisibilitas() {
+  if (document.hidden) {
+    tersembunyiSejak.value = Date.now()
+    return
+  }
+
+  if (shouldRefreshOnFocus({ hiddenAt: tersembunyiSejak.value, now: Date.now() })) {
+    muatDiamDiam()
+  }
+  tersembunyiSejak.value = null
+}
+
+onMounted(() => {
+  load()
+  document.addEventListener('visibilitychange', onVisibilitas)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilitas)
+})
 </script>
 
 <template>
