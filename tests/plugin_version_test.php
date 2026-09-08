@@ -153,12 +153,29 @@ function call(callable $fn): array
 }
 
 /** Tiru berkas ZIP yang diunggah. */
+/**
+ * ZIP sungguhan berisi berkas plugin.
+ *
+ * Sebelumnya hanya empat bita header ZIP — cukup untuk melewati pemeriksaan
+ * tipe, tetapi bukan arsip yang bisa dibuka. Begitu unggahan mulai merapikan
+ * struktur folder di dalamnya, berkas palsu itu gagal dibuka dan seluruh
+ * alur rilis ikut berhenti. Yang diuji harus berbentuk seperti yang
+ * sebenarnya diunggah admin.
+ *
+ * Sengaja TANPA folder pembungkus: itulah bentuk yang bermasalah, dan
+ * perapian di controller yang harus membetulkannya.
+ */
 function fakeZip(string $name = 'kit.zip'): array
 {
     $tmp = tempnam(sys_get_temp_dir(), 'zip');
-    // Empat bita pertama ZIP asli, supaya pemeriksaan tipe lolos.
-    file_put_contents($tmp, "PK\x03\x04" . str_repeat("\0", 64));
-    return ['name' => $name, 'tmp_name' => $tmp, 'size' => 68, 'error' => UPLOAD_ERR_OK];
+
+    $z = new ZipArchive();
+    $z->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $z->addFromString('apeiron-kit.php', '<?php /* Plugin Name: Apeiron Kit */');
+    $z->addFromString('readme.txt', 'Apeiron Kit');
+    $z->close();
+
+    return ['name' => $name, 'tmp_name' => $tmp, 'size' => filesize($tmp), 'error' => UPLOAD_ERR_OK];
 }
 
 /**
@@ -373,5 +390,48 @@ check('baris lisensi utuh', count(Database::fetchAll("SELECT * FROM user_license
 check('product_id lisensi utuh', Database::fetchOne("SELECT product_id FROM user_licenses")['product_id'], 'apeiron-kit');
 
 array_map('unlink', glob($dir . '*.zip') ?: []);
+
+// =====================================================================
+echo "--- zip yang tersimpan siap dipasang WordPress ---\n";
+// =====================================================================
+// Unggahan tadi TIDAK punya folder pembungkus. WordPress akan memakai nama
+// berkas zip — apeiron-kit-1.0.9.zip — sebagai nama folder plugin, sehingga
+// tiap rilis mendarat di direktori berbeda dan tombol Perbarui tidak pernah
+// muncul. Perapian di controller yang mencegahnya.
+// Produk sendiri: bagian sebelumnya menghapus $pid beserta seluruh
+// versinya, jadi blok ini tidak boleh bergantung padanya.
+$_POST = ['name' => 'Apeiron Kit', 'slug' => 'apeiron-kit'];
+call(fn() => $ctl->createPlugin());
+$pidZip = (int) Database::fetchOne("SELECT id FROM plugin_products WHERE slug = 'apeiron-kit'")['id'];
+
+$rilis = release($ctl, $pidZip, '1.0.9');
+check('rilis berhasil', $rilis[0], 201);
+
+// Barisnya diambil berdasarkan nomor versi, bukan lewat latestFor():
+// 1.0.10 sudah dirilis di bagian sebelumnya dan secara semver ia lebih
+// baru daripada 1.0.9, jadi latestFor() akan menunjuk berkas yang salah.
+$baris = Database::fetchOne(
+    'SELECT filename FROM plugins WHERE plugin_id = ? AND version = ?',
+    [$pidZip, '1.0.9']
+);
+check('barisnya tersimpan', is_array($baris), true);
+
+$berkas = PORTAL_ROOT . '/storage/plugins/' . ($baris['filename'] ?? '');
+check('berkasnya ada', is_file($berkas), true);
+
+$z = new ZipArchive();
+check('bisa dibuka sebagai zip', $z->open($berkas), true);
+
+$akar = [];
+for ($i = 0; $i < $z->numFiles; $i++) {
+    $n = $z->getNameIndex($i);
+    $akar[strtok($n, '/')] = true;
+}
+$z->close();
+
+// Tepat satu folder di tingkat atas, dan namanya slug produk — bukan versi.
+check('satu folder di tingkat atas', count($akar), 1);
+check('namanya slug produk', array_key_first($akar), 'apeiron-kit');
+check('bukan nama berversi', str_contains(array_key_first($akar), '1.0.9'), false);
 printf("\n%d lulus, %d gagal\n", $pass, $fail);
 exit($fail > 0 ? 1 : 0);

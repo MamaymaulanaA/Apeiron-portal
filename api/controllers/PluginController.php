@@ -301,6 +301,12 @@ class PluginController
             jsonResponse(['error' => 'Gagal mengunggah berkas'], 500);
         }
 
+        $zipError = self::normalizeZipRoot(self::dir() . $filename, $product->slug);
+        if ($zipError) {
+            @unlink(self::dir() . $filename);
+            jsonResponse(['error' => $zipError], 400);
+        }
+
         try {
             $id = Plugin::create([
                 'plugin_id' => $product->id,
@@ -384,6 +390,12 @@ class PluginController
                 jsonResponse(['error' => 'Gagal mengunggah berkas'], 500);
             }
 
+            $zipError = self::normalizeZipRoot(self::dir() . $newFile, $product->slug);
+            if ($zipError) {
+                @unlink(self::dir() . $newFile);
+                jsonResponse(['error' => $zipError], 400);
+            }
+
             $data['filename'] = $newFile;
             $data['file_path'] = $newFile;
         } elseif ($newFile !== $oldFile && is_file(self::dir() . $oldFile)) {
@@ -410,6 +422,116 @@ class PluginController
         }
 
         jsonResponse(['message' => 'Versi berhasil diperbarui']);
+    }
+
+    /**
+     * Pastikan seluruh isi zip berada di dalam satu folder bernama slug produk.
+     *
+     * WordPress menentukan folder plugin dari ISI zip, bukan dari nama zip-nya:
+     * bila di dalamnya ada tepat satu folder di tingkat atas, folder itulah yang
+     * dipakai; kalau tidak, WordPress memakai nama berkas zip. Nama berkas kita
+     * mengandung nomor versi (apeiron-kit-1.0.5.zip), jadi tanpa folder pembungkus
+     * setiap rilis mendarat di direktori yang berbeda —
+     * wp-content/plugins/apeiron-kit-1.0.4, lalu -1.0.5 di sebelahnya. WordPress
+     * membaca keduanya sebagai plugin yang berbeda, dan tombol Perbarui tidak
+     * pernah muncul karena plugin lamanya seolah tidak berubah.
+     *
+     * Dinormalkan SEKALI saat diunggah, bukan setiap kali diunduh: hasilnya
+     * tersimpan apa adanya sehingga unduhan tetap secepat mengirim berkas biasa.
+     *
+     * Sampah bawaan macOS ikut dibuang. __MACOSX/ berada di tingkat atas
+     * bersama folder aslinya, dan keberadaannya sendiri sudah cukup membuat
+     * WordPress menganggap zip ini tidak punya folder tunggal.
+     *
+     * @return string|null pesan galat, atau null bila berhasil
+     */
+    private static function normalizeZipRoot(string $path, string $slug): ?string
+    {
+        if (!class_exists('ZipArchive')) {
+            // Ekstensi zip tidak ada: unggahan TIDAK digagalkan. Berkasnya
+            // tetap tersimpan apa adanya — sama seperti perilaku sebelumnya —
+            // dan adminnya yang harus memastikan struktur foldernya benar.
+            error_log('[PORTAL][PLUGIN] ZipArchive tidak tersedia; struktur zip dibiarkan apa adanya.');
+            return null;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) {
+            return 'Berkas ZIP tidak bisa dibuka.';
+        }
+
+        $isi = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $nama = $zip->getNameIndex($i);
+            if ($nama === false || $nama === '') continue;
+
+            // Entri direktori diabaikan; foldernya terbentuk sendiri dari
+            // jalur berkasnya.
+            if (str_ends_with($nama, '/')) continue;
+
+            $dasar = basename($nama);
+            if (str_starts_with($nama, '__MACOSX/') || $dasar === '.DS_Store' || $dasar === 'Thumbs.db') {
+                continue;
+            }
+
+            // Jalur yang mencoba keluar dari folder tujuan tidak pernah
+            // dipindahkan, dilaporkan saja. Zip semacam ini tidak sah.
+            if (str_contains($nama, '../') || str_starts_with($nama, '/')) {
+                $zip->close();
+                return 'Struktur ZIP tidak sah (ada jalur di luar folder).';
+            }
+
+            $isi[$nama] = $zip->getFromIndex($i);
+        }
+
+        if (!$isi) {
+            $zip->close();
+            return 'ZIP tidak berisi berkas apa pun.';
+        }
+
+        // Adakah satu folder tunggal yang membungkus semuanya?
+        $akar = null;
+        $tunggal = true;
+        foreach (array_keys($isi) as $nama) {
+            $potong = strpos($nama, '/');
+            if ($potong === false) { $tunggal = false; break; }
+
+            $depan = substr($nama, 0, $potong);
+            if ($akar === null) $akar = $depan;
+            if ($depan !== $akar) { $tunggal = false; break; }
+        }
+
+        // Sudah benar: satu folder, dan namanya sudah slug produk.
+        if ($tunggal && $akar === $slug && $zip->numFiles === count($isi)) {
+            $zip->close();
+            return null;
+        }
+
+        $zip->close();
+
+        // Susun ulang ke berkas sementara dulu. Menulis langsung ke tempat
+        // aslinya berarti satu kegagalan di tengah meninggalkan zip yang rusak
+        // dan versi yang tidak bisa diunduh siapa pun.
+        $sementara = $path . '.normalisasi';
+        $baru = new ZipArchive();
+        if ($baru->open($sementara, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            return 'Gagal menyusun ulang berkas ZIP.';
+        }
+
+        foreach ($isi as $nama => $data) {
+            $relatif = $tunggal ? substr($nama, strlen($akar) + 1) : $nama;
+            if ($relatif === '') continue;
+            $baru->addFromString($slug . '/' . $relatif, $data);
+        }
+
+        $baru->close();
+
+        if (!@rename($sementara, $path)) {
+            @unlink($sementara);
+            return 'Gagal menyimpan berkas ZIP yang sudah dirapikan.';
+        }
+
+        return null;
     }
 
     /**
