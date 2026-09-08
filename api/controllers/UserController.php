@@ -328,6 +328,15 @@ class UserController
                 // ditandai basi — menimpanya dengan null akan mengubah
                 // gangguan jaringan sesaat menjadi kehilangan data.
                 $stale = $status !== null;
+
+                // Sebabnya ikut diteruskan. Tanpa ini semua kegagalan tampil
+                // sebagai "server tidak merespons" di layar, termasuk saat
+                // server menjawab cepat dengan 404 — dan keterangan yang
+                // salah membuat orang mencari masalahnya di tempat yang salah.
+                $sebab = ServerApiService::lastReadFailure();
+                if ($sebab) {
+                    $error = $sebab['message'];
+                }
             }
         }
 

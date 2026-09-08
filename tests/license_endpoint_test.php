@@ -95,9 +95,23 @@ class ServerApiService
 {
     public static ?array $jawaban = null;
 
+    /**
+     * Sebab kegagalan, mengikuti kontrak kelas aslinya.
+     *
+     * Tiruan yang tertinggal dari aslinya berhenti menguji apa pun: ia akan
+     * meledak saat dipanggil, atau lebih buruk, diam-diam meloloskan
+     * perilaku yang sudah berubah.
+     */
+    public static ?array $sebab = null;
+
     public static function fetchLicenseStatus(string $key, string $product = 'apeiron-kit'): ?array
     {
         return self::$jawaban;
+    }
+
+    public static function lastReadFailure(): ?array
+    {
+        return self::$sebab;
     }
 }
 
@@ -184,7 +198,26 @@ $out = $payload(UserLicense::find(1));
 // jaringan sesaat tidak menghapus keadaan terakhir yang diketahui.
 check('cache lama dipertahankan', $out['status']['status'] ?? null, 'active');
 check('ditandai basi', $out['status_stale'], true);
-check('tanpa pesan galat', $out['status_error'], null);
+check('tanpa pesan galat bila sebabnya tak diketahui', $out['status_error'], null);
+
+echo "--- sebab kegagalan diteruskan ke respons ---
+";
+// Tanpa ini, layar hanya bisa berkata "server tidak merespons" untuk semua
+// kegagalan — termasuk saat server menjawab 404 dalam sepersekian detik.
+ServerApiService::$sebab = [
+    'code' => 'ENDPOINT_NOT_FOUND',
+    'http' => 404,
+    'message' => 'Endpoint portal_license.php tidak ada di License Server.',
+];
+Database::update('user_licenses', ['license_checked_at' => gmdate('Y-m-d H:i:s', time() - 86400)], 'id = ?', [1]);
+
+$out = $payload(UserLicense::find(1));
+check('tetap basi', $out['status_stale'], true);
+check('sebabnya ikut terkirim', $out['status_error'], 'Endpoint portal_license.php tidak ada di License Server.');
+check('cache tetap dipertahankan', $out['status']['status'] ?? null, 'active');
+
+// Kembalikan supaya skenario berikutnya tidak mewarisi sebab ini.
+ServerApiService::$sebab = null;
 
 // =====================================================================
 echo "--- server diam DAN belum pernah ada cache ---\n";

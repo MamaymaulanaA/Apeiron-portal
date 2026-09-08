@@ -216,7 +216,16 @@ const LICENSE_VARIANTS = {
   // Server belum pernah terbaca. Tampilan harus mengakui tidak tahu.
   unknown: { ...LICENSE, status: null, status_stale: false, status_checked_at: null },
   // Server sedang diam; yang tampil keadaan terakhir, ditandai jelas.
-  stale: { ...LICENSE, status_stale: true },
+  // Keadaan yang benar-benar terjadi di produksi: berkas portal_license.php
+  // tidak ada di License Server, server membalas halaman 404 hosting.
+  // Backend meneruskan sebabnya lewat status_error.
+  stale: {
+    ...LICENSE,
+    status_stale: true,
+    status_error: 'Endpoint portal_license.php tidak ada di License Server — server membalas halaman 404 hosting, bukan JSON.',
+  },
+  // Basi tanpa sebab yang diketahui — jalur cadangan pesan generik.
+  'stale-tanpa-sebab': { ...LICENSE, status_stale: true },
 }
 
 /**

@@ -122,6 +122,127 @@ class ServerApiService
     }
 
     /**
+     * Sebab kegagalan pembacaan terakhir.
+     *
+     * fetchLicenseStatus() tetap mengembalikan null saat gagal — pemanggil lama
+     * tidak berubah. Yang ditambahkan hanya keterangan MENGAPA, supaya portal
+     * berhenti menyebut semua kegagalan sebagai "server tidak merespons".
+     * Server yang menjawab 404 dalam 125 ms jelas merespons.
+     */
+    private static ?array $sebabGagalBaca = null;
+
+    /** @return array{code:string, http:?int, message:string}|null */
+    public static function lastReadFailure(): ?array
+    {
+        return self::$sebabGagalBaca;
+    }
+
+    /** Catat sebab kegagalan lalu kembalikan null, seperti sebelumnya. */
+    private static function gagalBaca(string $kode, string $pesan, ?int $http = null): ?array
+    {
+        self::$sebabGagalBaca = ['code' => $kode, 'http' => $http, 'message' => $pesan];
+        self::log(self::LOG_WARN, "License read GAGAL [{$kode}]" . ($http ? " HTTP {$http}" : '') . ": {$pesan}");
+        return null;
+    }
+
+    /**
+     * Terjemahkan hasil mentah satu permintaan menjadi data, atau sebab kegagalan.
+     *
+     * Dipisah dari cURL dengan sengaja. Yang pernah salah bukan pemanggilan
+     * HTTP-nya melainkan penafsirannya: setiap kegagalan diperlakukan sama,
+     * sehingga 404 karena berkas endpoint tidak ada dilaporkan kepada user
+     * sebagai "server tidak merespons" — padahal servernya menjawab dalam 125 ms.
+     * Sebagai fungsi tersendiri, penafsiran itu bisa diuji langsung untuk setiap
+     * bentuk balasan tanpa perlu menyalakan server.
+     *
+     * @return array{data: ?array, failure: ?array{code:string, http:?int, message:string}}
+     */
+    public static function classifyLicenseRead(
+        ?string $body,
+        int $httpCode,
+        string $curlError = '',
+        int $curlErrno = 0,
+        int $durationMs = 0
+    ): array {
+        $gagal = static fn(string $kode, string $pesan, ?int $http = null): array => [
+            'data' => null,
+            'failure' => ['code' => $kode, 'http' => $http, 'message' => $pesan],
+        ];
+
+        if ($curlError !== '') {
+            // Timeout dibedakan dari gagal menyambung: yang satu server lambat,
+            // yang lain server tidak terjangkau sama sekali.
+            return $curlErrno === CURLE_OPERATION_TIMEDOUT
+                ? $gagal('TIMEOUT', "Server lisensi tidak menjawab dalam batas waktu ({$durationMs} ms).")
+                : $gagal('NETWORK_ERROR', "Tidak bisa menghubungi server lisensi: {$curlError}");
+        }
+
+        $badanJson = str_starts_with(ltrim((string) $body), '{');
+
+        if ($httpCode === 404) {
+            // Dua hal yang sangat berbeda, dan dulu keduanya dilaporkan sama.
+            // Halaman 404 milik hosting berarti BERKASNYA tidak ada di server;
+            // JSON 404 berarti berkasnya ada dan lisensinyalah yang tidak
+            // terdaftar. Yang pertama diperbaiki dengan mengunggah berkas, yang
+            // kedua tidak — jadi menyatukannya membuat orang mencari di tempat
+            // yang salah.
+            return $badanJson
+                ? $gagal('LICENSE_NOT_FOUND', 'Lisensi ini tidak terdaftar di server lisensi.', 404)
+                : $gagal(
+                    'ENDPOINT_NOT_FOUND',
+                    'Endpoint portal_license.php tidak ada di License Server — server membalas halaman 404 hosting, bukan JSON.',
+                    404
+                );
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return $gagal(
+                $httpCode === 401 ? 'UNAUTHORIZED' : 'FORBIDDEN',
+                'Server lisensi menolak kunci API portal.',
+                $httpCode
+            );
+        }
+
+        if ($httpCode === 400 || $httpCode === 422) {
+            return $gagal('VALIDATION_ERROR', 'Server lisensi menolak isi permintaan.', $httpCode);
+        }
+
+        if ($httpCode === 429) {
+            return $gagal('RATE_LIMIT', 'Terlalu sering menghubungi server lisensi. Coba lagi sebentar.', 429);
+        }
+
+        if ($httpCode >= 500) {
+            return $gagal('SERVER_ERROR', "Server lisensi sedang bermasalah (HTTP {$httpCode}).", $httpCode);
+        }
+
+        if ($httpCode >= 400) {
+            return $gagal('HTTP_ERROR', "Server lisensi membalas HTTP {$httpCode}.", $httpCode);
+        }
+
+        $json = json_decode((string) $body, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return $gagal('INVALID_RESPONSE', 'Balasan server lisensi bukan JSON yang sah.', $httpCode);
+        }
+
+        if (empty($json['success'])) {
+            $msg = $json['message'] ?? 'tanpa pesan';
+            return $gagal('REJECTED', "Server lisensi menolak permintaan: {$msg}", $httpCode);
+        }
+
+        if (empty($json['data']) || !is_array($json['data'])) {
+            // Berhasil tetapi tanpa isi: bentuk balasannya berubah, atau
+            // servernya menjawab kosong. Keduanya bukan "tidak merespons".
+            return $gagal(
+                'INVALID_RESPONSE',
+                'Balasan server lisensi tidak memuat data yang diharapkan.',
+                $httpCode
+            );
+        }
+
+        return ['data' => $json['data'], 'failure' => null];
+    }
+
+    /**
      * Baca keadaan satu lisensi dari License Server.
      *
      * HANYA MEMBACA. Tidak membuat, mengaktifkan, memperpanjang, atau mengubah
@@ -131,20 +252,19 @@ class ServerApiService
      * Sengaja TIDAK memakai retry dan timeout milik generateLicense(). Metode
      * itu dipanggil sekali saat transaksi disetujui, jadi menunggu tiga kali
      * percobaan selama 30 detik masih masuk akal di sana. Metode ini dipanggil
-     * setiap kali user membuka halaman Plugin; timeout yang sama akan membuat
-     * halaman menggantung satu setengah menit hanya karena server sedang lambat.
-     * Di sini satu percobaan singkat sudah cukup — gagalnya ditangani dengan
-     * menampilkan data tersimpan terakhir, bukan dengan menunggu lebih lama.
+     * setiap kali user membuka halaman Plugin.
      *
-     * @return array|null Data lisensi dari server, atau null bila tidak
-     *                    terbaca. null berarti "tidak tahu", BUKAN "tidak
-     *                    aktif" — pemanggil tidak boleh menyimpulkan status
-     *                    dari kegagalan membaca.
+     * @return array|null Data lisensi dari server, atau null bila tidak terbaca.
+     *                    null berarti "tidak tahu", BUKAN "tidak aktif" —
+     *                    pemanggil tidak boleh menyimpulkan status dari
+     *                    kegagalan membaca. Sebabnya ada di lastReadFailure().
      */
     public static function fetchLicenseStatus(string $licenseKey, string $productId = 'apeiron-kit'): ?array
     {
+        self::$sebabGagalBaca = null;
+
         if ($licenseKey === '') {
-            return null;
+            return self::gagalBaca('NO_LICENSE_KEY', 'Lisensi ini belum punya license key.');
         }
 
         $url = rtrim(LICENSE_SERVER_URL, '/') . '/portal_license.php';
@@ -177,48 +297,35 @@ class ServerApiService
 
             $response = curl_exec($ch);
             $error = curl_error($ch);
+            $errno = curl_errno($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
-            $duration = round((microtime(true) - $startTime) * 1000);
+            $duration = (int) round((microtime(true) - $startTime) * 1000);
 
-            if ($error) {
-                self::log(self::LOG_WARN, "License read FAILED (koneksi): {$error}, Duration={$duration}ms");
-                return null;
-            }
+            // Penafsirannya ada di classifyLicenseRead() — satu tempat,
+            // bisa diuji langsung untuk setiap bentuk balasan.
+            $hasil = self::classifyLicenseRead(
+                $response === false ? null : (string) $response,
+                (int) $httpCode,
+                $error,
+                $errno,
+                $duration
+            );
 
-            if ($httpCode === 404) {
-                // Bisa berarti dua hal: endpointnya belum diunggah ke server,
-                // atau license key-nya memang tidak ada di sana. Keduanya sama
-                // bagi portal — tidak ada yang bisa ditampilkan.
-                self::log(self::LOG_WARN, "License read: 404 dari {$url} (endpoint belum ada, atau key tidak terdaftar)");
-                return null;
-            }
-
-            if ($httpCode >= 400) {
-                self::log(self::LOG_WARN, "License read FAILED: HTTP {$httpCode}, Duration={$duration}ms");
-                return null;
-            }
-
-            $json = json_decode($response, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                self::log(self::LOG_WARN, 'License read FAILED: respons bukan JSON yang sah');
-                return null;
-            }
-
-            if (empty($json['success']) || empty($json['data'])) {
-                $msg = $json['message'] ?? 'tanpa pesan';
-                self::log(self::LOG_WARN, "License read: server menolak — {$msg}");
-                return null;
+            if ($hasil['failure'] !== null) {
+                return self::gagalBaca(
+                    $hasil['failure']['code'],
+                    $hasil['failure']['message'],
+                    $hasil['failure']['http']
+                );
             }
 
             self::log(self::LOG_INFO, "License read SUCCESS: Duration={$duration}ms");
 
-            return $json['data'];
-
+            return $hasil['data'];
         } catch (Exception $e) {
-            self::log(self::LOG_ERROR, 'License read EXCEPTION: ' . $e->getMessage());
-            return null;
+            return self::gagalBaca('EXCEPTION', 'Gagal membaca status lisensi: ' . $e->getMessage());
         }
     }
 

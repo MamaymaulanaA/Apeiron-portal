@@ -150,7 +150,19 @@ async function checkStatus() {
     licenses.value = fresh
 
     if (adaYangBasi) {
-      toast.warning('Server lisensi tidak merespons. Menampilkan data terakhir yang tersimpan.')
+      // Sebabnya dilaporkan apa adanya bila backend tahu.
+      //
+      // "Server lisensi tidak merespons" dulu dipakai untuk SEMUA kegagalan —
+      // termasuk saat server menjawab 404 dalam sepersekian detik. Keterangan
+      // yang salah membuat orang mencari masalahnya di tempat yang salah;
+      // ini pernah terjadi dan butuh penelusuran untuk membantahnya.
+      const sebab = fresh.find((l) => l.status_stale && l.status_error)?.status_error
+
+      toast.warning(
+        sebab
+          ? `${sebab} Menampilkan data terakhir yang tersimpan.`
+          : 'Server lisensi tidak merespons. Menampilkan data terakhir yang tersimpan.',
+      )
     } else {
       toast.success('Status lisensi diperbarui')
     }
